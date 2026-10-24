@@ -1,6 +1,11 @@
 services:
+  # Landing institucional (oikonomia.ar). Usa la misma imagen que el frontend:
+  # el SPA ya renderiza el sitio institucional cuando el hostname es el apex,
+  # así que no hace falta un build aparte. Es un contenedor propio para que
+  # sobreviva a los deploys de la plataforma (deploy-platform sólo toca
+  # oikonomia-platform_*).
   landing:
-    image: ${LANDING_IMAGE}:${IMAGE_TAG}
+    image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
       interval: 30s

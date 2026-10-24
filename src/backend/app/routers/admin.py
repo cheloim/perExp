@@ -308,15 +308,22 @@ def toggle_admin(
 
 @router.post(
     "/grafana/sync",
-    summary="Sync all admin users to Grafana",
-    description="Bulk sync all admin users to Grafana. Use for initial setup or after bulk changes.",
+    summary="Sync admin users to Grafana",
+    description=(
+        "Reconcile Grafana against the `is_admin` flag: admins are provisioned "
+        "with the Admin role, everyone else is removed. Use for initial setup or "
+        "after bulk changes."
+    ),
 )
 def sync_grafana_users(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
-    from app.services.grafana_sync import sync_all_admins
+    from app.services.grafana_sync import reconcile_admins
 
     users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
-    user_list = [{"email": u.email, "name": u.full_name, "is_admin": u.is_admin} for u in users]
-    result = sync_all_admins(user_list)
+    # Todos los usuarios activos, no sólo los admins: así se borran los que
+    # perdieron el flag.
+    result = reconcile_admins(
+        [(str(u.email), str(u.full_name or u.email), bool(u.is_admin)) for u in users]
+    )
     return result
 
 

@@ -1,0 +1,22 @@
+# Rotación del journal.log que exporta journal-export.service.
+#
+# El exporter escribe con `>>`, así que se usa copytruncate: mover el archivo
+# haría que el file descriptor abierto siguiera escribiendo en el inode viejo
+# y el archivo "rotado" seguiría creciendo.
+#
+# daily + rotate 14 = el archivo vivo más 14 rotados = 15 días de historia.
+# maxsize es la red de seguridad entre dos corridas del logrotate diario.
+# Se usa rotación numérica (journal.log.1.gz, ...) y no dateext: con dateext,
+# dos rotaciones el mismo día chocan y logrotate falla en silencio.
+#
+# Instalado en /etc/logrotate.d/oikonomia por deploy.yml, con sudo.
+/opt/creditcardanalyzer/logs/journal.log {
+    daily
+    rotate 14
+    maxsize 200M
+    compress
+    missingok
+    notifempty
+    copytruncate
+    su root root
+}

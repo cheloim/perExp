@@ -37,7 +37,6 @@ env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/backend
   FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/frontend
-  LANDING_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/landing
 
 jobs:
   detect-changes:
@@ -51,6 +50,7 @@ jobs:
       nginx: ${{ steps.changes.outputs.nginx }}
       bots: ${{ steps.changes.outputs.bots }}
       infra: ${{ steps.changes.outputs.infra }}
+      ops: ${{ steps.changes.outputs.ops }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -78,6 +78,15 @@ jobs:
               - 'docker/docker-compose.bots.yml'
             infra:
               - 'docker/docker-compose.infra.yml'
+            # Cambios que hay que empujar al server pero que no construyen
+            # imágenes. Tiene que cubrir TODO lo que se copia (el scp trae
+            # docker/ completo y config/blackbox): si falta un directorio, el
+            # cambio se deploya en verde pero no llega nada al server.
+            ops:
+              - 'docker/**'
+              - 'config/blackbox/**'
+              - 'scripts/housekeeping.sh'
+              - 'scripts/backup-db.sh'
 
   detect-arch:
     runs-on: ubuntu-latest
@@ -222,61 +231,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  build-landing:
-    if: |
-      always() && !cancelled() && needs.test.result == 'success' &&
-      (inputs.action == 'full' || needs.detect-changes.outputs.landing == 'true')
-    runs-on: ${{ needs.detect-arch.outputs.runner }}
-    needs: [test, detect-changes, detect-arch]
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Check if landing source exists
-        id: check-landing
-        run: |
-          if [ -d "./src/landing" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Skipping landing build — ./src/landing not found"
-          fi
-
-      - name: Set up Docker Buildx
-        if: steps.check-landing.outputs.exists == 'true'
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to GHCR
-        if: steps.check-landing.outputs.exists == 'true'
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and Push Landing
-        if: steps.check-landing.outputs.exists == 'true'
-        uses: docker/build-push-action@v7
-        with:
-          context: ./src/landing
-          push: true
-          platforms: ${{ needs.detect-arch.outputs.platform }}
-          tags: |
-            ${{ env.LANDING_IMAGE }}:${{ github.sha }}
-            ${{ env.LANDING_IMAGE }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
+  # Nota: no hay build de landing. `src/landing` no existe y el servicio
+  # `landing` corre la MISMA imagen que el frontend (el SPA ya renderiza el
+  # sitio institucional cuando el hostname es el apex). Un build propio además
+  # pisaba IMAGE_TAG con un sha que nunca se construyó para backend/frontend.
   write-config:
     runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend, build-landing]
+    needs: [build-backend, build-frontend, detect-changes]
+    # El `ops` cubre TODO lo que se copia al server y no construye imagen:
+    # sin esto, un cambio de nginx o de los compose no llegaba nunca (el
+    # `if` original exigía que hubiera un build).
     if: |
       always() && !cancelled() &&
-      (needs.build-backend.result == 'success' || needs.build-frontend.result == 'success' || needs.build-landing.result == 'success' || inputs.action == 'full')
+      (needs.build-backend.result == 'success' || needs.build-frontend.result == 'success' || needs.detect-changes.outputs.ops == 'true' || inputs.action == 'full')
 
     steps:
       - name: Checkout
@@ -288,7 +255,6 @@ jobs:
           cat > /tmp/env-file << 'ENVEOF'
           BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
           FRONTEND_IMAGE=${{ env.FRONTEND_IMAGE }}
-          LANDING_IMAGE=${{ env.LANDING_IMAGE }}
           IMAGE_TAG=${{ github.sha }}
           DOMAIN_NAME=${{ vars.DOMAIN_NAME }}
           PLATFORM_DOMAIN=${{ vars.PLATFORM_DOMAIN }}
@@ -315,8 +281,11 @@ jobs:
           EMAIL_API_KEY=${{ secrets.EMAIL_API_KEY }}
           SMTP_FROM=${{ vars.SMTP_FROM }}
           SMTP_FROM_ADDRESS=${{ vars.SMTP_FROM_ADDRESS }}
-          GRAFANA_OAUTH_CLIENT_ID=grafana-oikonomia
-          GRAFANA_OAUTH_CLIENT_SECRET=${{ secrets.GRAFANA_OAUTH_CLIENT_SECRET }}
+          # Password del admin de Grafana. Sin él, Grafana queda con password
+          # vacía y su API de sync no autentica: validate-config lo exige.
+          GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          # Chat de Telegram donde llegan las alertas de Grafana.
+          TELEGRAM_ADMIN_CHAT_ID=${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
           GRAFANA_CLOUD_PROMETHEUS_URL=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_URL }}
           GRAFANA_CLOUD_PROMETHEUS_USER=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_USER }}
           GRAFANA_CLOUD_PROMETHEUS_PASSWORD=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_PASSWORD }}
@@ -337,7 +306,19 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
           script: |
+            set -e
+            # Si no hubo builds de la APP, el IMAGE_TAG nuevo nunca se construyó:
+            # conservar el que está corriendo para no mover los contenedores a un
+            # tag inexistente. Un cambio de ops no debe tocar la aplicación.
+            # (No se mira build-landing: la landing corre la imagen del frontend.)
+            OLD_TAG=$(grep '^IMAGE_TAG=' /opt/creditcardanalyzer/.env 2>/dev/null | cut -d= -f2 || true)
             echo "${{ steps.env-file.outputs.env_b64 }}" | base64 -d > /opt/creditcardanalyzer/.env
+            if [ "${{ needs.build-backend.result }}" != "success" ] && [ "${{ needs.build-frontend.result }}" != "success" ]; then
+              if [ -n "$OLD_TAG" ]; then
+                echo "Run sin builds de la app — se conserva IMAGE_TAG=$OLD_TAG"
+                sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$OLD_TAG/" /opt/creditcardanalyzer/.env
+              fi
+            fi
             chmod 600 /opt/creditcardanalyzer/.env
             echo "Config file written securely (base64 transfer)"
 
@@ -348,9 +329,20 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
-          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,docker/alloy/config.alloy,config/blackbox/blackbox.yml,docker/prometheus/,docker/grafana/,docker/loki/,docker/journal-export.service,docker/logrotate-journal"
+          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,docker/alloy/config.alloy,config/blackbox/blackbox.yml,docker/prometheus/,docker/grafana/,docker/loki/,docker/journal-export.service,docker/ops/"
           target: /opt/creditcardanalyzer
           strip_components: 1
+
+      - name: Copy ops scripts via SCP
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT || '43422' }}
+          source: "scripts/housekeeping.sh"
+          target: /opt/creditcardanalyzer
+          strip_components: 0
 
       - name: Substitute domain variables in nginx.conf
         uses: appleboy/ssh-action@v1
@@ -383,7 +375,7 @@ jobs:
           port: ${{ vars.SSH_PORT || '43422' }}
           script: |
             cd /opt/creditcardanalyzer
-            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_PROMETHEUS_USER GRAFANA_CLOUD_PROMETHEUS_PASSWORD GRAFANA_CLOUD_LOKI_URL GRAFANA_CLOUD_LOKI_USER GRAFANA_CLOUD_LOKI_PASSWORD"
+            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_ADMIN_PASSWORD GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_PROMETHEUS_USER GRAFANA_CLOUD_PROMETHEUS_PASSWORD GRAFANA_CLOUD_LOKI_URL GRAFANA_CLOUD_LOKI_USER GRAFANA_CLOUD_LOKI_PASSWORD"
             MISSING=""
             for var in $REQUIRED; do
               VALUE=$(grep "^${var}=" .env | cut -d= -f2-)
@@ -453,7 +445,7 @@ jobs:
 
   pull-images:
     runs-on: ubuntu-latest
-    needs: write-config
+    needs: [write-config, detect-changes]
     if: always() && needs.write-config.result == 'success'
 
     steps:
@@ -465,11 +457,39 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
           script: |
+            set -e
             cd /opt/creditcardanalyzer
             export PATH="$HOME/.local/bin:$PATH"
             set -a
             source .env
             set +a
+
+            # ── Preflight de disco ──
+            # El pull de imágenes es lo primero que ocupa disco. Si se hace con
+            # el disco casi lleno, falla con un error de podman que no dice
+            # "disco lleno" y no queda nada registrado: ése fue el incidente del
+            # 2026-10-23. Primero se limpia, después se descarga.
+            MIN_FREE_MB=2048
+            HOUSEKEEPING_FREE_MB=5120
+            AVAIL_MB=$(df -m --output=avail / | tail -1 | tr -d ' ')
+            echo "Disco libre antes del pull: ${AVAIL_MB}MB"
+            df -h /
+
+            if [ "$AVAIL_MB" -lt "$HOUSEKEEPING_FREE_MB" ]; then
+              echo "::warning::Quedan ${AVAIL_MB}MB (<${HOUSEKEEPING_FREE_MB}MB) — corriendo housekeeping antes del pull"
+              bash scripts/housekeeping.sh || echo "::warning::housekeeping falló, se continúa"
+              AVAIL_MB=$(df -m --output=avail / | tail -1 | tr -d ' ')
+              echo "Disco libre tras housekeeping: ${AVAIL_MB}MB"
+            fi
+
+            if [ "$AVAIL_MB" -lt "$MIN_FREE_MB" ]; then
+              echo "::error::Quedan ${AVAIL_MB}MB libres (<${MIN_FREE_MB}MB): no se puede hacer pull de imágenes"
+              echo "=== podman system df ==="
+              podman system df -v || true
+              echo "=== imágenes de la app ==="
+              podman images --format 'table {{.Repository}}\t{{.Tag}}\t{{.Size}}' | head -30 || true
+              exit 1
+            fi
 
             echo "Logging in to GHCR..."
             echo "${{ secrets.GHCR_PAT }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin || echo "WARN: GHCR login failed (may be public repo)"
@@ -485,14 +505,24 @@ jobs:
 
             # Verify platform images exist
             echo "Verifying images..."
-            podman image inspect ${BACKEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1 || { echo "ERROR: Backend image not found"; exit 1; }
-            podman image inspect ${FRONTEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1 || { echo "ERROR: Frontend image not found"; exit 1; }
-            echo "Images verified"
+            if [ "${{ needs.detect-changes.outputs.platform }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
+              podman image inspect ${BACKEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1 || { echo "ERROR: Backend image not found"; exit 1; }
+              podman image inspect ${FRONTEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1 || { echo "ERROR: Frontend image not found"; exit 1; }
+              echo "Images verified"
+            else
+              echo "Run sin build de plataforma: se conserva el tag corriendo, no hay imágenes nuevas que verificar"
+            fi
 
   backup-db:
     runs-on: ubuntu-latest
-    needs: [pull-images, validate-config]
-    if: always() && (needs.pull-images.result == 'success' && needs.validate-config.result == 'success')
+    needs: [pull-images, validate-config, detect-changes]
+    # Sólo si el cambio puede tocar datos: platform (código que escribe) o infra
+    # (schema, volúmenes). Un cambio de landing o de nginx no puede corromper la
+    # base, y cada dump es I/O y disco en cada deploy.
+    if: |
+      always() && !cancelled() &&
+      needs.pull-images.result == 'success' && needs.validate-config.result == 'success' &&
+      (needs.detect-changes.outputs.platform == 'true' || needs.detect-changes.outputs.infra == 'true' || inputs.action == 'full')
 
     steps:
       - name: Backup database
@@ -503,41 +533,12 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
           script: |
-            # Check if DB container is running (compose-agnostic)
-            DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
-            if [ -z "$DB_CONTAINER" ]; then
-              echo "WARNING: Database container not running, skipping backup (first deploy?)"
-              exit 0
-            fi
-
-            BACKUP_DIR="/opt/creditcardanalyzer/backups"
-            mkdir -p $BACKUP_DIR
-
-            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-            BACKUP_FILE="$BACKUP_DIR/db_${TIMESTAMP}.sql"
-
-            echo "Backing up database..."
-            podman exec "$DB_CONTAINER" \
-              pg_dump -U expenses_user expenses > $BACKUP_FILE 2>/dev/null
-
-            # Compress
-            gzip $BACKUP_FILE
-
-            # Verify backup is not empty
-            if [ ! -s "${BACKUP_FILE}.gz" ]; then
-              echo "ERROR: Database backup is empty"
-              exit 1
-            fi
-
-            # Clean up backups older than 7 days
-            find $BACKUP_DIR -name "db_*.sql.gz" -mtime +7 -delete
-
-            BACKUP_SIZE=$(du -h ${BACKUP_FILE}.gz | cut -f1)
-            echo "Backup saved: ${BACKUP_FILE}.gz ($BACKUP_SIZE)"
-
-            # List current backups
-            echo "Current backups:"
-            ls -lh $BACKUP_DIR/db_*.sql.gz 2>/dev/null | tail -5
+            set -euo pipefail
+            cd /opt/creditcardanalyzer
+            # La implementación (formato custom + verificación con pg_restore)
+            # vive en scripts/backup-db.sh: es la misma que corre el backup
+            # diario desde housekeeping.
+            bash scripts/backup-db.sh
 
   # ── Disaggregated deploy jobs ─────────────────────────────
 
@@ -546,7 +547,7 @@ jobs:
     needs: [backup-db, detect-changes]
     if: |
       always() && !cancelled() &&
-      (needs.backup-db.result == 'success' || needs.detect-changes.outputs.infra == 'true' || inputs.action == 'full')
+      (needs.backup-db.result == 'success' || needs.detect-changes.outputs.infra == 'true' || needs.detect-changes.outputs.ops == 'true' || needs.detect-changes.outputs.nginx == 'true' || needs.detect-changes.outputs.monitoring == 'true' || inputs.action == 'full')
 
     steps:
       - name: Ensure infra is running
@@ -578,23 +579,40 @@ jobs:
               podman rm -f "$OLD" 2>/dev/null || true
             done
 
-            # Also clean up any orphaned oikonomia-* containers from failed deploys
-            # But DO NOT touch infra containers (db, redis) — they have persistent data
+            # Clean up orphaned containers from failed deploys.
+            # But DO NOT touch infra containers (db, redis) — they have persistent data.
+            #
+            # OJO: esto DETIENE los contenedores de la plataforma y los borra.
+            # Su función es limpiar restos de un deploy fallido justo antes de
+            # recrearlos, así que sólo puede correr si después viene
+            # deploy-platform. Si corre sin él (un cambio sólo de infra, o
+            # sólo de monitoring) nadie vuelve a levantar la app y producción
+            # se queda caída.
             echo "Cleaning up orphaned containers..."
-            for SVC in backend platform-frontend celery_worker celery_beat; do
-              podman stop "oikonomia-platform_${SVC}_1" 2>/dev/null || true
-              podman rm -f "oikonomia-platform_${SVC}_1" 2>/dev/null || true
-            done
-            for SVC in telegram_bot; do
-              podman stop "oikonomia-bots_${SVC}_1" 2>/dev/null || true
-              podman rm -f "oikonomia-bots_${SVC}_1" 2>/dev/null || true
-            done
+            if [ "${{ needs.detect-changes.outputs.platform }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
+              for SVC in backend platform-frontend celery_worker celery_beat; do
+                podman stop "oikonomia-platform_${SVC}_1" 2>/dev/null || true
+                podman rm -f "oikonomia-platform_${SVC}_1" 2>/dev/null || true
+              done
+            else
+              echo "Sin redeploy de plataforma: no se tocan sus contenedores"
+            fi
+
+            if [ "${{ needs.detect-changes.outputs.bots }}" = "true" ] || [ "${{ needs.detect-changes.outputs.platform }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
+              for SVC in telegram_bot; do
+                podman stop "oikonomia-bots_${SVC}_1" 2>/dev/null || true
+                podman rm -f "oikonomia-bots_${SVC}_1" 2>/dev/null || true
+              done
+            fi
             # NOTE: nginx, monitoring exporters, and alloy are NEVER killed during cleanup.
             # Nginx stays up to serve the maintenance page during platform restarts.
             # Monitoring stays up to keep observability during deploys.
 
             # Verify cleanup — no legacy containers should remain
-            REMAINING=$(podman ps -a --format '{{.Names}}' | grep -c '^creditcardanalyzer_' 2>/dev/null || echo "0")
+            # (grep -c devuelve 1 cuando no hay coincidencias: con `|| echo 0`
+            # la variable quedaba "0\n0" y la comparación fallaba)
+            REMAINING=$(podman ps -a --format '{{.Names}}' | grep -c '^creditcardanalyzer_' 2>/dev/null || true)
+            REMAINING=${REMAINING:-0}
             if [ "$REMAINING" -gt 0 ]; then
               echo "::warning::$REMAINING legacy containers still remain after cleanup:"
               podman ps -a --format '{{.Names}}' | grep '^creditcardanalyzer_'
@@ -649,8 +667,13 @@ jobs:
 
   deploy-platform:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, detect-changes]
-    if: always() && !cancelled() && (needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
+    needs: [deploy-infra, backup-db, detect-changes]
+    # Nunca sin su checkpoint: si el backup no corrió porque algo upstream
+    # falló, no se recrea la app ni se toca la base.
+    if: |
+      always() && !cancelled() &&
+      (needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full') &&
+      needs.backup-db.result == 'success'
 
     steps:
       - name: Save platform rollback snapshot
@@ -724,15 +747,23 @@ jobs:
 
             # Wait for platform-frontend to be healthy
             echo "Waiting for platform-frontend health..."
+            FE_HEALTHY=false
             for i in $(seq 1 30); do
               FE_STATUS=$(podman inspect oikonomia-platform_platform-frontend_1 --format '{{.State.Health.Status}}' 2>/dev/null || echo "missing")
               if [ "$FE_STATUS" = "healthy" ]; then
                 echo "Frontend healthy after ${i} attempt(s)"
+                FE_HEALTHY=true
                 break
               fi
               echo "Attempt $i/30: frontend=$FE_STATUS, retrying in 3s..."
               sleep 3
             done
+            # Sin este veredicto, un frontend que nunca estuvo sano no fallaba el
+            # paso y por lo tanto no disparaba el rollback.
+            if [ "$FE_HEALTHY" != "true" ]; then
+              echo "::error::Platform frontend never became healthy"
+              exit 1
+            fi
 
       - name: Rollback on failure
         if: always() && steps.restart.outcome == 'failure'
@@ -980,11 +1011,25 @@ jobs:
             export PATH="$HOME/.local/bin:$PATH"
             set -a; source .env; set +a
 
-            echo "Updating nginx (rolling restart)..."
-            # up -d is idempotent: if config unchanged, container stays running.
-            # If config changed, compose does rolling replacement (new starts, old stops).
-            # No manual stop needed — zero downtime.
-            podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d
+            NGINX_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_nginx_' | head -1)
+
+            if [ -z "$NGINX_CONTAINER" ]; then
+              echo "No hay nginx corriendo — levantando (primer deploy)"
+              podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d
+            else
+              # La config nueva ya está montada desde el host. Validar y
+              # recargar en caliente: recrear el contenedor que publica 443
+              # abre una ventana de caída para TODOS los vhosts (landing,
+              # plataforma y grafana), no sólo para el que cambió.
+              echo "Validando la config de nginx..."
+              if ! podman exec "$NGINX_CONTAINER" nginx -t >/tmp/nginx-test.out 2>&1; then
+                echo "::error::La config de nginx no valida:"
+                cat /tmp/nginx-test.out
+                exit 1
+              fi
+              echo "Config OK — recargando nginx"
+              podman exec "$NGINX_CONTAINER" nginx -s reload
+            fi
 
             # Verify nginx is responding (any HTTP response = healthy)
             NGINX_OK=false
@@ -1008,8 +1053,16 @@ jobs:
 
   deploy-landing:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, detect-changes]
-    if: always() && !cancelled() && (needs.detect-changes.outputs.landing == 'true' || inputs.action == 'full')
+    # Después de la plataforma y sólo si quedó sana: si el deploy falla y hay
+    # rollback, la landing se queda con el bundle que se sabe que anda.
+    # `skipped` también vale: un cambio que toca sólo la landing igual tiene que
+    # llegar, y en ese caso deploy-platform no corre.
+    needs: [deploy-platform, backup-db, detect-changes]
+    if: |
+      always() && !cancelled() &&
+      (needs.detect-changes.outputs.landing == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full') &&
+      needs.backup-db.result != 'failure' &&
+      (needs.deploy-platform.result == 'success' || needs.deploy-platform.result == 'skipped')
 
     steps:
       - name: Restart landing
@@ -1025,9 +1078,9 @@ jobs:
             export PATH="$HOME/.local/bin:$PATH"
             set -a; source .env; set +a
 
-            # Guard: skip if landing image not available
-            if ! podman image inspect ${LANDING_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1; then
-              echo "Landing image not available, skipping (src/landing/ may not exist yet)"
+            # Guard: skip if the image is not available
+            if ! podman image inspect ${FRONTEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1; then
+              echo "Frontend image not available, skipping"
               exit 0
             fi
 
@@ -1041,7 +1094,10 @@ jobs:
   deploy-monitoring:
     runs-on: ubuntu-latest
     needs: [deploy-infra, detect-changes]
-    if: always() && !cancelled()
+    # `migrate-only` no corre migraciones (eso es migrations.yml) y no debería
+    # reiniciar nada: era una trampa que se veía como "correr migraciones" y
+    # terminaba reiniciando journald y alloy.
+    if: always() && !cancelled() && inputs.action != 'migrate-only'
 
     steps:
       - name: Ensure monitoring stack is running
@@ -1082,17 +1138,80 @@ jobs:
             sleep 2
 
             # ── 2. journal.log rotation ──
+            # Antes esto copiaba a /etc/logrotate.d SIN sudo y tapaba el error
+            # con `|| true`: la rotación nunca existió y journal.log creció sin
+            # techo hasta llenar el disco. Ahora instala con sudo y falla ruidoso.
             echo "Setting up journal.log rotation..."
             mkdir -p /opt/creditcardanalyzer/logs
-            if [ -f /opt/creditcardanalyzer/logrotate-journal ]; then
-              cp /opt/creditcardanalyzer/logrotate-journal /etc/logrotate.d/journal-export 2>/dev/null || true
-              # Run rotation now if file is >50MB
-              JOURNAL_SIZE=$(stat -c%s /opt/creditcardanalyzer/logs/journal.log 2>/dev/null || echo "0")
-              if [ "$JOURNAL_SIZE" -gt 52428800 ]; then
-                echo "journal.log is $((JOURNAL_SIZE / 1048576))MB, rotating..."
-                logrotate -f /etc/logrotate.d/journal-export 2>/dev/null || true
-              fi
+            if [ ! -f /opt/creditcardanalyzer/ops/logrotate-oikonomia ]; then
+              echo "::error::Falta ops/logrotate-oikonomia en el server"
+              exit 1
             fi
+            sudo cp /opt/creditcardanalyzer/ops/logrotate-oikonomia /etc/logrotate.d/oikonomia
+            if ! sudo logrotate -d /etc/logrotate.d/oikonomia >/tmp/logrotate-check.out 2>&1; then
+              echo "::error::La config de logrotate no valida:"
+              cat /tmp/logrotate-check.out
+              exit 1
+            fi
+            echo "logrotate config OK"
+
+            # journald: tope de 1GB / 15 días. El default (10% del disco, hasta
+            # 4GB) se come el disco justo cuando más hace falta.
+            sudo mkdir -p /etc/systemd/journald.conf.d
+            sudo cp /opt/creditcardanalyzer/ops/journald-oikonomia.conf /etc/systemd/journald.conf.d/oikonomia.conf
+            sudo systemctl restart systemd-journald
+
+            # Sólo se fuerza la rotación si ya se pasó del tope: si el
+            # logrotate.timer del sistema funciona, esto nunca corre.
+            JOURNAL_SIZE=$(stat -c%s /opt/creditcardanalyzer/logs/journal.log 2>/dev/null || echo "0")
+            if [ "$JOURNAL_SIZE" -gt 209715200 ]; then
+              echo "journal.log is $((JOURNAL_SIZE / 1048576))MB, rotating..."
+              sudo logrotate -f /etc/logrotate.d/oikonomia
+            fi
+
+            # ── 2b. Alertas: inyectar el contact point de Telegram ──
+            # Los secretos no entran en git: se reemplazan los placeholders
+            # desde .env. Sin chat id las alertas se siguen evaluando y quedan
+            # visibles en Grafana, pero no notifican, y el pipeline lo dice.
+            echo "Setting up alerting..."
+            CONTACT_POINTS=/opt/creditcardanalyzer/grafana/provisioning/alerting/contact-points.yml
+            if [ -n "${TELEGRAM_BOT_TOKEN}" ] && [ -n "${TELEGRAM_ADMIN_CHAT_ID}" ]; then
+              if [ ! -f "$CONTACT_POINTS" ]; then
+                echo "::error::Falta $CONTACT_POINTS en el server"
+                exit 1
+              fi
+              sed -i "s|__TELEGRAM_BOT_TOKEN__|${TELEGRAM_BOT_TOKEN}|; s|__TELEGRAM_ADMIN_CHAT_ID__|${TELEGRAM_ADMIN_CHAT_ID}|" "$CONTACT_POINTS"
+              # El archivo queda con el bot token: misma protección que .env.
+              chmod 600 "$CONTACT_POINTS"
+              echo "Contact point de Telegram configurado"
+
+              # Probar el canal. Una alerta que no notifica se descubre recién en
+              # el incidente, que es cuando no hace falta. Se manda una sola vez
+              # por chat id, no en cada deploy.
+              TESTED_CHAT=$(cat /opt/creditcardanalyzer/.telegram_chat_tested 2>/dev/null || true)
+              if [ "$TESTED_CHAT" != "${TELEGRAM_ADMIN_CHAT_ID}" ]; then
+                TG_HTTP=$(curl -sS -o /tmp/tg-test.out -w "%{http_code}" \
+                  "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+                  --data-urlencode "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
+                  --data-urlencode "text=[oikonomia] Canal de alertas configurado" || echo "000")
+                if [ "$TG_HTTP" = "200" ]; then
+                  echo "${TELEGRAM_ADMIN_CHAT_ID}" > /opt/creditcardanalyzer/.telegram_chat_tested
+                  echo "Notificación de prueba enviada a Telegram"
+                else
+                  echo "::warning::Telegram no aceptó el mensaje (HTTP $TG_HTTP): las alertas podrían no llegar"
+                  head -c 300 /tmp/tg-test.out 2>/dev/null || true
+                fi
+              fi
+            else
+              echo "::warning::Falta TELEGRAM_ADMIN_CHAT_ID en .env: las alertas se evalúan pero no notifican"
+              rm -f /opt/creditcardanalyzer/grafana/provisioning/alerting/contact-points.yml
+              rm -f /opt/creditcardanalyzer/grafana/provisioning/alerting/policies.yml
+            fi
+
+            # Textfile collector: métricas de staleness que escriben las alertas
+            # de limpieza y backup.
+            sudo mkdir -p /var/lib/node_exporter/textfile
+            sudo chown "$USER:$USER" /var/lib/node_exporter/textfile
 
             # ── 3. Start monitoring stack ──
             echo "Starting monitoring stack..."
@@ -1113,13 +1232,26 @@ jobs:
               sleep 5
             fi
 
-            # ── 5. Journal-export service ──
+            # ── 5. Journal-export service + housekeeping timer ──
             echo "Setting up journal-export service..."
             mkdir -p ~/.config/systemd/user
             cp /opt/creditcardanalyzer/journal-export.service ~/.config/systemd/user/ 2>/dev/null || true
             systemctl --user daemon-reload 2>/dev/null || true
             systemctl --user enable journal-export.service 2>/dev/null || true
             systemctl --user restart journal-export.service 2>/dev/null || true
+
+            # Housekeeping diario (imágenes, logs, backups). Corre en el server
+            # y no en CI: la limpieza tiene que ocurrir aunque los deploys fallen.
+            echo "Setting up housekeeping timer..."
+            # Los timers de usuario sólo disparan con la sesión abierta salvo que
+            # linger esté habilitado. Toda la historia del disco pasa por este
+            # timer: se verifica en cada deploy.
+            sudo loginctl enable-linger "$USER"
+            cp /opt/creditcardanalyzer/ops/oikonomia-housekeeping.service ~/.config/systemd/user/
+            cp /opt/creditcardanalyzer/ops/oikonomia-housekeeping.timer ~/.config/systemd/user/
+            systemctl --user daemon-reload
+            systemctl --user enable --now oikonomia-housekeeping.timer
+            systemctl --user list-timers oikonomia-housekeeping.timer --no-pager || true
 
             # ── 6. Alloy: reset position + restart with correct config ──
             echo "Resetting Alloy position file..."
@@ -1166,8 +1298,8 @@ jobs:
             # Catches detached-network failures (e.g. a container recreated
             # outside compose so its DNS name no longer resolves).
             echo "Verifying Grafana datasource connectivity..."
-            PROM_OK=$(curl -s -u admin:${GRAFANA_ADMIN_PASSWORD:-oikonomia2026} "http://localhost:3000/api/datasources/proxy/uid/PBFA97CFB590B2093/api/v1/query?query=up" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
-            LOKI_OK=$(curl -s -u admin:${GRAFANA_ADMIN_PASSWORD:-oikonomia2026} "http://localhost:3000/api/datasources/proxy/uid/P8E80F9AEF21F6940/loki/api/v1/labels" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
+            PROM_OK=$(curl -s -u admin:${GRAFANA_ADMIN_PASSWORD} "http://localhost:3000/api/datasources/proxy/uid/PBFA97CFB590B2093/api/v1/query?query=up" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
+            LOKI_OK=$(curl -s -u admin:${GRAFANA_ADMIN_PASSWORD} "http://localhost:3000/api/datasources/proxy/uid/P8E80F9AEF21F6940/loki/api/v1/labels" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
             if [ "$PROM_OK" != "ok" ]; then
               echo "::error::Grafana cannot reach Prometheus (datasource proxy failed)"
               exit 1
@@ -1237,21 +1369,33 @@ jobs:
             podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             echo ""
 
+            ERRORS=0
+
             # Verify no legacy containers remain
-            LEGACY_COUNT=$(podman ps -a --format '{{.Names}}' | grep -c '^creditcardanalyzer_' 2>/dev/null || echo "0")
+            LEGACY_COUNT=$(podman ps -a --format '{{.Names}}' | grep -c '^creditcardanalyzer_' 2>/dev/null || true)
+            LEGACY_COUNT=${LEGACY_COUNT:-0}
             if [ "$LEGACY_COUNT" -gt 0 ]; then
               echo "::error::$LEGACY_COUNT legacy containers still running:"
               podman ps -a --format '{{.Names}}' | grep '^creditcardanalyzer_'
               ERRORS=$((ERRORS + 1))
             fi
 
-            ERRORS=0
-
-            # Check landing site (non-fatal — DNS may not be propagated)
+            # Check landing site (critical: tiene que sobrevivir a los deploys de la plataforma)
             LANDING_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.DOMAIN_NAME }}/ 2>/dev/null || echo "000")
             echo "Landing (${{ vars.DOMAIN_NAME }}): $LANDING_STATUS"
-            if [ "$LANDING_STATUS" = "000" ]; then
-              echo "::warning::Landing site unreachable (DNS may not be propagated)"
+            if [ "$LANDING_STATUS" != "200" ]; then
+              echo "::error::Landing site devolvió $LANDING_STATUS"
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            LANDING_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_landing_' | head -1)
+            if [ -n "$LANDING_CONTAINER" ]; then
+              LANDING_HEALTH=$(podman inspect --format='{{.State.Health.Status}}' "$LANDING_CONTAINER" 2>/dev/null || echo "no-healthcheck")
+              echo "Landing container: $LANDING_HEALTH"
+              if [ "$LANDING_HEALTH" = "unhealthy" ]; then
+                echo "::error::Landing container unhealthy"
+                ERRORS=$((ERRORS + 1))
+              fi
             fi
 
             # Check platform (critical) — via localhost (DNS-independent)
@@ -1263,8 +1407,14 @@ jobs:
             fi
 
             # Check database
-            DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
-            if [ -n "$DB_CONTAINER" ]; then
+            DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1 || true)
+            if [ -z "$DB_CONTAINER" ]; then
+              # Antes esto se salteaba en silencio, así que un run podía quedar
+              # verde con la base caída — justo antes de que la limpieza la
+              # borre por "no estar en uso".
+              echo "::error::No hay contenedor de base corriendo"
+              ERRORS=$((ERRORS + 1))
+            else
               DB_STATUS=$(podman inspect --format='{{.State.Health.Status}}' "$DB_CONTAINER" 2>/dev/null || echo "missing")
               echo "Database: $DB_STATUS"
               if [ "$DB_STATUS" != "healthy" ]; then
@@ -1327,10 +1477,12 @@ jobs:
   cleanup-old-images:
     runs-on: ubuntu-latest
     needs: health-check
-    if: success()
+    # Siempre, también cuando el deploy falló: es cuando más se acumula. Antes
+    # era `if: success()`, así que una cadena de deploys fallidos nunca limpiaba.
+    if: always() && !cancelled()
 
     steps:
-      - name: Cleanup old images
+      - name: Housekeeping (imágenes, logs y backups)
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -1338,9 +1490,8 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
           script: |
-            echo "Cleaning up old images..."
-            # Remove dangling images only, keep tagged versions for rollback
-            podman image prune -f 2>/dev/null || true
-            # Remove old backup images older than 7 days
-            find /opt/creditcardanalyzer/backups -name "db_*.sql.gz" -mtime +7 -delete 2>/dev/null || true
-            echo "Cleanup complete"
+            cd /opt/creditcardanalyzer
+            export PATH="$HOME/.local/bin:$PATH"
+            set -a; source .env; set +a
+            echo "=== Housekeeping ==="
+            bash scripts/housekeeping.sh

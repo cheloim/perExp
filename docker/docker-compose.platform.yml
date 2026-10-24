@@ -39,8 +39,11 @@ services:
       BASE_URL: https://${PLATFORM_DOMAIN}
       CORS_ORIGINS: https://${DOMAIN_NAME},https://www.${DOMAIN_NAME},https://${PLATFORM_DOMAIN}
       TELEGRAM_BOT_ENABLED: "false"
-      GRAFANA_INTERNAL_URL: ${GRAFANA_INTERNAL_URL:-http://localhost:3000}
-      GRAFANA_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-oikonomia2026}
+      # Grafana se alcanza por nombre de servicio en la red `oikonomia`. Antes
+      # era localhost:3000 dentro del contenedor, así que el sync de usuarios
+      # fallaba en silencio y nunca funcionó.
+      GRAFANA_INTERNAL_URL: ${GRAFANA_INTERNAL_URL:-http://grafana:3000}
+      GRAFANA_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
       TZ: America/Argentina/Buenos_Aires
     restart: unless-stopped
 
@@ -76,6 +79,9 @@ services:
       SMTP_FROM: ${SMTP_FROM}
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
+      # El reconcile de usuarios de Grafana corre en celery_worker.
+      GRAFANA_INTERNAL_URL: ${GRAFANA_INTERNAL_URL:-http://grafana:3000}
+      GRAFANA_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
       TZ: America/Argentina/Buenos_Aires
     restart: unless-stopped
 

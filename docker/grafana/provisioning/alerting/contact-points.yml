@@ -1,0 +1,27 @@
+# Contact point de Telegram.
+#
+# Los secretos NO se commitean: deploy.yml reemplaza los placeholders desde
+# .env antes de levantar el stack. Si faltan, el deploy borra este archivo y el
+# de policies.yml — las alertas siguen evaluándose y quedan visibles en
+# Grafana, pero sin notificación, y el pipeline avisa con ::warning::.
+#
+# Telegram a propósito: es un canal que no depende de la plataforma ni del
+# mail, y sale por HTTPS desde Grafana hacia afuera.
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: oikonomia-telegram-admin
+    receivers:
+      - uid: oikonomia-telegram-admin
+        type: telegram
+        disableResolveMessage: false
+        settings:
+          chatid: "__TELEGRAM_ADMIN_CHAT_ID__"
+          # Grafana exige el bot token en `settings`, no en `secureSettings`:
+          # con secureSettings el provisioning falla con "could not find Bot
+          # Token in settings" y no se carga ninguna alerta. El archivo vive en
+          # el server con la misma protección que .env.
+          bottoken: "__TELEGRAM_BOT_TOKEN__"
+          message: |-
+            {{ template "telegram.default.message" . }}

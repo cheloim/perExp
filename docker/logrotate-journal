@@ -1,9 +1,0 @@
-/opt/creditcardanalyzer/logs/journal.log {
-    size 50M
-    rotate 2
-    compress
-    missingok
-    notifempty
-    copytruncate
-    dateext
-}

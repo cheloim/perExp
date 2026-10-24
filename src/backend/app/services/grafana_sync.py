@@ -1,14 +1,21 @@
-"""Grafana user sync service.
+"""Grafana user reconciliation.
 
-Automatically provisions/removes admin users in Grafana when their
-admin status changes in Oikonomia. Uses Grafana's HTTP API.
+Grafana's *authentication* is Google's; its *authorization* is Oikonomia's
+`is_admin` flag. The two are deliberately decoupled: when the platform is down
+you still need to read the dashboards that explain why, so signing in to Grafana
+must not require the backend to be up.
 
-Grafana is configured with Google OAuth (allow_sign_up=false), so
-only pre-provisioned users can log in.
+The flag is materialized as Grafana users by this module: admins are provisioned
+with the Admin role, everyone else is removed. Grafana runs with
+`allow_sign_up=false`, so a user that was not provisioned cannot sign in at all.
+
+Consistency is eventual on purpose — reconciliation runs when the flag changes
+and periodically from celery beat, never during a login.
 """
 
 import logging
 import os
+from collections.abc import Iterable
 
 import httpx
 
@@ -16,117 +23,128 @@ logger = logging.getLogger(__name__)
 
 GRAFANA_URL = os.getenv("GRAFANA_INTERNAL_URL", "http://localhost:3000")
 GRAFANA_ADMIN_USER = os.getenv("GF_SECURITY_ADMIN_USER", "admin")
-GRAFANA_ADMIN_PASSWORD = os.getenv("GRAFANA_ADMIN_PASSWORD", "oikonomia2026")
+# Sin default a propósito: `oikonomia2026` era la password con la que quedó
+# corriendo producción. Sin secret, el sync falla en voz alta en vez de
+# intentar una contraseña conocida.
+GRAFANA_ADMIN_PASSWORD = os.getenv("GRAFANA_ADMIN_PASSWORD", "")
 
 
 def _grafana_admin_auth() -> tuple[str, str]:
     return (GRAFANA_ADMIN_USER, GRAFANA_ADMIN_PASSWORD)
 
 
+def _ok(response) -> bool:
+    return 200 <= response.status_code < 300
+
+
 def sync_user_to_grafana(email: str, name: str, is_admin: bool = False) -> bool:
-    """Create or update a user in Grafana.
+    """Make Grafana match Oikonomia for a single user.
 
-    Called when a user is created or their admin status changes.
-    Returns True if successful.
+    Admins end up provisioned with the Admin role; everyone else ends up
+    removed. Returns True when Grafana is in the desired state (absence counts
+    as the desired state for non-admins). Never raises: Grafana being
+    unreachable must not break an Oikonomia login.
     """
-    role = "Admin" if is_admin else "Viewer"
-
     try:
-        with httpx.Client(base_url=GRAFANA_URL, timeout=5.0) as client:
-            # Check if user already exists
-            resp = client.get(
-                "/api/users/lookup",
-                params={"loginOrEmail": email},
-                auth=_grafana_admin_auth(),
+        if not GRAFANA_ADMIN_PASSWORD:
+            logger.warning(
+                "GRAFANA_ADMIN_PASSWORD sin configurar: no se puede sincronizar %s", email
             )
-
-            if resp.status_code == 200:
-                # User exists — update role via org users endpoint
-                user_id = resp.json()["id"]
-                client.patch(
-                    f"/api/org/users/{user_id}",
-                    json={"role": role},
-                    auth=_grafana_admin_auth(),
-                )
-                logger.info("Grafana: updated %s role to %s", email, role)
-                return True
-
-            if resp.status_code == 404:
-                # User doesn't exist — create
-                client.post(
-                    "/api/admin/users",
-                    json={
-                        "email": email,
-                        "name": name,
-                        "login": email,
-                        "password": os.urandom(16).hex(),  # random password (OAuth only)
-                    },
-                    auth=_grafana_admin_auth(),
-                )
-                # Set role after creation
-                resp2 = client.get(
-                    "/api/users/lookup",
-                    params={"loginOrEmail": email},
-                    auth=_grafana_admin_auth(),
-                )
-                if resp2.status_code == 200:
-                    user_id = resp2.json()["id"]
-                    client.patch(
-                        f"/api/org/users/{user_id}",
-                        json={"role": role},
-                        auth=_grafana_admin_auth(),
-                    )
-                logger.info("Grafana: created %s as %s", email, role)
-                return True
-
-            logger.warning("Grafana: unexpected status %d for %s", resp.status_code, email)
             return False
 
-    except Exception as e:
+        with httpx.Client(base_url=GRAFANA_URL, timeout=5.0) as client:
+            auth = _grafana_admin_auth()
+            resp = client.get("/api/users/lookup", params={"loginOrEmail": email}, auth=auth)
+
+            if resp.status_code == 200:
+                user_id = resp.json()["id"]
+            elif resp.status_code == 404:
+                user_id = None
+            else:
+                logger.warning("Grafana: status inesperado %d para %s", resp.status_code, email)
+                return False
+
+            if not is_admin:
+                if user_id is None:
+                    return True
+                resp = client.delete(f"/api/admin/users/{user_id}", auth=auth)
+                if not _ok(resp) and resp.status_code != 404:
+                    logger.warning(
+                        "Grafana: no se pudo borrar %s (status %d)", email, resp.status_code
+                    )
+                    return False
+                logger.info("Grafana: removed %s (no es admin)", email)
+                return True
+
+            if user_id is not None:
+                resp = client.patch(f"/api/org/users/{user_id}", json={"role": "Admin"}, auth=auth)
+                if not _ok(resp):
+                    logger.warning(
+                        "Grafana: no se pudo dar Admin a %s (status %d)", email, resp.status_code
+                    )
+                    return False
+                logger.info("Grafana: %s confirmado como Admin", email)
+                return True
+
+            resp = client.post(
+                "/api/admin/users",
+                json={
+                    "email": email,
+                    "name": name,
+                    "login": email,
+                    # Contraseña aleatoria: el acceso es por Google. Un usuario
+                    # creado no debe poder entrar con credenciales locales.
+                    "password": os.urandom(16).hex(),
+                },
+                auth=auth,
+            )
+            if not _ok(resp):
+                logger.warning("Grafana: no se pudo crear %s (status %d)", email, resp.status_code)
+                return False
+
+            # El rol se asigna después de crear: /api/admin/users no lo acepta.
+            created = client.get("/api/users/lookup", params={"loginOrEmail": email}, auth=auth)
+            if not _ok(created):
+                logger.warning("Grafana: %s creado pero no se pudo leer su id", email)
+                return False
+
+            resp = client.patch(
+                f"/api/org/users/{created.json()['id']}",
+                json={"role": "Admin"},
+                auth=auth,
+            )
+            if not _ok(resp):
+                logger.warning(
+                    "Grafana: %s creado pero sin rol Admin (status %d)", email, resp.status_code
+                )
+                return False
+            logger.info("Grafana: created %s as Admin", email)
+            return True
+
+    except Exception as e:  # noqa: BLE001 — Grafana caído no debe romper el login
         logger.warning("Grafana sync failed for %s: %s", email, e)
         return False
 
 
-def remove_user_from_grafana(email: str) -> bool:
-    """Remove a user from Grafana.
+def reconcile_admins(users: Iterable[tuple[str, str, bool]]) -> dict:
+    """Reconcile Grafana against a snapshot of Oikonomia users.
 
-    Called when a user is deleted from Oikonomia.
-    """
-    try:
-        with httpx.Client(base_url=GRAFANA_URL, timeout=5.0) as client:
-            resp = client.get(
-                "/api/users/lookup",
-                params={"loginOrEmail": email},
-                auth=_grafana_admin_auth(),
-            )
-            if resp.status_code == 200:
-                user_id = resp.json()["id"]
-                client.delete(
-                    f"/api/admin/users/{user_id}",
-                    auth=_grafana_admin_auth(),
-                )
-                logger.info("Grafana: removed user %s", email)
-                return True
-            return False
-    except Exception as e:
-        logger.warning("Grafana remove failed for %s: %s", email, e)
-        return False
+    `users` is an iterable of (email, name, is_admin). Pass every active user,
+    not only the admins: that is what removes the ones that were demoted.
 
-
-def sync_all_admins(users: list[dict]) -> dict:
-    """Sync all admin users to Grafana. Used for initial setup.
-
-    Args:
-        users: list of {"email": str, "name": str, "is_admin": bool}
-
-    Returns:
-        {"synced": int, "failed": int}
+    Returns {"synced": int, "removed": int, "failed": int}:
+    `synced` counts admins confirmed or provisioned, `removed` counts non-admins
+    removed (or already absent), `failed` counts anything Grafana rejected.
+    Never raises.
     """
     synced = 0
+    removed = 0
     failed = 0
-    for user in users:
-        if sync_user_to_grafana(user["email"], user["name"], user.get("is_admin", False)):
+    for email, name, is_admin in users:
+        if not sync_user_to_grafana(email, name, bool(is_admin)):
+            failed += 1
+        elif is_admin:
             synced += 1
         else:
-            failed += 1
-    return {"synced": synced, "failed": failed}
+            removed += 1
+    return {"synced": synced, "removed": removed, "failed": failed}

@@ -68,4 +68,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.budgets.check_budget_alerts",
         "schedule": _cron_from_env("SCHEDULE_BUDGET_ALERTS", 10, 0),
     },
+    # Cada hora: el acceso a Grafana depende de esta lista, y no puede depender
+    # de que alguien se loguee en la plataforma para actualizarse.
+    "reconcile-grafana-admins-hourly": {
+        "task": "app.tasks.grafana_reconcile.reconcile_grafana_admins",
+        "schedule": crontab(minute=15),
+    },
 }

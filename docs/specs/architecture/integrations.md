@@ -183,7 +183,8 @@ scrape time (`/metrics`).
 | `oikonomia_llm_credit_expires_timestamp_seconds` | gauge | — |
 
 Dashboard: **Oikonomia - LLM** (`docker/grafana/dashboards/llm.json`).
-Alerts: `docker/prometheus/rules.yml`.
+Alerts: `docker/grafana/provisioning/alerting/rules.yml` (Grafana-managed, so
+they actually notify — see `docs/Deployment.md`).
 
 Budget and credit come from `LLM_MONTHLY_BUDGET_USD`, `LLM_CREDIT_AMOUNT_USD`
 and `LLM_CREDIT_EXPIRES_AT`. There is no official OpenAI endpoint for a prepaid

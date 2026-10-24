@@ -1,0 +1,347 @@
+# Alertas de Grafana (Grafana-managed rules).
+#
+# Antes las alertas vivían en docker/prometheus/rules.yml: se evaluaban y
+# quedaban en `firing`, pero sin Alertmanager ni provisioning en Grafana no
+# notificaban a nadie. Ésta es la única fuente de verdad: Grafana es además
+# quien tiene los contact points.
+#
+# Los `datasourceUid` salen de grafana/provisioning/datasources/datasources.yml.
+apiVersion: 1
+
+groups:
+  # ── Disco: lo que causó el incidente del 2026-10-23 ────────────────
+  - orgId: 1
+    name: Oikonomia - Disco
+    folder: Oikonomia
+    interval: 1m
+    rules:
+      - uid: oikonomia-disk-critical
+        title: "Disco: menos del 10% libre"
+        condition: A
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "El disco del server está casi lleno"
+          description: "Correr scripts/housekeeping.sh y revisar `podman system df`."
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 15000
+              maxDataPoints: 43200
+              refId: A
+              expr: |
+                (1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) > 0.9
+
+      - uid: oikonomia-disk-warning
+        title: "Disco: menos del 20% libre"
+        condition: A
+        noDataState: NoData
+        execErrState: Error
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "El disco baja del 20% libre"
+          description: "Conviene limpiar antes de que sea un problema: images viejas, logs, backups."
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 15000
+              maxDataPoints: 43200
+              refId: A
+              expr: |
+                (1 - node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) > 0.8
+
+      - uid: oikonomia-disk-filling
+        title: "Disco: se llena en menos de 24 horas"
+        condition: A
+        noDataState: NoData
+        execErrState: Error
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Al ritmo actual el disco se llena en menos de 24h"
+          description: "predict_linear sobre 6 horas. Es la señal que faltaba antes de que el disco se llenara."
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 30000
+              maxDataPoints: 43200
+              refId: A
+              expr: |
+                predict_linear(node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}[6h], 24 * 3600) < 0
+
+  # ── Disponibilidad ─────────────────────────────────────────────────
+  - orgId: 1
+    name: Oikonomia - Disponibilidad
+    folder: Oikonomia
+    interval: 1m
+    rules:
+      - uid: oikonomia-target-down
+        title: "Un target de Prometheus está caído"
+        condition: A
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }} no responde"
+          description: "job={{ $labels.job }}. Si es el backend, la plataforma está caída."
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 15000
+              maxDataPoints: 43200
+              refId: A
+              expr: up == 0
+
+      - uid: oikonomia-cert-expiring
+        title: "Certificado TLS por vencer"
+        condition: A
+        noDataState: OK
+        execErrState: Error
+        for: 6h
+        labels:
+          severity: warning
+        annotations:
+          summary: "El certificado vence en menos de 14 días"
+          description: "Si expira se caen los tres vhosts a la vez (landing, plataforma y grafana)."
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+              expr: probe_ssl_earliest_cert_expiry - time() < 1209600
+
+  # ── Staleness: la limpieza y los backups dejaron de correr ─────────
+  - orgId: 1
+    name: Oikonomia - Mantenimiento
+    folder: Oikonomia
+    interval: 5m
+    rules:
+      - uid: oikonomia-housekeeping-stale
+        title: "La limpieza dejó de correr"
+        condition: A
+        noDataState: NoData
+        execErrState: Error
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sin housekeeping hace más de 2 días"
+          description: "El timer diario no está corriendo. `systemctl --user list-timers`."
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+              expr: time() - oikonomia_housekeeping_last_success_timestamp_seconds > 172800
+
+      - uid: oikonomia-backup-stale
+        title: "Los backups de la base dejaron de correr"
+        condition: A
+        noDataState: NoData
+        execErrState: Error
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "El backup más nuevo tiene más de 2 días (o nunca hubo)"
+          description: "0 significa que no hay ningún backup. Revisar el job backup-db del deploy."
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+              expr: time() - oikonomia_backup_newest_timestamp_seconds > 172800
+
+  # ── LLM: migradas de docker/prometheus/rules.yml ───────────────────
+  - orgId: 1
+    name: Oikonomia - LLM
+    folder: Oikonomia
+    interval: 5m
+    rules:
+      - uid: oikonomia-llm-budget-nearly-exhausted
+        title: "Presupuesto de LLM casi agotado"
+        condition: A
+        noDataState: NoData
+        execErrState: Error
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gasto de LLM cerca del presupuesto mensual"
+          description: "oikonomia-llm / spend_usd_month_to_date para el detalle por feature."
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+              expr: oikonomia_llm_budget_used_ratio >= 0.8
+
+      - uid: oikonomia-llm-budget-exhausted
+        title: "Presupuesto de LLM agotado"
+        condition: A
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "El gasto de LLM del mes superó el presupuesto configurado"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+              expr: oikonomia_llm_budget_used_ratio >= 1
+
+      - uid: oikonomia-llm-credit-low
+        title: "Crédito prepago de LLM bajo"
+        condition: A
+        noDataState: NoData
+        execErrState: Error
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queda poco crédito prepago para el LLM"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+              expr: oikonomia_llm_credit_amount_usd > 0 and oikonomia_llm_credit_balance_usd < 2
+
+      - uid: oikonomia-llm-credit-expiring
+        title: "Crédito de LLM por vencer"
+        condition: A
+        noDataState: NoData
+        execErrState: Error
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "El crédito prepago del LLM vence en menos de 30 días"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+              expr: |
+                oikonomia_llm_credit_expires_timestamp_seconds > 0 and (oikonomia_llm_credit_expires_timestamp_seconds - time()) < 2592000
+
+      - uid: oikonomia-llm-high-error-rate
+        title: "Muchas llamadas al LLM fallando"
+        condition: A
+        noDataState: NoData
+        execErrState: Error
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Más del 5% de las llamadas al LLM están fallando"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+              expr: |
+                sum(rate(oikonomia_llm_requests_total{status!="ok"}[10m])) / clamp_min(sum(rate(oikonomia_llm_requests_total[10m])), 0.000001) > 0.05
+
+      - uid: oikonomia-llm-metrics-failing
+        title: "El uso del LLM no se está registrando"
+        condition: A
+        noDataState: NoData
+        execErrState: Error
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "El dashboard de LLM quedó ciego"
+          description: "Redis rechazó los registros de uso. La app sigue, pero sin métricas ni control de presupuesto."
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              datasource: { type: prometheus, uid: PBFA97CFB590B2093 }
+              editorMode: code
+              instant: true
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+              expr: rate(oikonomia_llm_metrics_record_failures_total[15m]) > 0

@@ -49,7 +49,6 @@ from app.routers import (
     categories,
     dashboard,
     expenses,
-    grafana_oauth,
     groups,
     health,
     import_jobs,
@@ -243,4 +242,3 @@ app.include_router(recurring.router)
 app.include_router(tags.router)
 app.include_router(admin.router)
 app.include_router(whatsapp_webhook.router)
-app.include_router(grafana_oauth.router)
