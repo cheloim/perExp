@@ -35,7 +35,12 @@ class TestParseExpenseBatch(unittest.TestCase):
         mock_client_fn.return_value = mock_client
         mock_client.complete.return_value.text = json.dumps(
             [
-                {"amount": 1500.0, "description": "farmacity", "date": "2026-05-05", "currency": "ARS"},
+                {
+                    "amount": 1500.0,
+                    "description": "farmacity",
+                    "date": "2026-05-05",
+                    "currency": "ARS",
+                },
                 {"amount": 800.0, "description": "uber", "date": "2026-05-05", "currency": "ARS"},
             ]
         )
@@ -53,9 +58,7 @@ class TestParseExpenseBatch(unittest.TestCase):
         """LLM response wrapped in markdown code fences should be parsed."""
         mock_client = MagicMock()
         mock_client_fn.return_value = mock_client
-        mock_client.complete.return_value.text = (
-            '```json\n[{"amount": 500.0, "description": "cafe", "date": "2026-05-05", "currency": "ARS"}]\n```'
-        )
+        mock_client.complete.return_value.text = '```json\n[{"amount": 500.0, "description": "cafe", "date": "2026-05-05", "currency": "ARS"}]\n```'
 
         from app.telegram_bot import _parse_expense
 
@@ -99,7 +102,12 @@ class TestParseExpenseBatch(unittest.TestCase):
             [
                 {"amount": 100.0, "description": "valid", "date": "2026-05-05", "currency": "ARS"},
                 {"description": "no amount", "date": "2026-05-05", "currency": "ARS"},
-                {"amount": 200.0, "description": "also valid", "date": "2026-05-05", "currency": "ARS"},
+                {
+                    "amount": 200.0,
+                    "description": "also valid",
+                    "date": "2026-05-05",
+                    "currency": "ARS",
+                },
             ]
         )
 
@@ -116,7 +124,7 @@ class TestWhatsAppSessionCleanup(unittest.TestCase):
 
     def test_clear_session_before_response(self):
         """Session should be cleared immediately after save, not after response."""
-        from app.whatsapp_bot import _sessions, _clear_session, _get_session
+        from app.whatsapp_bot import _clear_session, _get_session, _sessions
 
         phone_hash = "test_hash_123"
         _sessions[phone_hash] = {"state": "WAITING_CONFIRM", "data": {"parsed": {}}}
@@ -129,7 +137,7 @@ class TestWhatsAppSessionCleanup(unittest.TestCase):
 
     def test_new_session_after_clear(self):
         """After clearing, getting session should create a fresh one."""
-        from app.whatsapp_bot import _sessions, _clear_session, _get_session
+        from app.whatsapp_bot import _clear_session, _get_session, _sessions
 
         phone_hash = "test_hash_456"
         _sessions[phone_hash] = {"state": "WAITING_CONFIRM", "data": {"parsed": {"amount": 100}}}

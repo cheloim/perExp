@@ -47,12 +47,12 @@ fi
 run_linter "TypeScript" "npm run typecheck" "$PROJECT_ROOT/src/frontend"
 
 echo "=== Backend Linting ==="
-run_linter "Ruff Lint" "ruff check app/" "$PROJECT_ROOT/src/backend"
+run_linter "Ruff Lint" "ruff check app/ tests/" "$PROJECT_ROOT/src/backend"
 
 if [ "$FIX_MODE" = "--fix" ]; then
-    run_linter "Ruff Format" "ruff format app/" "$PROJECT_ROOT/src/backend"
+    run_linter "Ruff Format" "ruff format app/ tests/" "$PROJECT_ROOT/src/backend"
 else
-    run_linter "Ruff Format" "ruff format --check app/" "$PROJECT_ROOT/src/backend"
+    run_linter "Ruff Format" "ruff format --check app/ tests/" "$PROJECT_ROOT/src/backend"
 fi
 
 run_linter "MyPy" "mypy app/" "$PROJECT_ROOT/src/backend"

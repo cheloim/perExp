@@ -256,7 +256,9 @@ def test_the_top_categories_compare_the_newest_month_against_the_previous_one(
 def test_a_question_retrieves_the_spend_it_is_about(db, test_user, fake_llm):
     """The window arrives aggregated; the words of the question find the spends
     it is about so a merchant question has something to answer from."""
-    _add_expense(db, test_user, date.today() - timedelta(days=1), "YENNY TORTUGAS OPEN MALL", 55479.67)
+    _add_expense(
+        db, test_user, date.today() - timedelta(days=1), "YENNY TORTUGAS OPEN MALL", 55479.67
+    )
     _add_expense(db, test_user, date.today() - timedelta(days=2), "SUPERMERCADO COTO", 12000.0)
 
     _stream(

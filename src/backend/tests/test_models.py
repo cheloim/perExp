@@ -3,8 +3,6 @@
 Phase 2 task 2.1b: Ensures the models package split didn't break any SQLAlchemy relationships.
 """
 
-import pytest
-
 
 class TestRelationshipResolution:
     """Every relationship() call must resolve to a valid mapped class."""
@@ -96,7 +94,13 @@ class TestRelationshipResolution:
     def test_scheduled_expense_relationships(self):
         from app.models import ScheduledExpense
 
-        for rel_name in ["category", "executed_expense", "template_expense", "card_rel", "account_rel"]:
+        for rel_name in [
+            "category",
+            "executed_expense",
+            "template_expense",
+            "card_rel",
+            "account_rel",
+        ]:
             rel = ScheduledExpense.__mapper__.relationships[rel_name]
             assert rel.mapper.class_ is not None, f"ScheduledExpense.{rel_name} failed to resolve"
 
@@ -186,7 +190,9 @@ class TestTableCount:
 
         tables = set(Base.metadata.tables.keys())
         expected_count = 28
-        assert len(tables) == expected_count, f"Expected {expected_count} tables, got {len(tables)}: {sorted(tables)}"
+        assert len(tables) == expected_count, (
+            f"Expected {expected_count} tables, got {len(tables)}: {sorted(tables)}"
+        )
 
     def test_specific_critical_tables(self):
         from app.database import Base

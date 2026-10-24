@@ -13,7 +13,6 @@ import subprocess
 import textwrap
 import time
 
-import pytest
 import yaml
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -317,9 +316,9 @@ class TestLogRotation:
 
     def test_legacy_config_is_gone(self):
         """The old config had no rotation trigger and was never installed."""
-        assert not os.path.exists(
-            os.path.join(REPO_ROOT, "docker", "logrotate-journal")
-        ), "logrotate-journal is superseded by docker/ops/logrotate-oikonomia"
+        assert not os.path.exists(os.path.join(REPO_ROOT, "docker", "logrotate-journal")), (
+            "logrotate-journal is superseded by docker/ops/logrotate-oikonomia"
+        )
 
 
 # ── deploy.yml ─────────────────────────────────────────────────────
@@ -384,9 +383,9 @@ class TestNginxEdge:
     def test_grafana_vhost_denies_public_metrics(self):
         """Grafana exposes /metrics by default; the vhost must not publish it."""
         grafana = _block_containing(_read(NGINX_CONF), "server_name grafana.")
-        assert re.search(
-            r"location\s*=\s*/metrics\s*\{[^}]*deny all", grafana
-        ), "the Grafana vhost must deny /metrics"
+        assert re.search(r"location\s*=\s*/metrics\s*\{[^}]*deny all", grafana), (
+            "the Grafana vhost must deny /metrics"
+        )
 
     def test_grafana_live_gets_a_long_proxy_timeout(self):
         """Without it nginx closes the Live websocket every 60s and Grafana reconnects."""
@@ -457,7 +456,6 @@ class TestNginxEdge:
         assert "::error::" in check, "a dead Grafana vhost must fail the deploy"
         assert "::warning::" not in check
 
-
     def test_monitoring_stack_uses_the_shared_network(self):
         """A service declared on two networks loses its alias on the external
         one: nginx stops resolving `grafana` and the vhost returns 502 with no
@@ -499,9 +497,7 @@ class TestNginxEdge:
         deploy = _read(DEPLOY_YML)
         job = deploy.split("deploy-monitoring:")[1]
         assert "for ATTEMPT in" in job, "the datasource check must retry"
-        assert "getent hosts prometheus" in job, (
-            "a failure must show whether DNS is the cause"
-        )
+        assert "getent hosts prometheus" in job, "a failure must show whether DNS is the cause"
 
 
 class TestGrafanaAccess:
@@ -635,9 +631,7 @@ class TestAlerting:
 
     def test_prometheus_rules_are_not_orphaned(self):
         """One source of truth: rules that cannot notify must not exist."""
-        assert not os.path.exists(
-            os.path.join(REPO_ROOT, "docker", "prometheus", "rules.yml")
-        )
+        assert not os.path.exists(os.path.join(REPO_ROOT, "docker", "prometheus", "rules.yml"))
         assert re.search(r"^rule_files:", _read(PROMETHEUS_CONF), re.MULTILINE) is None
 
     def test_contact_point_is_telegram_with_placeholders(self):
@@ -724,9 +718,7 @@ class TestDatabaseBackups:
     def test_retention_lives_in_one_place(self):
         """Two retention rules meant neither had to be right."""
         job = _backup_job()
-        assert not re.search(r"mtime \+\d+", job), (
-            "backup retention must not live in deploy.yml"
-        )
+        assert not re.search(r"mtime \+\d+", job), "backup retention must not live in deploy.yml"
         assert "HOUSEKEEPING_RETENTION_DAYS:-15" in _read(HOUSEKEEPING), (
             "housekeeping owns the retention window"
         )
@@ -738,9 +730,10 @@ class TestHousekeepingSafety2:
         The postgres volume is 'unused' the moment the db container is
         force-recreated — or after a failed recreate, which is exactly when the
         cleanup runs. That is data loss while 'fixing' a full disk."""
-        assert re.search(
-            r"^\s*(run\s+)?podman volume prune", _read(HOUSEKEEPING), re.MULTILINE
-        ) is None
+        assert (
+            re.search(r"^\s*(run\s+)?podman volume prune", _read(HOUSEKEEPING), re.MULTILINE)
+            is None
+        )
 
     def test_keeps_the_tag_from_env_too(self):
         """If the cleanup races a redeploy the running containers may already be

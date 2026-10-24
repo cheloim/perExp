@@ -2,19 +2,17 @@
 
 import os
 from datetime import date, datetime, timedelta
-from unittest.mock import MagicMock
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 
 import pytest
 
+from app.services.encryption import compute_hmac
 from app.services.expense_update import (
     EDITABLE_WINDOW_HOURS,
     ExpenseEditError,
     update_expense_checked,
 )
-from app.services.encryption import compute_hmac
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -132,9 +130,7 @@ def test_48h_check_skipped(db):
         db, user, amount=1000, created_at=datetime.utcnow() - timedelta(hours=100)
     )
 
-    updated = update_expense_checked(
-        db, user.id, expense, {"amount": 2000}, skip_48h_check=True
-    )
+    updated = update_expense_checked(db, user.id, expense, {"amount": 2000}, skip_48h_check=True)
     assert updated.amount == 2000
 
 
@@ -211,9 +207,7 @@ def test_budget_event_allows_non_structural_edit(db):
     expense = _create_expense(db, user, budget_event_id=be.id)
 
     # Non-structural edit (category_id) should succeed
-    updated = update_expense_checked(
-        db, user.id, expense, {"category_id": cat.id}, commit=False
-    )
+    updated = update_expense_checked(db, user.id, expense, {"category_id": cat.id}, commit=False)
     assert updated.category_id == cat.id
 
 
@@ -234,9 +228,7 @@ def test_recurring_allows_non_structural_edit(db):
     expense = _create_expense(db, user, recurring_expense_id=re.id)
 
     # Non-structural edit (category_id) should succeed
-    updated = update_expense_checked(
-        db, user.id, expense, {"category_id": cat.id}, commit=False
-    )
+    updated = update_expense_checked(db, user.id, expense, {"category_id": cat.id}, commit=False)
     assert updated.category_id == cat.id
 
 
@@ -287,9 +279,7 @@ def test_hmac_recomputed(db):
     expense = _create_expense(db, user, description="old description")
     old_hmac = expense.description_hmac
 
-    updated = update_expense_checked(
-        db, user.id, expense, {"description": "new description"}
-    )
+    updated = update_expense_checked(db, user.id, expense, {"description": "new description"})
 
     assert updated.description_hmac != old_hmac
     assert updated.description_hmac == compute_hmac("new description")
@@ -322,9 +312,7 @@ def test_edit_category(db):
     cat = _create_category(db, user, "Nueva Categoría")
     expense = _create_expense(db, user)
 
-    updated = update_expense_checked(
-        db, user.id, expense, {"category_id": cat.id}
-    )
+    updated = update_expense_checked(db, user.id, expense, {"category_id": cat.id})
 
     assert updated.category_id == cat.id
 
@@ -344,8 +332,8 @@ def test_single_installment_allowed(db):
 
 
 def test_audit_log_written(db):
-    from app.services.expense_update import _log_expense_audit
     from app.models import AuditLog
+    from app.services.expense_update import _log_expense_audit
 
     user = _create_user(db, "audit@test.com")
     expense = _create_expense(db, user, amount=5000)
@@ -364,8 +352,8 @@ def test_audit_log_written(db):
 
 
 def test_audit_log_no_change_no_entry(db):
-    from app.services.expense_update import _log_expense_audit
     from app.models import AuditLog
+    from app.services.expense_update import _log_expense_audit
 
     user = _create_user(db, "nochange@test.com")
     expense = _create_expense(db, user, amount=5000)

@@ -13,7 +13,6 @@ os.environ["TELEGRAM_BOT_TOKEN"] = "test-bot-token:1234567890"
 
 from app.services.auth import verify_telegram_login_widget, verify_telegram_webapp
 
-
 BOT_TOKEN = "test-bot-token:1234567890"
 
 
@@ -33,12 +32,8 @@ def _build_init_data(user_id: int = 123456, auth_date: int | None = None) -> str
     pairs = {"user": user_json, "auth_date": str(auth_date), "query_id": "abc123"}
     data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
 
-    secret_key = hmac.new(
-        "WebAppData".encode(), BOT_TOKEN.encode(), hashlib.sha256
-    ).digest()
-    computed_hash = hmac.new(
-        secret_key, data_check_string.encode(), hashlib.sha256
-    ).hexdigest()
+    secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+    computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
     pairs["hash"] = computed_hash
     return urllib.parse.urlencode(pairs)
@@ -95,12 +90,8 @@ class TestVerifyTelegramWebApp(unittest.TestCase):
         auth_date = int(time.time())
         pairs = {"auth_date": str(auth_date)}
         data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
-        secret_key = hmac.new(
-            "WebAppData".encode(), BOT_TOKEN.encode(), hashlib.sha256
-        ).digest()
-        computed_hash = hmac.new(
-            secret_key, data_check_string.encode(), hashlib.sha256
-        ).hexdigest()
+        secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+        computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
         pairs["hash"] = computed_hash
         init_data = urllib.parse.urlencode(pairs)
         result = verify_telegram_webapp(init_data)
@@ -118,12 +109,8 @@ class TestVerifyTelegramWebApp(unittest.TestCase):
         pairs = {"user": user_json, "auth_date": str(auth_date)}
         data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
         # Sign with wrong token
-        secret_key = hmac.new(
-            "WebAppData".encode(), other_token.encode(), hashlib.sha256
-        ).digest()
-        computed_hash = hmac.new(
-            secret_key, data_check_string.encode(), hashlib.sha256
-        ).hexdigest()
+        secret_key = hmac.new(b"WebAppData", other_token.encode(), hashlib.sha256).digest()
+        computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
         pairs["hash"] = computed_hash
         init_data = urllib.parse.urlencode(pairs)
         result = verify_telegram_webapp(init_data)

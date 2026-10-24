@@ -1,13 +1,11 @@
 """Integration tests for encryption with real PostgreSQL."""
 
-import pytest
 from datetime import date
 
 from app.models import Account, Card, Expense, User
 from app.services.encryption import (
     compute_hmac,
     decrypt_value,
-    encrypt_value,
     is_encrypted,
 )
 
@@ -61,9 +59,7 @@ class TestCardEncryption:
         db.add(card)
         db.flush()
 
-        result = (
-            db.query(Card).filter(Card.bank_hmac == compute_hmac("banco nacion")).first()
-        )
+        result = db.query(Card).filter(Card.bank_hmac == compute_hmac("banco nacion")).first()
         assert result is not None
         assert result.id == card.id
 
@@ -117,9 +113,7 @@ class TestExpenseEncryption:
         db.flush()
 
         result = (
-            db.query(Expense)
-            .filter(Expense.description_hmac == compute_hmac("farmacia"))
-            .first()
+            db.query(Expense).filter(Expense.description_hmac == compute_hmac("farmacia")).first()
         )
         assert result is None
 
@@ -140,11 +134,7 @@ class TestTelegramBotLookup:
         test_user.telegram_chat_hash = compute_hmac(chat_id)
         db.flush()
 
-        result = (
-            db.query(User)
-            .filter(User.telegram_chat_hash == compute_hmac(chat_id))
-            .first()
-        )
+        result = db.query(User).filter(User.telegram_chat_hash == compute_hmac(chat_id)).first()
         assert result is not None
         assert result.id == test_user.id
 
@@ -194,18 +184,12 @@ class TestAccountEncryption:
         db.add(account1)
         db.flush()
 
-        result = (
-            db.query(Account)
-            .filter(Account.name_hmac == compute_hmac("banco nacion"))
-            .first()
-        )
+        result = db.query(Account).filter(Account.name_hmac == compute_hmac("banco nacion")).first()
         assert result is not None
         assert result.id == account1.id
 
         different = (
-            db.query(Account)
-            .filter(Account.name_hmac == compute_hmac("otro banco"))
-            .first()
+            db.query(Account).filter(Account.name_hmac == compute_hmac("otro banco")).first()
         )
         assert different is None
 

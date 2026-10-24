@@ -72,7 +72,7 @@ class FakeHttpx:
         self.state = state
         self.down = down
 
-    def Client(self, base_url=None, timeout=None):
+    def client(self, base_url=None, timeout=None):
         if self.down:
             raise ConnectionError("grafana is down")
         return FakeClient(self.state)
@@ -92,13 +92,13 @@ def grafana(monkeypatch, state):
         nonlocal down
         down = value
         monkeypatch.setattr(
-            grafana_sync, "httpx", SimpleNamespace(Client=FakeHttpx(state, down).Client)
+            grafana_sync, "httpx", SimpleNamespace(Client=FakeHttpx(state, down).client)
         )
 
     monkeypatch.setattr(grafana_sync, "GRAFANA_URL", "http://grafana:3000")
     monkeypatch.setattr(grafana_sync, "GRAFANA_ADMIN_PASSWORD", "test-admin-password")
     monkeypatch.setattr(
-        grafana_sync, "httpx", SimpleNamespace(Client=FakeHttpx(state, down).Client)
+        grafana_sync, "httpx", SimpleNamespace(Client=FakeHttpx(state, down).client)
     )
     yield SimpleNamespace(state=state, set_down=set_down)
 
@@ -196,9 +196,7 @@ class TestGrafanaOAuthProviderIsGone:
         depend on the platform being up."""
         import os
 
-        main_path = os.path.join(
-            os.path.dirname(__file__), "..", "main.py"
-        )
+        main_path = os.path.join(os.path.dirname(__file__), "..", "main.py")
         with open(main_path) as f:
             content = f.read()
 

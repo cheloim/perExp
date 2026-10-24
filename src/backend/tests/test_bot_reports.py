@@ -1,13 +1,11 @@
 """Tests for bot_reports service — pure data-building and formatting functions."""
 
 import os
-from datetime import date, datetime, timedelta
-from unittest.mock import MagicMock
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 
-import pytest
 
 from app.services.bot_reports import (
     build_budget_status,
@@ -23,7 +21,6 @@ from app.telegram_bot import (
     _format_recurring_report,
     _format_scheduled_report,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -163,7 +160,9 @@ def test_build_budget_status_no_budgets(db):
     user = _create_user(db, "nobudget@test.com")
     report = build_budget_status(user.id, db)
 
-    assert report.month == datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).strftime("%Y-%m")
+    assert report.month == datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).strftime(
+        "%Y-%m"
+    )
     assert report.total_budget == 0
     assert report.total_spent == 0
     assert report.groups == []
@@ -193,7 +192,13 @@ def test_build_budget_status_with_budget_warning(db):
     user = _create_user(db, "warning@test.com")
     cat = _create_category(db, user, "Transporte")
     _create_budget(db, user, cat.id, amount=100000)
-    _create_expense(db, user, 85000, category_id=cat.id, date_=datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date())
+    _create_expense(
+        db,
+        user,
+        85000,
+        category_id=cat.id,
+        date_=datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date(),
+    )
 
     report = build_budget_status(user.id, db)
 
@@ -206,7 +211,13 @@ def test_build_budget_status_with_budget_exceeded(db):
     user = _create_user(db, "exceeded@test.com")
     cat = _create_category(db, user, "Entretención")
     _create_budget(db, user, cat.id, amount=50000)
-    _create_expense(db, user, 60000, category_id=cat.id, date_=datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date())
+    _create_expense(
+        db,
+        user,
+        60000,
+        category_id=cat.id,
+        date_=datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date(),
+    )
 
     report = build_budget_status(user.id, db)
 
@@ -222,8 +233,20 @@ def test_build_budget_status_groups(db):
 
     cat_n = _create_category(db, user, "Alimentación", budget_group="necesidades")
     cat_g = _create_category(db, user, "Restaurantes", budget_group="gustos")
-    _create_expense(db, user, 100000, category_id=cat_n.id, date_=datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date())
-    _create_expense(db, user, 50000, category_id=cat_g.id, date_=datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date())
+    _create_expense(
+        db,
+        user,
+        100000,
+        category_id=cat_n.id,
+        date_=datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date(),
+    )
+    _create_expense(
+        db,
+        user,
+        50000,
+        category_id=cat_g.id,
+        date_=datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date(),
+    )
 
     report = build_budget_status(user.id, db)
 
@@ -477,9 +500,7 @@ def test_format_period_report_with_data():
         net=-50000,
         total_by_currency={"ARS": 40000, "USD": 100},
         income_by_currency={"ARS": 80000, "USD": 50},
-        top_categories=[
-            CategorySummary(name="Supermercado", emoji="🛒", total=30000)
-        ],
+        top_categories=[CategorySummary(name="Supermercado", emoji="🛒", total=30000)],
         expenses=[
             ExpenseItem(
                 description="Supermercado",
