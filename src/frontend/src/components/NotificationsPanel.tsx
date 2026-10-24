@@ -392,14 +392,16 @@ export default function NotificationsPanel({ onClose }: Props) {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-0.5">
-                      <p className="text-[var(--text-primary)] text-sm font-medium leading-tight truncate">
+                      <p className="text-[var(--text-primary)] text-sm font-medium leading-tight break-words">
                         {n.title}
                       </p>
                       <span className="text-[var(--text-tertiary)] text-xs whitespace-nowrap flex-shrink-0">
                         {timeAgoValues.get(n.id) ?? timeAgo(n.created_at)}
                       </span>
                     </div>
-                    <p className="text-[var(--text-secondary)] text-xs line-clamp-2 mb-1.5">
+                    {/* The full text, never clamped: a notification whose body is
+                        cut to two lines hides exactly the detail it was sent for. */}
+                    <p className="text-[var(--text-secondary)] text-xs whitespace-pre-line break-words mb-1.5">
                       {n.body}
                     </p>
 
