@@ -38,8 +38,8 @@ run_check "TypeScript" "npm run typecheck" "$PROJECT_ROOT/src/frontend"
 run_check "Unit Tests" "npm test" "$PROJECT_ROOT/src/frontend"
 
 echo "=== Backend ==="
-run_check "Ruff Lint" "ruff check app/" "$PROJECT_ROOT/src/backend"
-run_check "Ruff Format" "ruff format --check app/" "$PROJECT_ROOT/src/backend"
+run_check "Ruff Lint" "ruff check app/ tests/" "$PROJECT_ROOT/src/backend"
+run_check "Ruff Format" "ruff format --check app/ tests/" "$PROJECT_ROOT/src/backend"
 run_check "MyPy" "mypy app/" "$PROJECT_ROOT/src/backend"
 run_check "Unit Tests" \
     "SECRET_KEY='test-secret-key-that-is-at-least-32-chars-long-for-testing' python -m pytest tests/ -q" \

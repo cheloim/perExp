@@ -4,7 +4,6 @@ Covers: create, read, update, delete, bulk operations, user scoping, validations
 """
 
 import pytest
-from fastapi import HTTPException
 
 
 @pytest.fixture
@@ -155,20 +154,28 @@ class TestReadExpenses:
     def test_get_expense_by_id(self, db, test_user, sample_expense):
         from app.models import Expense
 
-        found = db.query(Expense).filter(
-            Expense.id == sample_expense.id,
-            Expense.user_id == test_user.id,
-        ).first()
+        found = (
+            db.query(Expense)
+            .filter(
+                Expense.id == sample_expense.id,
+                Expense.user_id == test_user.id,
+            )
+            .first()
+        )
         assert found is not None
         assert found.amount == 1500.50
 
     def test_get_nonexistent_expense_returns_none(self, db, test_user):
         from app.models import Expense
 
-        found = db.query(Expense).filter(
-            Expense.id == 999999,
-            Expense.user_id == test_user.id,
-        ).first()
+        found = (
+            db.query(Expense)
+            .filter(
+                Expense.id == 999999,
+                Expense.user_id == test_user.id,
+            )
+            .first()
+        )
         assert found is None
 
 
@@ -227,10 +234,9 @@ class TestDeleteExpense:
     def test_delete_nonexistent_does_not_error(self, db):
         from app.models import Expense
 
-        # Attempting to delete a non-existent object shouldn't raise
-        fake = Expense(id=999999, amount=0, description="", date="2026-01-01", user_id=0)
-        # SQLAlchemy doesn't raise on delete of detached object in most cases
-        # This test just verifies the pattern doesn't crash
+        # Deleting a row that isn't there must affect no rows and not raise
+        deleted = db.query(Expense).filter(Expense.id == 999999).delete()
+        assert deleted == 0
 
 
 # ── Edge Cases ────────────────────────────────────────────────

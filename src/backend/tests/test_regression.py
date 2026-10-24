@@ -3,8 +3,6 @@
 Each test is linked to the commit/issue that introduced the bug to prevent reoccurrence.
 """
 
-import pytest
-
 
 # ── Schema completeness (prevents missing exports) ────────────
 
@@ -17,7 +15,6 @@ class TestSchemaCompleteness:
 
     def test_all_routers_registered_in_main(self):
         """Every router module must be included in main.py's app."""
-        import ast
         import os
 
         main_path = os.path.join(os.path.dirname(__file__), "..", "main.py")
@@ -37,9 +34,7 @@ class TestSchemaCompleteness:
         # Find all router modules
         routers_dir = os.path.join(os.path.dirname(__file__), "..", "app", "routers")
         router_files = {
-            f[:-3]
-            for f in os.listdir(routers_dir)
-            if f.endswith(".py") and f != "__init__.py"
+            f[:-3] for f in os.listdir(routers_dir) if f.endswith(".py") and f != "__init__.py"
         }
 
         missing = router_files - registered
@@ -135,11 +130,18 @@ class TestUserScoping:
         from app.services.auth import get_password_hash
 
         # Create expenses for test_user
-        e1 = Expense(amount=100, description="User1 expense", date="2026-10-01", user_id=test_user.id)
+        e1 = Expense(
+            amount=100, description="User1 expense", date="2026-10-01", user_id=test_user.id
+        )
         db.add(e1)
 
         # Create another user with expenses
-        other = User(email="other@regression.com", full_name="Other", hashed_password=get_password_hash("x"), email_verified=True)
+        other = User(
+            email="other@regression.com",
+            full_name="Other",
+            hashed_password=get_password_hash("x"),
+            email_verified=True,
+        )
         db.add(other)
         db.flush()
         e2 = Expense(amount=200, description="User2 expense", date="2026-10-01", user_id=other.id)

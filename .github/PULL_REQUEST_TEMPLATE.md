@@ -36,7 +36,7 @@
 - [ ] Changes were explained before implementation (Human in the Loop)
 - [ ] `npm run typecheck` passes (frontend)
 - [ ] `npm run lint` passes (frontend)
-- [ ] `ruff check app/` passes (backend)
+- [ ] `ruff check app/ tests/` passes (backend)
 - [ ] Manual testing completed
 
 ## Side Effects (mandatory)

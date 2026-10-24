@@ -59,12 +59,12 @@ jobs:
       - run: pip install ruff mypy
 
       - name: Ruff Lint
-        run: ruff check app/
+        run: ruff check app/ tests/
 
       - name: Ruff Format
         run: |
-          ruff format app/
-          git diff --exit-code app/ || (echo "::error::Run 'ruff format app/' locally" && exit 1)
+          ruff format app/ tests/
+          git diff --exit-code app/ tests/ || (echo "::error::Run 'ruff format app/ tests/' locally" && exit 1)
 
       - name: MyPy
         run: mypy app/

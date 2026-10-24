@@ -87,9 +87,7 @@ def test_the_window_counts_turns_not_messages():
 def test_the_window_starts_on_a_user_turn_never_on_an_orphan_reply():
     # 41 messages, so the cut lands mid-pair and the window would otherwise
     # start on a model turn — read by the model as talking to itself.
-    history = [
-        {"role": "user" if i % 2 == 0 else "assistant", "text": f"m{i}"} for i in range(41)
-    ]
+    history = [{"role": "user" if i % 2 == 0 else "assistant", "text": f"m{i}"} for i in range(41)]
     contents = to_llm_messages(history, "última")
 
     assert _roles(contents)[0] == "user"

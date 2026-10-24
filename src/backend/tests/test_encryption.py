@@ -118,11 +118,13 @@ class TestEncryptionTypeDecorator(unittest.TestCase):
     def test_encrypted_type_import(self):
         """EncryptedType can be imported."""
         from app.types.encrypted import EncryptedType
+
         self.assertIsNotNone(EncryptedType)
 
     def test_encrypted_type_bind_param(self):
         """EncryptedType encrypts on bind."""
         from app.types.encrypted import EncryptedType
+
         enc_type = EncryptedType()
         encrypted = enc_type.process_bind_param("test-value", None)
         self.assertNotEqual(encrypted, "test-value")
@@ -131,6 +133,7 @@ class TestEncryptionTypeDecorator(unittest.TestCase):
     def test_encrypted_type_result_value(self):
         """EncryptedType decrypts on result."""
         from app.types.encrypted import EncryptedType
+
         enc_type = EncryptedType()
         encrypted = encrypt_value("test-value")
         decrypted = enc_type.process_result_value(encrypted, None)
@@ -139,6 +142,7 @@ class TestEncryptionTypeDecorator(unittest.TestCase):
     def test_encrypted_type_none_bind(self):
         """EncryptedType handles None on bind."""
         from app.types.encrypted import EncryptedType
+
         enc_type = EncryptedType()
         result = enc_type.process_bind_param(None, None)
         self.assertIsNone(result)
@@ -146,6 +150,7 @@ class TestEncryptionTypeDecorator(unittest.TestCase):
     def test_encrypted_type_none_result(self):
         """EncryptedType handles None on result."""
         from app.types.encrypted import EncryptedType
+
         enc_type = EncryptedType()
         result = enc_type.process_result_value(None, None)
         self.assertIsNone(result)

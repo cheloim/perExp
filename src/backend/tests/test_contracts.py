@@ -13,7 +13,6 @@ class TestRouterRegistration:
     """Every router module must be registered in main.py."""
 
     def test_all_routers_in_main(self):
-        import ast
 
         main_path = os.path.join(os.path.dirname(__file__), "..", "main.py")
         with open(main_path) as f:
@@ -29,9 +28,7 @@ class TestRouterRegistration:
 
         routers_dir = os.path.join(os.path.dirname(__file__), "..", "app", "routers")
         router_files = {
-            f[:-3]
-            for f in os.listdir(routers_dir)
-            if f.endswith(".py") and f != "__init__.py"
+            f[:-3] for f in os.listdir(routers_dir) if f.endswith(".py") and f != "__init__.py"
         }
 
         missing = router_files - registered
@@ -39,7 +36,6 @@ class TestRouterRegistration:
 
     def test_no_extra_registrations(self):
         """No router registered that doesn't exist as a module."""
-        import ast
 
         main_path = os.path.join(os.path.dirname(__file__), "..", "main.py")
         with open(main_path) as f:
@@ -55,9 +51,7 @@ class TestRouterRegistration:
 
         routers_dir = os.path.join(os.path.dirname(__file__), "..", "app", "routers")
         router_files = {
-            f[:-3]
-            for f in os.listdir(routers_dir)
-            if f.endswith(".py") and f != "__init__.py"
+            f[:-3] for f in os.listdir(routers_dir) if f.endswith(".py") and f != "__init__.py"
         }
 
         extra = registered - router_files
@@ -68,13 +62,17 @@ class TestOpenAPIConsistency:
     """Verify OpenAPI spec exists and is parseable."""
 
     def test_openapi_yaml_exists(self):
-        spec_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "docs", "specs", "openapi.yaml")
+        spec_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "..", "docs", "specs", "openapi.yaml"
+        )
         if not os.path.exists(spec_path):
             pytest.skip("openapi.yaml not found at expected path")
         assert os.path.exists(spec_path)
 
     def test_openapi_yaml_is_valid(self):
-        spec_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "docs", "specs", "openapi.yaml")
+        spec_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "..", "docs", "specs", "openapi.yaml"
+        )
         if not os.path.exists(spec_path):
             pytest.skip("openapi.yaml not found")
 
@@ -90,7 +88,9 @@ class TestOpenAPIConsistency:
 
     def test_openapi_has_all_tag_groups(self):
         """OpenAPI spec should define tags for all major feature areas."""
-        spec_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "docs", "specs", "openapi.yaml")
+        spec_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "..", "docs", "specs", "openapi.yaml"
+        )
         if not os.path.exists(spec_path):
             pytest.skip("openapi.yaml not found")
 
@@ -111,7 +111,10 @@ class TestMainAppConfiguration:
     @pytest.fixture(autouse=True)
     def _ensure_env(self, monkeypatch):
         """Ensure SECRET_KEY is set for main.py import."""
-        monkeypatch.setenv("SECRET_KEY", os.getenv("SECRET_KEY", "test-secret-key-for-ci-that-is-at-least-32-chars"))
+        monkeypatch.setenv(
+            "SECRET_KEY",
+            os.getenv("SECRET_KEY", "test-secret-key-for-ci-that-is-at-least-32-chars"),
+        )
 
     def test_app_has_title(self):
         from main import app

@@ -33,6 +33,7 @@ def _make_expense(description, amount=1000.0, expense_date=None, card_id=None):
 # _merchant_keys_match
 # ---------------------------------------------------------------------------
 
+
 class TestMerchantKeysMatch(unittest.TestCase):
     def test_exact_match(self):
         self.assertTrue(_merchant_keys_match("NETFLIX", "NETFLIX"))
@@ -70,6 +71,7 @@ class TestMerchantKeysMatch(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Tombstone + fuzzy dedup scenarios
 # ---------------------------------------------------------------------------
+
 
 class TestTombstoneFuzzyDedup(unittest.TestCase):
     """Integration-style tests using mocked db queries in _detect_for_user."""
@@ -193,6 +195,7 @@ class TestTombstoneFuzzyDedup(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Notification throttle
 # ---------------------------------------------------------------------------
+
 
 class TestNotificationThrottle(unittest.TestCase):
     def test_skip_if_last_notification_unread(self):

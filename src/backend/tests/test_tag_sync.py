@@ -10,9 +10,8 @@ Covers Issue 199 bug fixes:
 from datetime import date
 
 import pytest
-from fastapi import HTTPException
 
-from app.models import Account, Card, Category, Expense, ExpenseTag, Tag, User
+from app.models import Account, Card, Category, Expense, ExpenseTag, Tag
 from app.services.encryption import compute_hmac
 from app.services.tag_sync import (
     assign_tags_validated,
@@ -87,7 +86,9 @@ def expense(db, test_user, category, mirror_tag, cuenta_tag):
 
 
 def _tag_ids(db, expense_id):
-    return sorted(r.tag_id for r in db.query(ExpenseTag).filter(ExpenseTag.expense_id == expense_id).all())
+    return sorted(
+        r.tag_id for r in db.query(ExpenseTag).filter(ExpenseTag.expense_id == expense_id).all()
+    )
 
 
 class TestAssignTagsValidated:
@@ -135,22 +136,26 @@ class TestAssignTagsValidated:
 
 
 class TestUpdateExpenseTags:
-    def test_mirror_preserved_with_categoria_in_tag_ids(self, db, expense, mirror_tag, cuenta_tag, otros_tag, test_user):
+    def test_mirror_preserved_with_categoria_in_tag_ids(
+        self, db, expense, mirror_tag, cuenta_tag, otros_tag, test_user
+    ):
         """Bug A: update_expense with categoria mirror in tag_ids should NOT fail."""
-        from app.schemas.expenses import ExpenseUpdate
         from app.routers.expenses import update_expense
+        from app.schemas.expenses import ExpenseUpdate
 
         payload = ExpenseUpdate(tag_ids=[mirror_tag.id, cuenta_tag.id, otros_tag.id])
-        result = update_expense(exp_id=expense.id, expense=payload, db=db, current_user=test_user)
+        update_expense(exp_id=expense.id, expense=payload, db=db, current_user=test_user)
         tags = _tag_ids(db, expense.id)
         assert mirror_tag.id in tags, "Mirror tag should be preserved"
         assert cuenta_tag.id in tags
         assert otros_tag.id in tags
 
-    def test_mirror_preserved_with_filtered_tag_ids(self, db, expense, mirror_tag, cuenta_tag, otros_tag, test_user):
+    def test_mirror_preserved_with_filtered_tag_ids(
+        self, db, expense, mirror_tag, cuenta_tag, otros_tag, test_user
+    ):
         """Bug B: update_expense should preserve mirror even when tag_ids excludes it."""
-        from app.schemas.expenses import ExpenseUpdate
         from app.routers.expenses import update_expense
+        from app.schemas.expenses import ExpenseUpdate
 
         payload = ExpenseUpdate(tag_ids=[cuenta_tag.id, otros_tag.id])
         update_expense(exp_id=expense.id, expense=payload, db=db, current_user=test_user)
@@ -162,8 +167,9 @@ class TestUpdateExpenseTags:
     def test_tag_only_update_skips_48h_check(self, db, test_user, mirror_tag, cuenta_tag, category):
         """Tag-only edits should bypass the48-hour window."""
         from datetime import datetime, timedelta
-        from app.schemas.expenses import ExpenseUpdate
+
         from app.routers.expenses import update_expense
+        from app.schemas.expenses import ExpenseUpdate
 
         exp = Expense(
             date=date.today(),

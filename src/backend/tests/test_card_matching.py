@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-chars-long-for-testing"
 
+from app.services.smart_import_core import _match_card_to_existing
 from app.telegram_bot import (
     _extract_card_from_text,
     _is_bank_notification,
@@ -15,7 +16,6 @@ from app.telegram_bot import (
     _strip_accents,
     handle_unsupported_message,
 )
-from app.services.smart_import_core import _match_card_to_existing
 
 
 def _make_card(card_name, bank="", card_type="credito", user_id=1):

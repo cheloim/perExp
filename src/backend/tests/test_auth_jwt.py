@@ -5,11 +5,9 @@ Covers the core auth service functions that every authenticated endpoint depends
 
 import time
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
 
 import jwt
 import pytest
-
 
 # ── Password hashing ──────────────────────────────────────────
 
@@ -126,7 +124,9 @@ class TestTokenValidation:
 
         token = create_access_token(user_id=1)
         with pytest.raises(jwt.InvalidSignatureError):
-            jwt.decode(token, "wrong-secret-key-that-is-long-enough-32chars", algorithms=[ALGORITHM])
+            jwt.decode(
+                token, "wrong-secret-key-that-is-long-enough-32chars", algorithms=[ALGORITHM]
+            )
 
     def test_malformed_token_raises(self):
         from app.services.auth import ALGORITHM, JWT_SECRET
@@ -144,7 +144,9 @@ class TestTokenValidation:
         from app.services.auth import ALGORITHM, JWT_SECRET
 
         # Token with valid structure but no 'sub' claim
-        token = jwt.encode({"exp": datetime.now(UTC) + timedelta(hours=1)}, JWT_SECRET, algorithm=ALGORITHM)
+        token = jwt.encode(
+            {"exp": datetime.now(UTC) + timedelta(hours=1)}, JWT_SECRET, algorithm=ALGORITHM
+        )
         payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
         assert payload.get("sub") is None
 
@@ -168,7 +170,6 @@ class TestGetCurrentUser:
 
         # get_current_user is a generator, we need to call it properly
         # Actually it's a regular function with Depends, we call it directly
-        from fastapi.security import OAuth2PasswordBearer
 
         user = get_current_user(token=token, db=db)
         assert user.id == test_user.id
@@ -186,9 +187,9 @@ class TestGetCurrentUser:
         assert exc_info.value.status_code == 401
 
     def test_invalid_token_raises_401(self, db):
-        from app.services.auth import get_current_user
-
         from fastapi import HTTPException
+
+        from app.services.auth import get_current_user
 
         with pytest.raises(HTTPException) as exc_info:
             get_current_user(token="totally-invalid-token", db=db)

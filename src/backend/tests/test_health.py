@@ -1,9 +1,5 @@
 """Tests for health endpoints — liveness and readiness."""
 
-import os
-
-import pytest
-
 
 class TestLivenessEndpoint:
     """GET /health — always 200 if process is alive."""
