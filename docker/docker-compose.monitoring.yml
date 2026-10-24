@@ -22,14 +22,9 @@ services:
   grafana:
     image: docker.io/grafana/grafana:latest
     ports:
-      # Sólo loopback: el acceso público entra por nginx vía la red `oikonomia`.
-      # Publicarlo en 0.0.0.0 dependía de que firewalld lo tape.
+      # Sólo loopback: el acceso público entra por nginx, por nombre de
+      # servicio (`grafana:3000`) en la red compartida.
       - "127.0.0.1:3000:3000"
-    networks:
-      - default
-      # Red compartida con la plataforma: nginx lo resuelve como `grafana:3000`
-      # y el backend puede sincronizar usuarios contra él.
-      - oikonomia
     environment:
       GF_SECURITY_ADMIN_USER: admin
       # Llave de emergencia: el login normal es por Google. El deploy aborta en
@@ -190,12 +185,13 @@ volumes:
   alloy_data:
 
 networks:
-  # Red interna del stack de monitoreo: prometheus, loki, alloy y grafana se
-  # resuelven por nombre de servicio.
-  default: {}
-  # Red compartida con la plataforma. Sólo grafana se engancha, para que nginx
-  # (proyecto oikonomia-nginx) y el backend puedan alcanzarlo por `grafana:3000`
-  # sin exponer el puerto en el host.
-  oikonomia:
+  # TODOS los compose del repo comparten esta red (infra, nginx, platform,
+  # bots, landing y monitoreo). Un servicio en dos redes a la vez fue lo que
+  # rompió el 2026-10-24: podman-compose no deja el alias del servicio en la
+  # red externa y nginx dejó de resolver `grafana`, con Grafana devolviendo
+  # 502 en producción. En una sola red todo se resuelve por nombre de
+  # servicio: nginx llama a `grafana:3000`, el backend también, y no hace
+  # falta publicar el puerto en el host.
+  default:
     external: true
     name: ${NETWORK_NAME:-oikonomia}
