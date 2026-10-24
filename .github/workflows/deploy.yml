@@ -1218,7 +1218,11 @@ jobs:
             podman volume create oikonomia_grafana_data 2>/dev/null || true
             podman volume create oikonomia_loki_data 2>/dev/null || true
             podman volume create oikonomia-monitoring_alloy_data 2>/dev/null || true
-            podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d
+            # --force-recreate: cambió la red del stack y podman-compose no
+            # recrea un contenedor sólo porque cambió a qué red está enganchado.
+            # Sin esto los contenedores se quedan en la red vieja y no se
+            # resuelven entre sí (502 en el datasource proxy).
+            podman-compose -p oikonomia-monitoring -f docker-compose.monitoring.yml up -d --force-recreate
 
             # ── 4. Prometheus: enable lifecycle API ──
             PROMETHEUS_ARGS=$(podman inspect oikonomia-monitoring_prometheus_1 --format '{{.Config.Cmd}}' 2>/dev/null || echo "")
@@ -1376,20 +1380,55 @@ jobs:
             # ── 9d. Verify Grafana can reach both datasources ──
             # Catches detached-network failures (e.g. a container recreated
             # outside compose so its DNS name no longer resolves).
+            # Con reintento: recién recreados, Prometheus y Loki pueden tardar
+            # en estar listos y un solo intento daba un falso negativo.
             echo "Verifying Grafana datasource connectivity..."
-            PROM_HTTP=$(curl -s -o /tmp/prom-check.out -w '%{http_code}' -u "admin:${GRAFANA_ADMIN_PASSWORD}" "http://localhost:3000/api/datasources/proxy/uid/PBFA97CFB590B2093/api/v1/query?query=up")
-            PROM_OK=$(python3 -c "import json;d=json.load(open('/tmp/prom-check.out'));print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
-            LOKI_HTTP=$(curl -s -o /tmp/loki-check.out -w '%{http_code}' -u "admin:${GRAFANA_ADMIN_PASSWORD}" "http://localhost:3000/api/datasources/proxy/uid/P8E80F9AEF21F6940/loki/api/v1/labels")
-            LOKI_OK=$(python3 -c "import json;d=json.load(open('/tmp/loki-check.out'));print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
+            GRAFANA_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_grafana_' | head -1 || true)
+            ds_check() {
+              local uid="$1" path="$2" out="/tmp/ds-$3.out"
+              curl -s -o "$out" --max-time 10 -w '%{http_code}' \
+                -u "admin:${GRAFANA_ADMIN_PASSWORD}" \
+                "http://localhost:3000/api/datasources/proxy/uid/$uid$path"
+            }
+            ds_ok() {
+              python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print('ok' if d.get('status')=='success' else 'fail')" "$1" 2>/dev/null || echo "fail"
+            }
+
+            PROM_OK="fail"
+            LOKI_OK="fail"
+            PROM_HTTP="000"
+            LOKI_HTTP="000"
+            for ATTEMPT in $(seq 1 12); do
+              PROM_HTTP=$(ds_check PBFA97CFB590B2093 "/api/v1/query?query=up" prom)
+              LOKI_HTTP=$(ds_check P8E80F9AEF21F6940 "/loki/api/v1/labels" loki)
+              PROM_OK=$(ds_ok /tmp/ds-prom.out)
+              LOKI_OK=$(ds_ok /tmp/ds-loki.out)
+              if [ "$PROM_OK" = "ok" ] && [ "$LOKI_OK" = "ok" ]; then
+                echo "Datasources OK al intento $ATTEMPT"
+                break
+              fi
+              echo "  intento $ATTEMPT/12: prometheus=$PROM_OK (HTTP $PROM_HTTP) loki=$LOKI_OK (HTTP $LOKI_HTTP)"
+              sleep 5
+            done
+
             if [ "$PROM_OK" != "ok" ]; then
               echo "::error::Grafana cannot reach Prometheus (HTTP $PROM_HTTP)"
-              head -c 300 /tmp/prom-check.out 2>/dev/null || true
+              head -c 300 /tmp/ds-prom.out 2>/dev/null || true
               echo ""
+              echo "=== Diagnóstico ==="
+              echo "Prometheus readiness: $(curl -s -o /dev/null --max-time 5 -w '%{http_code}' http://localhost:9090/-/ready)"
+              if [ -n "$GRAFANA_CONTAINER" ]; then
+                echo "DNS 'prometheus' desde grafana:"
+                podman exec "$GRAFANA_CONTAINER" getent hosts prometheus || echo "  NO RESUELVE"
+                echo "Redes de grafana:"
+                podman inspect "$GRAFANA_CONTAINER" --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}'
+              fi
+              podman ps --format '{{.Names}}|{{.Status}}' | grep -E 'prometheus|grafana' || true
               exit 1
             fi
             if [ "$LOKI_OK" != "ok" ]; then
               echo "::error::Grafana cannot reach Loki (HTTP $LOKI_HTTP)"
-              head -c 300 /tmp/loki-check.out 2>/dev/null || true
+              head -c 300 /tmp/ds-loki.out 2>/dev/null || true
               echo ""
               exit 1
             fi
