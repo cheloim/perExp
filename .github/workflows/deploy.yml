@@ -326,8 +326,9 @@ jobs:
           EMAIL_API_KEY=${{ secrets.EMAIL_API_KEY }}
           SMTP_FROM=${{ vars.SMTP_FROM }}
           SMTP_FROM_ADDRESS=${{ vars.SMTP_FROM_ADDRESS }}
-          GRAFANA_OAUTH_CLIENT_ID=grafana-oikonomia
-          GRAFANA_OAUTH_CLIENT_SECRET=${{ secrets.GRAFANA_OAUTH_CLIENT_SECRET }}
+          # Password del admin de Grafana. Sin él, Grafana queda con password
+          # vacía y su API de sync no autentica: validate-config lo exige.
+          GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           GRAFANA_CLOUD_PROMETHEUS_URL=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_URL }}
           GRAFANA_CLOUD_PROMETHEUS_USER=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_USER }}
           GRAFANA_CLOUD_PROMETHEUS_PASSWORD=${{ secrets.GRAFANA_CLOUD_PROMETHEUS_PASSWORD }}
@@ -415,7 +416,7 @@ jobs:
           port: ${{ vars.SSH_PORT || '43422' }}
           script: |
             cd /opt/creditcardanalyzer
-            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_PROMETHEUS_USER GRAFANA_CLOUD_PROMETHEUS_PASSWORD GRAFANA_CLOUD_LOKI_URL GRAFANA_CLOUD_LOKI_USER GRAFANA_CLOUD_LOKI_PASSWORD"
+            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_ADMIN_PASSWORD GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_PROMETHEUS_USER GRAFANA_CLOUD_PROMETHEUS_PASSWORD GRAFANA_CLOUD_LOKI_URL GRAFANA_CLOUD_LOKI_USER GRAFANA_CLOUD_LOKI_PASSWORD"
             MISSING=""
             for var in $REQUIRED; do
               VALUE=$(grep "^${var}=" .env | cut -d= -f2-)
@@ -1276,8 +1277,8 @@ jobs:
             # Catches detached-network failures (e.g. a container recreated
             # outside compose so its DNS name no longer resolves).
             echo "Verifying Grafana datasource connectivity..."
-            PROM_OK=$(curl -s -u admin:${GRAFANA_ADMIN_PASSWORD:-oikonomia2026} "http://localhost:3000/api/datasources/proxy/uid/PBFA97CFB590B2093/api/v1/query?query=up" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
-            LOKI_OK=$(curl -s -u admin:${GRAFANA_ADMIN_PASSWORD:-oikonomia2026} "http://localhost:3000/api/datasources/proxy/uid/P8E80F9AEF21F6940/loki/api/v1/labels" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
+            PROM_OK=$(curl -s -u admin:${GRAFANA_ADMIN_PASSWORD} "http://localhost:3000/api/datasources/proxy/uid/PBFA97CFB590B2093/api/v1/query?query=up" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
+            LOKI_OK=$(curl -s -u admin:${GRAFANA_ADMIN_PASSWORD} "http://localhost:3000/api/datasources/proxy/uid/P8E80F9AEF21F6940/loki/api/v1/labels" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
             if [ "$PROM_OK" != "ok" ]; then
               echo "::error::Grafana cannot reach Prometheus (datasource proxy failed)"
               exit 1

@@ -143,6 +143,27 @@ Dos reglas para no perder el borde:
 * Grafana se alcanza por nombre de servicio (`grafana:3000`) en la red
   compartida `oikonomia`, y su puerto queda sólo en loopback en el host.
 
+### Grafana: quién entra y por qué
+
+La **autenticación** de Grafana es de Google: no depende de la plataforma.
+Antes pasaba por el backend de Oikonomia, así que la plataforma caída dejaba el
+tablero inaccesible justamente cuando hacía falta leerlo.
+
+La **autorización** sigue siendo el flag `is_admin` de Oikonomia, pero
+*materializado*: `app/services/grafana_sync.py` crea a los admins en Grafana
+con rol Admin y borra al resto. Con `allow_sign_up=false`, quien no está
+pre-provisionado no puede entrar. La consistencia es eventual a propósito —
+reconcilia cuando cambia el flag y cada hora desde celery beat, nunca durante
+un login.
+
+Queda además una llave de emergencia: el formulario de login local con
+`GRAFANA_ADMIN_PASSWORD` (secret de GitHub, **obligatorio**: `validate-config`
+aborta si falta, porque una Grafana pública con password por default es peor
+que no tener tablero). Es el camino que no depende de nadie más.
+
+Requisito manual, una vez: agregar `https://grafana.<dominio>/login/google`
+como redirect URI autorizado en Google Cloud Console.
+
 ### Celery Beat Schedule
 
 | Schedule               | Task                          | Description                          |
@@ -151,6 +172,7 @@ Dos reglas para no perder el borde:
 | Daily 3:30 AM UTC      | `cleanup_expired_import_jobs` | Delete import jobs older than 24h    |
 | Sunday 23:00 UTC       | `send_weekly_reports`         | Generate weekly spending reports     |
 | 1st of month 23:00 UTC | `generate_monthly_reports`    | Generate previous month reports      |
+| Hourly                 | `reconcile_grafana_admins`    | Grafana users follow the `is_admin` flag |
 
 ### Report Failure Handling
 

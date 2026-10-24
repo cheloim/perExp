@@ -33,25 +33,32 @@ services:
       - oikonomia
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-oikonomia2026}
+      # Llave de emergencia: el login normal es por Google. El deploy aborta en
+      # validate-config si falta, porque una Grafana pública con password por
+      # default es peor que no tener tablero.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_AUTH_BASIC_ENABLED: "true"
-      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      # Habilitado a propósito: es el camino que no depende de nadie más, el que
+      # se usa cuando Google o la plataforma están caídas.
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
       GF_SERVER_ROOT_URL: "https://grafana.${DOMAIN_NAME:-oikonomia.ar}"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/status.json
-      # Generic OAuth via Oikonomia backend (only admins can access)
-      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
-      GF_AUTH_GENERIC_OAUTH_NAME: "NikoFin"
-      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: ${GRAFANA_OAUTH_CLIENT_ID:-grafana-oikonomia}
-      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: ${GRAFANA_OAUTH_CLIENT_SECRET:-}
-      GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
-      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://platform.${DOMAIN_NAME:-oikonomia.ar}/api/auth/oauth/grafana/authorize"
-      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://platform.${DOMAIN_NAME:-oikonomia.ar}/api/auth/oauth/grafana/token"
-      GF_AUTH_GENERIC_OAUTH_API_URL: "https://platform.${DOMAIN_NAME:-oikonomia.ar}/api/auth/oauth/grafana/userinfo"
-      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "role"
-      GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN: "true"
-      GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: "true"
+      # Google OAuth: la AUTENTICACIÓN no depende de la plataforma (antes pasaba
+      # por el backend de Oikonomia, y la plataforma caída dejaba el tablero
+      # inaccesible justamente cuando hacía falta). La AUTORIZACIÓN sí depende
+      # del flag is_admin, materializada por app/services/grafana_sync.py: con
+      # allow_sign_up=false sólo entra quien está pre-provisionado.
+      GF_AUTH_GOOGLE_ENABLED: "true"
+      GF_AUTH_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GF_AUTH_GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GF_AUTH_GOOGLE_SCOPES: "openid profile email"
+      GF_AUTH_GOOGLE_AUTH_URL: "https://accounts.google.com/o/oauth2/v2/auth"
+      GF_AUTH_GOOGLE_TOKEN_URL: "https://oauth2.googleapis.com/token"
+      GF_AUTH_GOOGLE_API_URL: "https://openidconnect.googleapis.com/v1/userinfo"
+      GF_AUTH_GOOGLE_ALLOW_SIGN_UP: "false"
       GF_AUTH_OAUTH_AUTO_LOGIN: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
       GF_USERS_AUTO_ASSIGN_ORG: "true"
       GF_USERS_AUTO_ASSIGN_ORG_ROLE: "Viewer"
     volumes:
