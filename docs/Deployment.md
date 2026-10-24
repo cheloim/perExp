@@ -114,6 +114,24 @@ deploys fallen. `scripts/housekeeping.sh` corre desde un timer diario
 | Backups de la base | 15 días | `scripts/housekeeping.sh` |
 | Disco | el deploy aborta con `::error::` por debajo de 2GB libres y corre housekeeping por debajo de 5GB | `deploy.yml` (preflight) |
 
+### Backups de la base
+
+`backup-db` corre antes del deploy y deja un dump **verificable**:
+
+* Formato custom (`pg_dump -Fc`): comprimido por dentro y legible con
+  `pg_restore --list`, que es lo que permite verificarlo. El dump plano de antes
+  podía quedar truncado por un disco lleno y seguir pasando el chequeo de
+  "no está vacío".
+* Verificación obligatoria: `pg_restore --list` sobre el dump. Si no se puede
+  leer entero, el job falla y borra el archivo.
+* Sólo en cambios que pueden tocar datos (platform o infra). Un cambio de
+  landing o de nginx no puede corromper la base, y cada dump es I/O y disco.
+* Retención de 15 días, en `scripts/housekeeping.sh`: una sola regla, que
+  además corre aunque los deploys fallen.
+
+Pendiente: la copia fuera del server. Hoy los backups viven en el mismo disco
+que tienen que proteger.
+
 Además, `housekeeping.sh` avisa por Telegram si `journal.log` supera el tope
 (señal de que la rotación no está funcionando) y publica
 `oikonomia_housekeeping_last_success_timestamp_seconds` para que la alerta de

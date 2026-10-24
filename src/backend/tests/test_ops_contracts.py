@@ -536,3 +536,83 @@ class TestAlerting:
         compose = _read(MONITORING_COMPOSE)
         assert "collector.textfile.directory" in compose
         assert "node_exporter/textfile" in compose
+
+
+# ── database backups ───────────────────────────────────────────────
+
+
+def _backup_job() -> str:
+    return _read(DEPLOY_YML).split("backup-db:")[1].split("\n  deploy-infra:")[0]
+
+
+class TestDatabaseBackups:
+    def test_uses_custom_format_and_verifies_the_dump(self):
+        """A plain SQL dump can be truncated and still look non-empty. The
+        custom format is what lets the dump be *verified*."""
+        job = _backup_job()
+        assert "pg_dump" in job
+        assert re.search(r"pg_dump[^\n]*-Fc", job), "must use pg_dump -Fc"
+        assert "pg_restore" in job and "--list" in job, "the dump must be verified"
+
+    def test_fails_loudly(self):
+        """`pg_dump ... 2>/dev/null` hides the error and a truncated file still
+        passes a non-empty check. The 2026-10-23 disk-full case produced
+        exactly that."""
+        job = _backup_job()
+        assert not re.search(r"pg_dump[^\n]*2>/dev/null", job), (
+            "the dump must not swallow stderr"
+        )
+        assert "pipefail" in job or re.search(r"if\s+\[\s+\$\?\s+-ne\s+0", job), (
+            "a failed dump must fail the job"
+        )
+        assert "pg_restore --list" in job
+
+    def test_gated_on_db_affecting_changes(self):
+        """A landing or nginx change cannot corrupt data: the checkpoint is for
+        platform and infra changes."""
+        job = _backup_job()
+        head = job.split("steps:")[0]
+        assert "needs.detect-changes.outputs.platform" in head
+        assert "needs.detect-changes.outputs.infra" in head
+
+    def test_retention_lives_in_one_place(self):
+        """Two retention rules meant neither had to be right."""
+        job = _backup_job()
+        assert not re.search(r"mtime \+\d+", job), (
+            "backup retention must not live in deploy.yml"
+        )
+        assert "HOUSEKEEPING_RETENTION_DAYS:-15" in _read(HOUSEKEEPING), (
+            "housekeeping owns the retention window"
+        )
+
+
+# ── deploy job graph ───────────────────────────────────────────────
+
+
+class TestDeployJobGraph:
+    def test_platform_containers_are_only_killed_before_a_redeploy(self):
+        """deploy-infra stops and removes the platform containers so
+        deploy-platform can recreate them. If it runs without deploy-platform
+        following — an infra-only or monitoring-only change — production stays
+        down: nothing brings the app back.
+        """
+        deploy = _read(DEPLOY_YML)
+        infra = deploy.split("deploy-infra:")[1].split("\n  deploy-platform:")[0]
+        marker = infra.split("Cleaning up orphaned containers")[1]
+
+        guard = re.search(
+            r'if \[ "\$\{\{ needs\.detect-changes\.outputs\.platform \}\}" = "true" \]'
+            r'[\s\S]*?; then([\s\S]*?)\n\s*fi',
+            marker,
+        )
+        assert guard, (
+            "killing the platform containers must be guarded so it only happens "
+            "when a redeploy follows"
+        )
+        inside = guard.group(1)
+        assert 'podman stop "oikonomia-platform_' in inside
+
+        outside = marker.replace(inside, "")
+        assert 'podman stop "oikonomia-platform_' not in outside, (
+            "nothing outside the guard may stop the platform containers"
+        )

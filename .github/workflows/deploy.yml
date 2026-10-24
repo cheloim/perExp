@@ -557,8 +557,14 @@ jobs:
 
   backup-db:
     runs-on: ubuntu-latest
-    needs: [pull-images, validate-config]
-    if: always() && (needs.pull-images.result == 'success' && needs.validate-config.result == 'success')
+    needs: [pull-images, validate-config, detect-changes]
+    # Sólo si el cambio puede tocar datos: platform (código que escribe) o infra
+    # (schema, volúmenes). Un cambio de landing o de nginx no puede corromper la
+    # base, y cada dump es I/O y disco en cada deploy.
+    if: |
+      always() && !cancelled() &&
+      needs.pull-images.result == 'success' && needs.validate-config.result == 'success' &&
+      (needs.detect-changes.outputs.platform == 'true' || needs.detect-changes.outputs.infra == 'true' || inputs.action == 'full')
 
     steps:
       - name: Backup database
@@ -569,41 +575,49 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
           script: |
+            set -euo pipefail
+
             # Check if DB container is running (compose-agnostic)
-            DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
+            DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1 || true)
             if [ -z "$DB_CONTAINER" ]; then
-              echo "WARNING: Database container not running, skipping backup (first deploy?)"
+              echo "::warning::Database container not running, skipping backup (first deploy?)"
               exit 0
             fi
 
             BACKUP_DIR="/opt/creditcardanalyzer/backups"
-            mkdir -p $BACKUP_DIR
+            mkdir -p "$BACKUP_DIR"
 
             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-            BACKUP_FILE="$BACKUP_DIR/db_${TIMESTAMP}.sql"
+            BACKUP_FILE="$BACKUP_DIR/db_${TIMESTAMP}.dump"
 
             echo "Backing up database..."
-            podman exec "$DB_CONTAINER" \
-              pg_dump -U expenses_user expenses > $BACKUP_FILE 2>/dev/null
-
-            # Compress
-            gzip $BACKUP_FILE
-
-            # Verify backup is not empty
-            if [ ! -s "${BACKUP_FILE}.gz" ]; then
-              echo "ERROR: Database backup is empty"
+            # -Fc (custom format): comprimido por dentro y, sobre todo,
+            # VERIFICABLE con pg_restore --list. Con el dump plano de antes, un
+            # archivo truncado por disco lleno pasaba el chequeo de "no está
+            # vacío" y el problema se descubría en el restore.
+            if ! podman exec "$DB_CONTAINER" pg_dump -U expenses_user -Fc expenses > "$BACKUP_FILE"; then
+              echo "::error::pg_dump falló"
+              rm -f "$BACKUP_FILE"
               exit 1
             fi
 
-            # Clean up backups older than 7 days
-            find $BACKUP_DIR -name "db_*.sql.gz" -mtime +7 -delete
+            # Verificar que el dump se puede leer entero antes de confiar en él.
+            podman cp "$BACKUP_FILE" "$DB_CONTAINER:/tmp/backup.dump"
+            if ! podman exec "$DB_CONTAINER" pg_restore --list /tmp/backup.dump >/dev/null; then
+              echo "::error::El dump no se pudo leer: backup corrupto"
+              podman exec "$DB_CONTAINER" rm -f /tmp/backup.dump
+              rm -f "$BACKUP_FILE"
+              exit 1
+            fi
+            podman exec "$DB_CONTAINER" rm -f /tmp/backup.dump
 
-            BACKUP_SIZE=$(du -h ${BACKUP_FILE}.gz | cut -f1)
-            echo "Backup saved: ${BACKUP_FILE}.gz ($BACKUP_SIZE)"
+            # La retención vive en scripts/housekeeping.sh (15 días), no acá:
+            # una sola regla, que además corre aunque los deploys fallen.
+            BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
+            echo "Backup verificado: $BACKUP_FILE ($BACKUP_SIZE)"
 
-            # List current backups
             echo "Current backups:"
-            ls -lh $BACKUP_DIR/db_*.sql.gz 2>/dev/null | tail -5
+            ls -lh "$BACKUP_DIR"/db_* 2>/dev/null | tail -5 || true
 
   # ── Disaggregated deploy jobs ─────────────────────────────
 
@@ -612,7 +626,7 @@ jobs:
     needs: [backup-db, detect-changes]
     if: |
       always() && !cancelled() &&
-      (needs.backup-db.result == 'success' || needs.detect-changes.outputs.infra == 'true' || inputs.action == 'full')
+      (needs.backup-db.result == 'success' || needs.detect-changes.outputs.infra == 'true' || needs.detect-changes.outputs.ops == 'true' || needs.detect-changes.outputs.nginx == 'true' || needs.detect-changes.outputs.monitoring == 'true' || inputs.action == 'full')
 
     steps:
       - name: Ensure infra is running
@@ -644,17 +658,31 @@ jobs:
               podman rm -f "$OLD" 2>/dev/null || true
             done
 
-            # Also clean up any orphaned oikonomia-* containers from failed deploys
-            # But DO NOT touch infra containers (db, redis) — they have persistent data
+            # Clean up orphaned containers from failed deploys.
+            # But DO NOT touch infra containers (db, redis) — they have persistent data.
+            #
+            # OJO: esto DETIENE los contenedores de la plataforma y los borra.
+            # Su función es limpiar restos de un deploy fallido justo antes de
+            # recrearlos, así que sólo puede correr si después viene
+            # deploy-platform. Si corre sin él (un cambio sólo de infra, o
+            # sólo de monitoring) nadie vuelve a levantar la app y producción
+            # se queda caída.
             echo "Cleaning up orphaned containers..."
-            for SVC in backend platform-frontend celery_worker celery_beat; do
-              podman stop "oikonomia-platform_${SVC}_1" 2>/dev/null || true
-              podman rm -f "oikonomia-platform_${SVC}_1" 2>/dev/null || true
-            done
-            for SVC in telegram_bot; do
-              podman stop "oikonomia-bots_${SVC}_1" 2>/dev/null || true
-              podman rm -f "oikonomia-bots_${SVC}_1" 2>/dev/null || true
-            done
+            if [ "${{ needs.detect-changes.outputs.platform }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
+              for SVC in backend platform-frontend celery_worker celery_beat; do
+                podman stop "oikonomia-platform_${SVC}_1" 2>/dev/null || true
+                podman rm -f "oikonomia-platform_${SVC}_1" 2>/dev/null || true
+              done
+            else
+              echo "Sin redeploy de plataforma: no se tocan sus contenedores"
+            fi
+
+            if [ "${{ needs.detect-changes.outputs.bots }}" = "true" ] || [ "${{ needs.detect-changes.outputs.platform }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
+              for SVC in telegram_bot; do
+                podman stop "oikonomia-bots_${SVC}_1" 2>/dev/null || true
+                podman rm -f "oikonomia-bots_${SVC}_1" 2>/dev/null || true
+              done
+            fi
             # NOTE: nginx, monitoring exporters, and alloy are NEVER killed during cleanup.
             # Nginx stays up to serve the maintenance page during platform restarts.
             # Monitoring stays up to keep observability during deploys.
