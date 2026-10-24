@@ -41,6 +41,7 @@ from app.models import Category, User
 from app.routers import (
     accounts,
     admin,
+    admin_categorization,
     analysis,
     auth,
     budgets,
@@ -241,4 +242,5 @@ app.include_router(suggestions.router)
 app.include_router(recurring.router)
 app.include_router(tags.router)
 app.include_router(admin.router)
+app.include_router(admin_categorization.router)
 app.include_router(whatsapp_webhook.router)

@@ -48,6 +48,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.suggest_uncategorized.suggest_uncategorized_categories",
         "schedule": _cron_from_env("SCHEDULE_SUGGEST_CATEGORIES", 2, 0),
     },
+    "categorization-review-scan-daily": {
+        "task": "app.tasks.categorization_review.categorization_review_scan",
+        "schedule": _cron_from_env("SCHEDULE_CATEGORIZATION_REVIEW", 4, 30),
+    },
     "detect-recurring-expenses-daily": {
         "task": "app.tasks.detect_recurring.detect_recurring_expenses",
         "schedule": _cron_from_env("SCHEDULE_DETECT_RECURRING", 3, 0),

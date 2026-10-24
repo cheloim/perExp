@@ -919,6 +919,7 @@ def system_tasks(admin: User = Depends(get_current_admin), db: Session = Depends
         "send-weekly-reports",
         "generate-monthly-reports",
         "suggest-uncategorized-categories-daily",
+        "categorization-review-scan-daily",
         "detect-recurring-expenses-daily",
         "check-upcoming-recurring-daily",
         "cleanup-audit-logs-daily",
@@ -989,6 +990,14 @@ FEATURE_FLAGS = [
         "key": "weekly_summary_enabled",
         "label": "Resumen semanal",
         "description": "Reporte semanal vía Telegram",
+    },
+    {
+        "key": "categorization_review_enabled",
+        "label": "Revisión de categorías",
+        "description": (
+            "Detección interna de gastos mal categorizados (solo revisión admin, "
+            "no se muestra al usuario)"
+        ),
     },
 ]
 
@@ -1111,6 +1120,7 @@ TASK_NAME_MAP = {
     "send-weekly-reports": "app.tasks.weekly_summary.send_weekly_reports",
     "generate-monthly-reports": "app.tasks.monthly_report.generate_monthly_reports",
     "suggest-uncategorized-categories-daily": "app.tasks.suggest_uncategorized.suggest_uncategorized_categories",
+    "categorization-review-scan-daily": "app.tasks.categorization_review.categorization_review_scan",
     "detect-recurring-expenses-daily": "app.tasks.detect_recurring.detect_recurring_expenses",
     "check-upcoming-recurring-daily": "app.tasks.check_upcoming_recurring.check_upcoming_recurring",
     "cleanup-audit-logs-daily": "app.tasks.cleanup_audit_logs.cleanup_old_records",

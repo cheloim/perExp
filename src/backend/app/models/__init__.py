@@ -7,7 +7,7 @@ All models are organized by domain in separate modules:
 - budgets.py: Budget, BudgetGroup, BudgetEvent
 - investments.py: Investment, Setting
 - imports.py: ImportJob, ScheduledExpense, RecurringExpense
-- ai.py: AnalysisHistory, CategorySuggestion, MerchantPreference
+- ai.py: AnalysisHistory, CategorySuggestion, MerchantPreference, CategorizationReview
 - notifications.py: Notification
 - admin.py: AuditLog, ImpersonationSession, ImpersonationMessage, PlatformLog, MonthlyReport
 
@@ -26,7 +26,12 @@ from app.models.admin import (
 )
 
 # AI
-from app.models.ai import AnalysisHistory, CategorySuggestion, MerchantPreference
+from app.models.ai import (
+    AnalysisHistory,
+    CategorizationReview,
+    CategorySuggestion,
+    MerchantPreference,
+)
 from app.models.base import Group, GroupMember, User
 
 # Budgets
@@ -68,6 +73,7 @@ __all__ = [
     "ScheduledExpense",
     "AnalysisHistory",
     "CategorySuggestion",
+    "CategorizationReview",
     "MerchantPreference",
     "Notification",
     "AuditLog",

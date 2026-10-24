@@ -118,6 +118,23 @@ SSE streaming chat for investment queries:
 - Portfolio data formatted into context
 - Streaming responses via SSE
 
+### 8. Miscategorization Review (internal)
+
+**File**: `services/categorization_review.py`
+
+Second opinion on expenses that *have* a category but look miscategorized
+(issue #414). Deterministic rules generate the candidates; the LLM only reviews
+those candidates, in batches of 25, via `CATEGORY_REVIEW_PROMPT`:
+
+```json
+[{"expense_id": 12, "is_mismatch": true, "suggested_category_id": 17,
+  "confidence": 0.9, "reason": "es una librería, no un servicio público"}]
+```
+
+- Metric label: `categorization_review`
+- Nothing is auto-applied: the verdict only feeds an internal review
+- A failed batch falls back to the rule score, never to per-expense calls
+
 ## Prompt Templates
 
 All prompts are defined in `backend/app/prompts.py`:
@@ -129,6 +146,9 @@ All prompts are defined in `backend/app/prompts.py`:
 | `CARD_EXTRACT_PROMPT`    | Card name/bank extraction         |
 | `ANALYSIS_SYSTEM_PROMPT` | Expense analysis chat             |
 | `AI_TRENDS_PROMPT`       | Dashboard trend analysis          |
+| `CATEGORY_SUGGEST_PROMPT`| Category suggestion (single expense) |
+| `BATCH_CATEGORY_PROMPT`  | Category suggestion (batch of uncategorized expenses) |
+| `CATEGORY_REVIEW_PROMPT` | Miscategorization review (internal, issue #414) |
 
 ## Cost Optimization
 

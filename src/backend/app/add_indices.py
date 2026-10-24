@@ -69,6 +69,15 @@ INDICES = [
         "category_suggestions",
         ["suggested_category_id"],
     ),
+    # Categorization reviews (issue #414)
+    ("ix_categorization_reviews_user_id", "categorization_reviews", ["user_id"]),
+    ("ix_categorization_reviews_expense_id", "categorization_reviews", ["expense_id"]),
+    ("ix_categorization_reviews_status", "categorization_reviews", ["status"]),
+    (
+        "ix_categorization_reviews_status_score",
+        "categorization_reviews",
+        ["status", "score"],
+    ),
 ]
 
 

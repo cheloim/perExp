@@ -1,4 +1,9 @@
-"""AI and suggestion models: AnalysisHistory, CategorySuggestion, MerchantPreference."""
+"""AI and suggestion models: AnalysisHistory, CategorySuggestion, MerchantPreference.
+
+`CategorizationReview` is the internal, admin-only counterpart of
+`CategorySuggestion`: it flags expenses that *have* a category but look
+miscategorized. It never reaches the end user (issue #414).
+"""
 
 from datetime import datetime
 
@@ -73,3 +78,45 @@ class MerchantPreference(Base):
 
     user = relationship("User")
     category = relationship("Category")
+
+
+class CategorizationReview(Base):
+    """Internal review of an expense that looks miscategorized (issue #414).
+
+    Admin-only: a finding of the miscategorization detector, resolved as
+    pending / accepted / rejected / investigated. It never shows up in the
+    user-facing suggestion flow.
+    """
+
+    __tablename__ = "categorization_reviews"
+    __table_args__ = (
+        Index("ix_categorization_reviews_user_id", "user_id"),
+        Index("ix_categorization_reviews_expense_id", "expense_id"),
+        Index("ix_categorization_reviews_status", "status"),
+        Index("ix_categorization_reviews_status_score", "status", "score"),
+        UniqueConstraint("expense_id", "detector_version", name="uq_review_expense_version"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    expense_id = Column(Integer, ForeignKey("expenses.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    current_category_id = Column(
+        Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
+    )
+    suggested_category_id = Column(
+        Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
+    )
+    score = Column(Float, nullable=False)
+    source = Column(String, default="rules")  # rules | rules+llm
+    reason = Column(Text, default="")
+    evidence = Column(Text, default="{}")  # JSON: signals, merchant_key, llm verdict
+    detector_version = Column(String, nullable=False)
+    status = Column(String, default="pending")  # pending | accepted | rejected | investigated
+    reviewed_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    expense = relationship("Expense")
+    current_category = relationship("Category", foreign_keys=[current_category_id])
+    suggested_category = relationship("Category", foreign_keys=[suggested_category_id])
+    reviewer = relationship("User", foreign_keys=[reviewed_by])

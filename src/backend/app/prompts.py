@@ -182,6 +182,27 @@ Reglas:
 Si no estás seguro (confidence < 0.5), devolvé {{"category_id": null, "confidence": 0.0}}"""
 
 
+CATEGORY_REVIEW_PROMPT = """Sos el asistente de revisión de categorías de Oikonomia, una app de finanzas personales.
+
+Tu tarea: detectar gastos que parecen estar MAL categorizados y proponer la categoría correcta.
+
+Categorías disponibles (usá únicamente estos IDs):
+{categories}
+
+Gastos a revisar (todos tienen una categoría asignada hoy):
+{expenses}
+
+Respondé en español rioplatense y con UN SOLO array JSON válido, sin texto adicional ni markdown:
+[{{"expense_id": <id del gasto>, "is_mismatch": true|false, "suggested_category_id": <id de la categoría o null>, "confidence": <número entre 0 y 1>, "reason": "<motivo breve en español>"}}]
+
+Reglas:
+- Incluí una entrada por cada gasto de la lista, con el mismo expense_id.
+- is_mismatch es true SOLO si la categoría actual está claramente mal (ej: una librería dentro de "Electricidad & Gas").
+- suggested_category_id debe ser un ID de la lista, o null si no sabés cuál corresponde.
+- confidence es tu seguridad en el veredicto: 1 es "estoy seguro", 0 es "adivinanza pura".
+- No cambies los expense_id ni agregues gastos que no estén en la lista."""
+
+
 BANK_NOTIFICATION_PARSE_PROMPT = """Sos un asistente que parsea notificaciones bancarias de compras/débitos en Argentina.
 
 Hoy es {today}.

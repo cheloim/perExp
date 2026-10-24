@@ -137,6 +137,24 @@ class TestRelationshipResolution:
         rel_cat = CategorySuggestion.__mapper__.relationships["suggested_category"]
         assert rel_cat.mapper.class_.__name__ == "Category"
 
+    def test_categorization_review_relationships(self):
+        from app.models import CategorizationReview
+
+        rel_expense = CategorizationReview.__mapper__.relationships["expense"]
+        assert rel_expense.mapper.class_.__name__ == "Expense"
+
+        rel_current = CategorizationReview.__mapper__.relationships["current_category"]
+        assert rel_current.mapper.class_.__name__ == "Category"
+
+        rel_suggested = CategorizationReview.__mapper__.relationships["suggested_category"]
+        assert rel_suggested.mapper.class_.__name__ == "Category"
+
+        rel_reviewer = CategorizationReview.__mapper__.relationships["reviewer"]
+        assert rel_reviewer.mapper.class_.__name__ == "User"
+
+        constraints = {c.name for c in CategorizationReview.__table__.constraints}
+        assert "uq_review_expense_version" in constraints
+
     def test_merchant_preference_relationships(self):
         from app.models import MerchantPreference
 
@@ -161,13 +179,13 @@ class TestRelationshipResolution:
 
 
 class TestTableCount:
-    """Verify all27 tables are registered after models split."""
+    """Verify all 28 tables are registered after models split."""
 
     def test_all_tables_registered(self):
         from app.database import Base
 
         tables = set(Base.metadata.tables.keys())
-        expected_count = 27
+        expected_count = 28
         assert len(tables) == expected_count, f"Expected {expected_count} tables, got {len(tables)}: {sorted(tables)}"
 
     def test_specific_critical_tables(self):

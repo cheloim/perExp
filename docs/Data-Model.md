@@ -218,6 +218,28 @@ Saved AI analysis sessions.
 | `total_amount`  | Float      | Total amount analyzed    |
 | `user_id`       | Integer FK | Owner                    |
 
+### CategorizationReview
+
+Internal review of an expense that looks miscategorized (issue #414). Admin-only:
+never shown to the end user. `UniqueConstraint(expense_id, detector_version)`
+makes the daily scan idempotent.
+
+| Field                  | Type       | Description                                        |
+| ---------------------- | ---------- | -------------------------------------------------- |
+| `id`                   | Integer PK | Auto-increment                                     |
+| `expense_id`           | Integer FK | Expense under review                               |
+| `user_id`              | Integer FK | Owner                                              |
+| `current_category_id`  | Integer FK | Category assigned today (nullable)                 |
+| `suggested_category_id`| Integer FK | Category the detector proposes (nullable)          |
+| `score`                | Float      | Combined signal score (0-1)                        |
+| `source`               | String     | `rules` or `rules+llm`                             |
+| `reason`               | Text       | Human-readable reason                              |
+| `evidence`             | Text (JSON)| Signals, merchant key, category stats, LLM verdict |
+| `detector_version`     | String     | Scoring version that produced the row              |
+| `status`               | String     | `pending` \| `accepted` \| `rejected` \| `investigated` |
+| `reviewed_by`          | Integer FK | Admin who resolved it                              |
+| `reviewed_at`          | DateTime   | When it was resolved                               |
+
 ### Setting
 
 Key-value store for user preferences and broker credentials.
