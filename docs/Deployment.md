@@ -98,6 +98,27 @@ Push to `main` branch triggers automatic deployment via GitHub Actions:
 5. Restart services
 6. Verify health
 
+### Operación: housekeeping, logs y backups
+
+La limpieza corre **en el server**, no en CI: tiene que ocurrir aunque los
+deploys fallen. `scripts/housekeeping.sh` corre desde un timer diario
+(`docker/ops/oikonomia-housekeeping.timer`, 04:00) y además desde el deploy,
+**antes** de bajar imágenes nuevas.
+
+| Qué | Política | Dónde |
+|-----|----------|-------|
+| Imágenes de la app | se conservan el release corriente y el de rollback (`IMAGE_TAG` lo comparten backend/frontend/landing); el resto se borra | `scripts/housekeeping.sh` |
+| Imágenes base y volúmenes | `podman image prune -f` + `podman volume prune -f` | `scripts/housekeeping.sh` |
+| `journal.log` | rotación diaria, máx. 200MB, 14 rotados comprimidos = 15 días | `docker/ops/logrotate-oikonomia` |
+| Journal de systemd | 1GB / 15 días | `docker/ops/journald-oikonomia.conf` |
+| Backups de la base | 15 días | `scripts/housekeeping.sh` |
+| Disco | el deploy aborta con `::error::` por debajo de 2GB libres y corre housekeeping por debajo de 5GB | `deploy.yml` (preflight) |
+
+Además, `housekeeping.sh` avisa por Telegram si `journal.log` supera el tope
+(señal de que la rotación no está funcionando) y publica
+`oikonomia_housekeeping_last_success_timestamp_seconds` para que la alerta de
+staleness detecte una limpieza que dejó de correr.
+
 ### Celery Beat Schedule
 
 | Schedule               | Task                          | Description                          |

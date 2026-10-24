@@ -348,9 +348,20 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
-          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,docker/alloy/config.alloy,config/blackbox/blackbox.yml,docker/prometheus/,docker/grafana/,docker/loki/,docker/journal-export.service,docker/logrotate-journal"
+          source: "docker/docker-compose.infra.yml,docker/docker-compose.nginx.yml,docker/docker-compose.platform.yml,docker/docker-compose.bots.yml,docker/docker-compose.monitoring.yml,docker/docker-compose.web-landing.yml,docker/nginx/nginx.conf,docker/nginx/maintenance/,docker/alloy/config.alloy,config/blackbox/blackbox.yml,docker/prometheus/,docker/grafana/,docker/loki/,docker/journal-export.service,docker/ops/"
           target: /opt/creditcardanalyzer
           strip_components: 1
+
+      - name: Copy ops scripts via SCP
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT || '43422' }}
+          source: "scripts/housekeeping.sh"
+          target: /opt/creditcardanalyzer
+          strip_components: 0
 
       - name: Substitute domain variables in nginx.conf
         uses: appleboy/ssh-action@v1
@@ -470,6 +481,33 @@ jobs:
             set -a
             source .env
             set +a
+
+            # ── Preflight de disco ──
+            # El pull de imágenes es lo primero que ocupa disco. Si se hace con
+            # el disco casi lleno, falla con un error de podman que no dice
+            # "disco lleno" y no queda nada registrado: ése fue el incidente del
+            # 2026-10-23. Primero se limpia, después se descarga.
+            MIN_FREE_MB=2048
+            HOUSEKEEPING_FREE_MB=5120
+            AVAIL_MB=$(df -m --output=avail / | tail -1 | tr -d ' ')
+            echo "Disco libre antes del pull: ${AVAIL_MB}MB"
+            df -h /
+
+            if [ "$AVAIL_MB" -lt "$HOUSEKEEPING_FREE_MB" ]; then
+              echo "::warning::Quedan ${AVAIL_MB}MB (<${HOUSEKEEPING_FREE_MB}MB) — corriendo housekeeping antes del pull"
+              bash scripts/housekeeping.sh || echo "::warning::housekeeping falló, se continúa"
+              AVAIL_MB=$(df -m --output=avail / | tail -1 | tr -d ' ')
+              echo "Disco libre tras housekeeping: ${AVAIL_MB}MB"
+            fi
+
+            if [ "$AVAIL_MB" -lt "$MIN_FREE_MB" ]; then
+              echo "::error::Quedan ${AVAIL_MB}MB libres (<${MIN_FREE_MB}MB): no se puede hacer pull de imágenes"
+              echo "=== podman system df ==="
+              podman system df -v || true
+              echo "=== imágenes de la app ==="
+              podman images --format 'table {{.Repository}}\t{{.Tag}}\t{{.Size}}' | head -30 || true
+              exit 1
+            fi
 
             echo "Logging in to GHCR..."
             echo "${{ secrets.GHCR_PAT }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin || echo "WARN: GHCR login failed (may be public repo)"
@@ -1082,16 +1120,35 @@ jobs:
             sleep 2
 
             # ── 2. journal.log rotation ──
+            # Antes esto copiaba a /etc/logrotate.d SIN sudo y tapaba el error
+            # con `|| true`: la rotación nunca existió y journal.log creció sin
+            # techo hasta llenar el disco. Ahora instala con sudo y falla ruidoso.
             echo "Setting up journal.log rotation..."
             mkdir -p /opt/creditcardanalyzer/logs
-            if [ -f /opt/creditcardanalyzer/logrotate-journal ]; then
-              cp /opt/creditcardanalyzer/logrotate-journal /etc/logrotate.d/journal-export 2>/dev/null || true
-              # Run rotation now if file is >50MB
-              JOURNAL_SIZE=$(stat -c%s /opt/creditcardanalyzer/logs/journal.log 2>/dev/null || echo "0")
-              if [ "$JOURNAL_SIZE" -gt 52428800 ]; then
-                echo "journal.log is $((JOURNAL_SIZE / 1048576))MB, rotating..."
-                logrotate -f /etc/logrotate.d/journal-export 2>/dev/null || true
-              fi
+            if [ ! -f /opt/creditcardanalyzer/ops/logrotate-oikonomia ]; then
+              echo "::error::Falta ops/logrotate-oikonomia en el server"
+              exit 1
+            fi
+            sudo cp /opt/creditcardanalyzer/ops/logrotate-oikonomia /etc/logrotate.d/oikonomia
+            if ! sudo logrotate -d /etc/logrotate.d/oikonomia >/tmp/logrotate-check.out 2>&1; then
+              echo "::error::La config de logrotate no valida:"
+              cat /tmp/logrotate-check.out
+              exit 1
+            fi
+            echo "logrotate config OK"
+
+            # journald: tope de 1GB / 15 días. El default (10% del disco, hasta
+            # 4GB) se come el disco justo cuando más hace falta.
+            sudo mkdir -p /etc/systemd/journald.conf.d
+            sudo cp /opt/creditcardanalyzer/ops/journald-oikonomia.conf /etc/systemd/journald.conf.d/oikonomia.conf
+            sudo systemctl restart systemd-journald
+
+            # Sólo se fuerza la rotación si ya se pasó del tope: si el
+            # logrotate.timer del sistema funciona, esto nunca corre.
+            JOURNAL_SIZE=$(stat -c%s /opt/creditcardanalyzer/logs/journal.log 2>/dev/null || echo "0")
+            if [ "$JOURNAL_SIZE" -gt 209715200 ]; then
+              echo "journal.log is $((JOURNAL_SIZE / 1048576))MB, rotating..."
+              sudo logrotate -f /etc/logrotate.d/oikonomia
             fi
 
             # ── 3. Start monitoring stack ──
@@ -1113,13 +1170,22 @@ jobs:
               sleep 5
             fi
 
-            # ── 5. Journal-export service ──
+            # ── 5. Journal-export service + housekeeping timer ──
             echo "Setting up journal-export service..."
             mkdir -p ~/.config/systemd/user
             cp /opt/creditcardanalyzer/journal-export.service ~/.config/systemd/user/ 2>/dev/null || true
             systemctl --user daemon-reload 2>/dev/null || true
             systemctl --user enable journal-export.service 2>/dev/null || true
             systemctl --user restart journal-export.service 2>/dev/null || true
+
+            # Housekeeping diario (imágenes, logs, backups). Corre en el server
+            # y no en CI: la limpieza tiene que ocurrir aunque los deploys fallen.
+            echo "Setting up housekeeping timer..."
+            cp /opt/creditcardanalyzer/ops/oikonomia-housekeeping.service ~/.config/systemd/user/
+            cp /opt/creditcardanalyzer/ops/oikonomia-housekeeping.timer ~/.config/systemd/user/
+            systemctl --user daemon-reload
+            systemctl --user enable --now oikonomia-housekeeping.timer
+            systemctl --user list-timers oikonomia-housekeeping.timer --no-pager || true
 
             # ── 6. Alloy: reset position + restart with correct config ──
             echo "Resetting Alloy position file..."
@@ -1327,10 +1393,12 @@ jobs:
   cleanup-old-images:
     runs-on: ubuntu-latest
     needs: health-check
-    if: success()
+    # Siempre, también cuando el deploy falló: es cuando más se acumula. Antes
+    # era `if: success()`, así que una cadena de deploys fallidos nunca limpiaba.
+    if: always() && !cancelled()
 
     steps:
-      - name: Cleanup old images
+      - name: Housekeeping (imágenes, logs y backups)
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -1338,9 +1406,8 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
           script: |
-            echo "Cleaning up old images..."
-            # Remove dangling images only, keep tagged versions for rollback
-            podman image prune -f 2>/dev/null || true
-            # Remove old backup images older than 7 days
-            find /opt/creditcardanalyzer/backups -name "db_*.sql.gz" -mtime +7 -delete 2>/dev/null || true
-            echo "Cleanup complete"
+            cd /opt/creditcardanalyzer
+            export PATH="$HOME/.local/bin:$PATH"
+            set -a; source .env; set +a
+            echo "=== Housekeeping ==="
+            bash scripts/housekeeping.sh

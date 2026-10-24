@@ -1,0 +1,12 @@
+[Unit]
+Description=Limpieza diaria de Oikonomia
+
+[Timer]
+# Diario a las 04:00, con delay aleatorio para no alinear con el backup.
+OnCalendar=*-*-* 04:00:00
+RandomizedDelaySec=15m
+# Si el server estaba apagado, corre apenas vuelve.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

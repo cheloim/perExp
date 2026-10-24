@@ -1,0 +1,12 @@
+[Unit]
+Description=Housekeeping de Oikonomia: imagenes, logs y backups
+Documentation=file:///opt/creditcardanalyzer/ops/housekeeping.sh
+
+[Service]
+Type=oneshot
+# El .env lo escribe deploy.yml y trae los tokens de Telegram para el aviso
+# de fallos. Se sourcea igual que en el pipeline: set -a; . .env; set +a.
+ExecStart=/bin/bash -c 'set -a; . /opt/creditcardanalyzer/.env 2>/dev/null; set +a; exec /opt/creditcardanalyzer/scripts/housekeeping.sh'
+
+[Install]
+WantedBy=default.target
