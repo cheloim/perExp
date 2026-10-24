@@ -1293,21 +1293,45 @@ jobs:
             curl -s -X POST http://localhost:3100/loki/api/v1/push -H "Content-Type: application/json" \
               -d "{\"streams\":[{\"stream\":{\"job\":\"deploy-test\"},\"values\":[[\"$(date +%s)000000000\",\"deploy verification\"]]}]}" > /dev/null 2>&1
 
-            # ── 9b. Verify Grafana can reach both datasources ──
+            # ── 9b. Verify nginx can resolve every upstream ──
+            # Un servicio en dos redes deja de tener alias en la red externa y
+            # nginx devuelve 502 sin más explicación. Éste es el chequeo que lo
+            # agarra en el deploy y no en el incidente.
+            echo "Verifying nginx can resolve its upstreams..."
+            NGINX_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_nginx_' | head -1 || true)
+            if [ -n "$NGINX_CONTAINER" ]; then
+              for UPSTREAM in grafana landing; do
+                if podman exec "$NGINX_CONTAINER" getent hosts "$UPSTREAM" >/dev/null 2>&1; then
+                  echo "  $UPSTREAM resuelve OK"
+                else
+                  echo "::error::nginx no resuelve '$UPSTREAM': el alias no está en la red compartida"
+                  podman exec "$NGINX_CONTAINER" cat /etc/resolv.conf || true
+                  exit 1
+                fi
+              done
+            fi
+
+            # ── 9c. Verify Grafana can reach both datasources ──
             # Catches detached-network failures (e.g. a container recreated
             # outside compose so its DNS name no longer resolves).
             echo "Verifying Grafana datasource connectivity..."
-            PROM_OK=$(curl -s -u admin:${GRAFANA_ADMIN_PASSWORD} "http://localhost:3000/api/datasources/proxy/uid/PBFA97CFB590B2093/api/v1/query?query=up" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
-            LOKI_OK=$(curl -s -u admin:${GRAFANA_ADMIN_PASSWORD} "http://localhost:3000/api/datasources/proxy/uid/P8E80F9AEF21F6940/loki/api/v1/labels" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
+            PROM_HTTP=$(curl -s -o /tmp/prom-check.out -w '%{http_code}' -u "admin:${GRAFANA_ADMIN_PASSWORD}" "http://localhost:3000/api/datasources/proxy/uid/PBFA97CFB590B2093/api/v1/query?query=up")
+            PROM_OK=$(python3 -c "import json;d=json.load(open('/tmp/prom-check.out'));print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
+            LOKI_HTTP=$(curl -s -o /tmp/loki-check.out -w '%{http_code}' -u "admin:${GRAFANA_ADMIN_PASSWORD}" "http://localhost:3000/api/datasources/proxy/uid/P8E80F9AEF21F6940/loki/api/v1/labels")
+            LOKI_OK=$(python3 -c "import json;d=json.load(open('/tmp/loki-check.out'));print('ok' if d.get('status')=='success' else 'fail')" 2>/dev/null || echo "fail")
             if [ "$PROM_OK" != "ok" ]; then
-              echo "::error::Grafana cannot reach Prometheus (datasource proxy failed)"
+              echo "::error::Grafana cannot reach Prometheus (HTTP $PROM_HTTP)"
+              head -c 300 /tmp/prom-check.out 2>/dev/null || true
+              echo ""
               exit 1
             fi
             if [ "$LOKI_OK" != "ok" ]; then
-              echo "::error::Grafana cannot reach Loki (datasource proxy failed)"
+              echo "::error::Grafana cannot reach Loki (HTTP $LOKI_HTTP)"
+              head -c 300 /tmp/loki-check.out 2>/dev/null || true
+              echo ""
               exit 1
             fi
-            echo "Grafana reaches Prometheus and Loki"
+            echo "Grafana reaches Prometheus (HTTP $PROM_HTTP) and Loki (HTTP $LOKI_HTTP)"
 
             # ── 10. Verify Prometheus targets ──
             echo "Verifying Prometheus targets..."

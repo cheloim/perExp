@@ -417,6 +417,21 @@ class TestNginxEdge:
         assert "127.0.0.1:3000:3000" in compose or "3000" not in compose
 
 
+    def test_monitoring_stack_uses_the_shared_network(self):
+        """A service declared on two networks loses its alias on the external
+        one: nginx stops resolving `grafana` and the vhost returns 502 with no
+        other symptom. That is what took Grafana down on 2026-10-24. Everything
+        in this repo shares one network and resolves by service name."""
+        compose = yaml.safe_load(_read(MONITORING_COMPOSE))
+        for name, svc in compose["services"].items():
+            assert "networks" not in svc, (
+                f"{name} must not declare networks: they must all share the default"
+            )
+        default = compose["networks"]["default"]
+        assert default["external"] is True
+        assert default["name"] == "${NETWORK_NAME:-oikonomia}"
+
+
 class TestLandingIndependence:
     def test_landing_reuses_the_frontend_image(self):
         """No separate landing build: the SPA already renders the institutional site."""
