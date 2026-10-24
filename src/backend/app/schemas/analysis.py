@@ -14,8 +14,10 @@ class AnalysisRequest(BaseModel):
     month: str | None = None
     # A window instead of a month: the current month plus `months - 1` previous
     # ones. `month` wins when both arrive — it names a precise period and is the
-    # field older clients already send.
-    months: int | None = Field(default=None, ge=1, le=24)
+    # field older clients already send. The default is a twelve-month window:
+    # long enough for trend and comparison questions, and bounded enough that a
+    # request that names no period still cannot ask for the whole history.
+    months: int | None = Field(default=12, ge=1, le=24)
     question: str | None = None
     debug_mode: bool = False
     # The whole thread, so the model knows what has already been said. Optional:
