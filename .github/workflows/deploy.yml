@@ -1311,7 +1311,45 @@ jobs:
               done
             fi
 
-            # ── 9c. Verify Grafana can reach both datasources ──
+            # ── 9c. Grafana admin password: sincronizar con el secret ──
+            # Grafana sólo aplica GF_SECURITY_ADMIN_PASSWORD la primera vez que
+            # se inicializa el volumen. El de producción quedó con el default que
+            # estaba en el repo (`oikonomia2026`) y todos los deploys siguientes
+            # lo ignoraron: una Grafana pública con password conocida. Acá se
+            # lleva al valor del secret.
+            echo "Syncing Grafana admin password with the secret..."
+            grafana_auth() {
+              curl -s -o /dev/null --max-time 5 -w '%{http_code}' -u "admin:$1" http://localhost:3000/api/org
+            }
+            WANT="${GRAFANA_ADMIN_PASSWORD}"
+            GOT=$(grafana_auth "$WANT")
+            if [ "$GOT" = "200" ]; then
+              echo "Grafana admin ya usa el secret"
+            else
+              for OLD in oikonomia2026; do
+                if [ "$(grafana_auth "$OLD")" = "200" ]; then
+                  echo "Grafana quedó con la password vieja — sincronizando con el secret"
+                  PAYLOAD=$(python3 -c 'import json,sys; print(json.dumps({"oldPassword": sys.argv[1], "newPassword": sys.argv[2]}))' "$OLD" "$WANT")
+                  CHG=$(curl -s -o /tmp/gf-pwd.out -w '%{http_code}' -X PUT \
+                    -H "Content-Type: application/json" -u "admin:$OLD" \
+                    -d "$PAYLOAD" http://localhost:3000/api/user/password)
+                  echo "Cambio de password: HTTP $CHG"
+                  if [ "$CHG" != "200" ]; then
+                    cat /tmp/gf-pwd.out 2>/dev/null || true
+                    echo ""
+                    exit 1
+                  fi
+                  GOT=$(grafana_auth "$WANT")
+                  break
+                fi
+              done
+              if [ "$GOT" != "200" ]; then
+                echo "::error::No se pudo autenticar como admin de Grafana (HTTP $GOT). Resetear con: podman exec oikonomia-monitoring_grafana_1 grafana cli admin reset-admin-password '<nueva>'"
+                exit 1
+              fi
+            fi
+
+            # ── 9d. Verify Grafana can reach both datasources ──
             # Catches detached-network failures (e.g. a container recreated
             # outside compose so its DNS name no longer resolves).
             echo "Verifying Grafana datasource connectivity..."
