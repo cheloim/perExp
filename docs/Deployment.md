@@ -132,6 +132,29 @@ deploys fallen. `scripts/housekeeping.sh` corre desde un timer diario
 Pendiente: la copia fuera del server. Hoy los backups viven en el mismo disco
 que tienen que proteger.
 
+#### Restaurar un backup
+
+Los dumps son formato custom, no SQL plano: **no** se pueden meter con `psql`.
+
+```bash
+# Qué hay, con fecha y tamaño
+ls -lh /opt/creditcardanalyzer/backups/db_*
+
+# Qué contiene un dump (también es la verificación que hace el deploy)
+podman exec -i <db_container> pg_restore --list < db_20261024_040000.dump | head
+
+# Restaurar en una base nueva para probar
+podman exec <db_container> createdb -U expenses_user expenses_restore
+podman exec -i <db_container> pg_restore -U expenses_user -d expenses_restore < db_20261024_040000.dump
+
+# Restaurar por encima de la base de producción (¡destructivo!)
+podman exec -i <db_container> pg_restore -U expenses_user -d expenses --clean --if-exists < db_20261024_040000.dump
+```
+
+Los archivos se llaman `db_<AAAAmmdd_HHMMSS>.dump` y viven en
+`/opt/creditcardanalyzer/backups`. Desvío conocido: `.sdd/guides/deployment-checklist.md`
+documenta `backup_*.sql.gz` y `psql`, que era el formato viejo.
+
 Además, `housekeeping.sh` avisa por Telegram si `journal.log` supera el tope
 (señal de que la rotación no está funcionando) y publica
 `oikonomia_housekeeping_last_success_timestamp_seconds` para que la alerta de

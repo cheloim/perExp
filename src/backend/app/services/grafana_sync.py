@@ -23,11 +23,18 @@ logger = logging.getLogger(__name__)
 
 GRAFANA_URL = os.getenv("GRAFANA_INTERNAL_URL", "http://localhost:3000")
 GRAFANA_ADMIN_USER = os.getenv("GF_SECURITY_ADMIN_USER", "admin")
-GRAFANA_ADMIN_PASSWORD = os.getenv("GRAFANA_ADMIN_PASSWORD", "oikonomia2026")
+# Sin default a propósito: `oikonomia2026` era la password con la que quedó
+# corriendo producción. Sin secret, el sync falla en voz alta en vez de
+# intentar una contraseña conocida.
+GRAFANA_ADMIN_PASSWORD = os.getenv("GRAFANA_ADMIN_PASSWORD", "")
 
 
 def _grafana_admin_auth() -> tuple[str, str]:
     return (GRAFANA_ADMIN_USER, GRAFANA_ADMIN_PASSWORD)
+
+
+def _ok(response) -> bool:
+    return 200 <= response.status_code < 300
 
 
 def sync_user_to_grafana(email: str, name: str, is_admin: bool = False) -> bool:
@@ -39,6 +46,12 @@ def sync_user_to_grafana(email: str, name: str, is_admin: bool = False) -> bool:
     unreachable must not break an Oikonomia login.
     """
     try:
+        if not GRAFANA_ADMIN_PASSWORD:
+            logger.warning(
+                "GRAFANA_ADMIN_PASSWORD sin configurar: no se puede sincronizar %s", email
+            )
+            return False
+
         with httpx.Client(base_url=GRAFANA_URL, timeout=5.0) as client:
             auth = _grafana_admin_auth()
             resp = client.get("/api/users/lookup", params={"loginOrEmail": email}, auth=auth)
@@ -54,16 +67,26 @@ def sync_user_to_grafana(email: str, name: str, is_admin: bool = False) -> bool:
             if not is_admin:
                 if user_id is None:
                     return True
-                client.delete(f"/api/admin/users/{user_id}", auth=auth)
+                resp = client.delete(f"/api/admin/users/{user_id}", auth=auth)
+                if not _ok(resp) and resp.status_code != 404:
+                    logger.warning(
+                        "Grafana: no se pudo borrar %s (status %d)", email, resp.status_code
+                    )
+                    return False
                 logger.info("Grafana: removed %s (no es admin)", email)
                 return True
 
             if user_id is not None:
-                client.patch(f"/api/org/users/{user_id}", json={"role": "Admin"}, auth=auth)
+                resp = client.patch(f"/api/org/users/{user_id}", json={"role": "Admin"}, auth=auth)
+                if not _ok(resp):
+                    logger.warning(
+                        "Grafana: no se pudo dar Admin a %s (status %d)", email, resp.status_code
+                    )
+                    return False
                 logger.info("Grafana: %s confirmado como Admin", email)
                 return True
 
-            client.post(
+            resp = client.post(
                 "/api/admin/users",
                 json={
                     "email": email,
@@ -75,14 +98,26 @@ def sync_user_to_grafana(email: str, name: str, is_admin: bool = False) -> bool:
                 },
                 auth=auth,
             )
+            if not _ok(resp):
+                logger.warning("Grafana: no se pudo crear %s (status %d)", email, resp.status_code)
+                return False
+
             # El rol se asigna después de crear: /api/admin/users no lo acepta.
             created = client.get("/api/users/lookup", params={"loginOrEmail": email}, auth=auth)
-            if created.status_code == 200:
-                client.patch(
-                    f"/api/org/users/{created.json()['id']}",
-                    json={"role": "Admin"},
-                    auth=auth,
+            if not _ok(created):
+                logger.warning("Grafana: %s creado pero no se pudo leer su id", email)
+                return False
+
+            resp = client.patch(
+                f"/api/org/users/{created.json()['id']}",
+                json={"role": "Admin"},
+                auth=auth,
+            )
+            if not _ok(resp):
+                logger.warning(
+                    "Grafana: %s creado pero sin rol Admin (status %d)", email, resp.status_code
                 )
+                return False
             logger.info("Grafana: created %s as Admin", email)
             return True
 

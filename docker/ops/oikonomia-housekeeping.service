@@ -1,6 +1,6 @@
 [Unit]
 Description=Housekeeping de Oikonomia: imagenes, logs y backups
-Documentation=file:///opt/creditcardanalyzer/ops/housekeeping.sh
+Documentation=file:///opt/creditcardanalyzer/scripts/housekeeping.sh
 
 [Service]
 Type=oneshot

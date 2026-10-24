@@ -64,8 +64,13 @@ def _run_housekeeping(
     *extra: str,
     tsfile_dir: str | None = None,
     root: str | None = None,
+    backup_script: str | None = None,
+    dry_run: bool = True,
 ):
-    """Run housekeeping.sh --dry-run against a fake podman.
+    """Run housekeeping.sh against a fake podman.
+
+    Everything destructive goes through `podman`, which is faked here, and the
+    root is a temp dir, so `dry_run=False` is still safe.
 
     Returns (returncode, stdout, stderr).
     """
@@ -123,13 +128,15 @@ def _run_housekeeping(
         env["PATH"] = bin_dir + os.pathsep + env["PATH"]
         env["HOUSEKEEPING_ROOT"] = root
         env["HOUSEKEEPING_TSFILE_DIR"] = tsfile_dir or os.path.join(tmp, "no-textfile")
+        if backup_script:
+            env["HOUSEKEEPING_BACKUP_SCRIPT"] = backup_script
 
-        proc = subprocess.run(
-            ["bash", HOUSEKEEPING, "--dry-run", *extra],
-            capture_output=True,
-            text=True,
-            env=env,
-        )
+        cmd = ["bash", HOUSEKEEPING]
+        if dry_run:
+            cmd.append("--dry-run")
+        cmd.extend(extra)
+
+        proc = subprocess.run(cmd, capture_output=True, text=True, env=env)
         return proc.returncode, proc.stdout, proc.stderr
 
 
@@ -540,6 +547,8 @@ class TestAlerting:
 
 # ── database backups ───────────────────────────────────────────────
 
+BACKUP_SCRIPT = os.path.join(REPO_ROOT, "scripts", "backup-db.sh")
+
 
 def _backup_job() -> str:
     return _read(DEPLOY_YML).split("backup-db:")[1].split("\n  deploy-infra:")[0]
@@ -549,23 +558,27 @@ class TestDatabaseBackups:
     def test_uses_custom_format_and_verifies_the_dump(self):
         """A plain SQL dump can be truncated and still look non-empty. The
         custom format is what lets the dump be *verified*."""
-        job = _backup_job()
-        assert "pg_dump" in job
-        assert re.search(r"pg_dump[^\n]*-Fc", job), "must use pg_dump -Fc"
-        assert "pg_restore" in job and "--list" in job, "the dump must be verified"
+        script = _read(BACKUP_SCRIPT)
+        assert "pg_dump" in script
+        assert re.search(r"pg_dump[^\n]*-Fc", script), "must use pg_dump -Fc"
+        assert "pg_restore" in script and "--list" in script, "the dump must be verified"
 
     def test_fails_loudly(self):
         """`pg_dump ... 2>/dev/null` hides the error and a truncated file still
         passes a non-empty check. The 2026-10-23 disk-full case produced
         exactly that."""
-        job = _backup_job()
-        assert not re.search(r"pg_dump[^\n]*2>/dev/null", job), (
+        script = _read(BACKUP_SCRIPT)
+        assert not re.search(r"pg_dump[^\n]*2>/dev/null", script), (
             "the dump must not swallow stderr"
         )
-        assert "pipefail" in job or re.search(r"if\s+\[\s+\$\?\s+-ne\s+0", job), (
+        assert re.search(r"if ! podman exec[^\n]*pg_dump", script), (
             "a failed dump must fail the job"
         )
-        assert "pg_restore --list" in job
+
+    def test_deploy_uses_the_same_script_as_the_daily_backup(self):
+        """One implementation, two callers: deploy and the daily timer."""
+        job = _backup_job()
+        assert "backup-db.sh" in job, "deploy must call scripts/backup-db.sh"
 
     def test_gated_on_db_affecting_changes(self):
         """A landing or nginx change cannot corrupt data: the checkpoint is for
@@ -584,6 +597,78 @@ class TestDatabaseBackups:
         assert "HOUSEKEEPING_RETENTION_DAYS:-15" in _read(HOUSEKEEPING), (
             "housekeeping owns the retention window"
         )
+
+
+class TestHousekeepingSafety2:
+    def test_never_prunes_volumes(self):
+        """`podman volume prune -f` deletes every volume no container is using.
+        The postgres volume is 'unused' the moment the db container is
+        force-recreated — or after a failed recreate, which is exactly when the
+        cleanup runs. That is data loss while 'fixing' a full disk."""
+        assert re.search(
+            r"^\s*(run\s+)?podman volume prune", _read(HOUSEKEEPING), re.MULTILINE
+        ) is None
+
+    def test_keeps_the_tag_from_env_too(self):
+        """If the cleanup races a redeploy the running containers may already be
+        gone; without IMAGE_TAG from .env the current release gets deleted."""
+        assert re.search(r"grep\s+['\"]?\^IMAGE_TAG=", _read(HOUSEKEEPING)), (
+            "housekeeping must also keep the release named in .env"
+        )
+
+    def test_takes_the_daily_backup_when_the_newest_is_stale(self):
+        """Backups are gated to data-touching deploys, so without a daily dump a
+        quiet week would raise the backup-stale alert — a false positive that
+        teaches people to ignore alerts."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            marker = os.path.join(tmp, "backup-ran")
+            fake = os.path.join(tmp, "backup-db.sh")
+            with open(fake, "w") as f:
+                f.write(f"#!/usr/bin/env bash\ntouch {marker}\n")
+            os.chmod(fake, 0o755)
+
+            code, out, err = _run_housekeeping(
+                [],
+                [],
+                "",
+                0,
+                backup_script=fake,
+                root=os.path.join(tmp, "root"),
+                dry_run=False,
+            )
+            assert code == 0, err
+            assert os.path.exists(marker), "no daily backup was taken"
+
+    def test_skips_the_daily_backup_when_one_is_fresh(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            marker = os.path.join(tmp, "backup-ran")
+            fake = os.path.join(tmp, "backup-db.sh")
+            with open(fake, "w") as f:
+                f.write(f"#!/usr/bin/env bash\ntouch {marker}\n")
+            os.chmod(fake, 0o755)
+
+            root = os.path.join(tmp, "root")
+            backups = os.path.join(root, "backups")
+            os.makedirs(backups)
+            os.makedirs(os.path.join(root, "logs"))
+            with open(os.path.join(backups, "db_20261024_040000.dump"), "w") as f:
+                f.write("x")
+
+            code, out, err = _run_housekeeping(
+                [], [], "", 0, backup_script=fake, root=root, dry_run=False
+            )
+            assert code == 0, err
+            assert not os.path.exists(marker), "a fresh backup must not be repeated"
+            assert "Backup diario al día" in out
+
+    def test_the_backup_metric_covers_the_custom_format(self):
+        """`db_*.dump` is what backup-db.sh writes now; a find that only looks
+        for the old `.sql.gz` would report 'never backed up' forever."""
+        assert "db_*.dump" in _read(HOUSEKEEPING)
 
 
 # ── deploy job graph ───────────────────────────────────────────────
@@ -615,4 +700,52 @@ class TestDeployJobGraph:
         outside = marker.replace(inside, "")
         assert 'podman stop "oikonomia-platform_' not in outside, (
             "nothing outside the guard may stop the platform containers"
+        )
+
+    def test_ops_filter_covers_everything_copied_to_the_server(self):
+        """A change that is deployed but never copied is a green run that
+        applies nothing: nginx and the compose files were missing from the
+        filter that makes write-config run."""
+        deploy = _read(DEPLOY_YML)
+        block = deploy.split("            ops:")[1].split("\n\n")[0]
+        for needed in ("docker/**", "config/blackbox/**", "scripts/housekeeping.sh"):
+            assert needed in block, f"the ops filter must cover {needed}"
+
+    def test_deploy_platform_requires_a_successful_backup(self):
+        """deploy-platform stops the app and migrates. It must not run when the
+        backup was skipped because an upstream step failed."""
+        deploy = _read(DEPLOY_YML)
+        head = deploy.split("deploy-platform:")[1].split("steps:")[0]
+        assert "needs.backup-db.result" in head, (
+            "a data-touching deploy must not proceed without its checkpoint"
+        )
+
+    def test_deploy_landing_runs_when_the_platform_was_skipped(self):
+        """A landing-only change must still roll out. Requiring
+        deploy-platform == success made deploy-landing silently never run."""
+        deploy = _read(DEPLOY_YML)
+        head = deploy.split("deploy-landing:")[1].split("steps:")[0]
+        assert "needs.deploy-platform.result == 'skipped'" in head, (
+            "a skipped platform deploy is not a reason to skip the landing"
+        )
+
+    def test_image_tag_is_preserved_when_no_app_image_was_built(self):
+        """The landing runs the frontend image: a landing-only build must not
+        move the app onto a tag that was never pushed."""
+        deploy = _read(DEPLOY_YML)
+        step = deploy.split("OLD_TAG=")[1]
+        assert "needs.build-frontend.result" in step
+        assert "needs.build-landing.result" not in step, (
+            "build-landing never produces an image the app runs"
+        )
+
+    def test_contact_point_file_is_not_left_world_readable(self):
+        """`.env` gets chmod 600; the file with the Telegram bot token must
+        not stay at the scp default 0644."""
+        deploy = _read(DEPLOY_YML)
+        assert re.search(r"CONTACT_POINTS=\S*contact-points\.yml", deploy), (
+            "the contact points path must be bound to a variable"
+        )
+        assert re.search(r"chmod\s+600\s+[\"']?\$CONTACT_POINTS", deploy), (
+            "the contact point holds the bot token and must be 0600"
         )

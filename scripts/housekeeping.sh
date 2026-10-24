@@ -55,6 +55,7 @@ RETENTION_DAYS="${HOUSEKEEPING_RETENTION_DAYS:-15}"
 APP_REPO_SUFFIXES="${APP_REPO_SUFFIXES:-/backend /frontend /landing}"
 TAG_FILE="$ROOT/.rollback_platform_tag"
 TSFILE_DIR="${HOUSEKEEPING_TSFILE_DIR:-/var/lib/node_exporter/textfile}"
+BACKUP_SCRIPT="${HOUSEKEEPING_BACKUP_SCRIPT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backup-db.sh}"
 METRIC_NAME="oikonomia_housekeeping_last_success_timestamp_seconds"
 
 log() {
@@ -91,6 +92,14 @@ while IFS= read -r ref; do
     [ -n "$ref" ] || continue
     KEEP_TAGS="$KEEP_TAGS${ref##*:} "
 done < <(podman ps --format '{{.Image}}' 2>/dev/null || true)
+
+# El release corriente también se conserva por nombre: si la limpieza corre
+# entre que se detienen los contenedores viejos y se levantan los nuevos, las
+# imágenes del release ya no están "corriendo" y se borrarían.
+if [ -f "$ROOT/.env" ]; then
+    env_tag="$(grep '^IMAGE_TAG=' "$ROOT/.env" | cut -d= -f2 || true)"
+    [ -n "$env_tag" ] && KEEP_TAGS="$KEEP_TAGS$env_tag "
+fi
 
 if [ -f "$TAG_FILE" ]; then
     rollback_tag="$(tr -d '[:space:]' <"$TAG_FILE")"
@@ -130,11 +139,15 @@ while IFS= read -r ref; do
     esac
 done < <(podman images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null || true)
 
-# ── 2. Imágenes dangling y volúmenes huérfanos ──
+# ── 2. Imágenes dangling ──
+# NO se hace `podman volume prune`: borra todo volumen que ningún contenedor
+# esté usando, y el volumen de postgres queda "sin usar" en cuanto el
+# contenedor de la base se recrea — o cuando esa recreación falla, que es
+# justo cuando corre la limpieza. Sería perder la base mientras se "arregla"
+# un disco lleno.
 
-log "Podando imágenes dangling y volúmenes sin usar"
+log "Podando imágenes dangling"
 run podman image prune -f
-run podman volume prune -f
 
 # ── 3. Logs y backups viejos ──
 
@@ -160,7 +173,31 @@ purge_old "$LOGS_DIR" "journal.log-*" "Logs de journal"
 purge_old "$BACKUPS_DIR" "db_*.sql.gz" "Backups de la base"
 purge_old "$BACKUPS_DIR" "db_*.dump" "Backups de la base (custom format)"
 
-# ── 4. Tope de journal.log ──
+# ── 4. Backup diario ──
+# Los deploys sólo respaldan cuando el cambio puede tocar datos, así que sin
+# esto una semana tranquila dispararía la alerta de "backup viejo" — la alarma
+# falsa que enseña a ignorar las alarmas. Se toma uno sólo si el más nuevo
+# tiene más de 20 horas.
+
+newest_epoch="$(
+    find "$BACKUPS_DIR" -type f \( -name 'db_*.sql.gz' -o -name 'db_*.dump' \) -printf '%T@\n' 2>/dev/null |
+        sort -n | tail -1 || true
+)"
+newest_epoch="${newest_epoch%%.*}"
+[ -n "$newest_epoch" ] || newest_epoch=0
+
+if [ $(( $(date +%s) - newest_epoch )) -gt 72000 ]; then
+    log "El backup más nuevo tiene más de 20h — tomando el diario"
+    if $DRY_RUN; then
+        echo "DRY-RUN bash $BACKUP_SCRIPT"
+    else
+        bash "$BACKUP_SCRIPT"
+    fi
+else
+    log "Backup diario al día"
+fi
+
+# ── 5. Tope de journal.log ──
 # El logrotate.timer del sistema debería bastar. Si no lo hiciera, el archivo
 # crece sin techo y nadie se entera hasta que el disco se llena — ése fue el
 # incidente del 2026-10-23. Acá se avisa antes de que eso pase.
@@ -176,7 +213,7 @@ if [ -f "$JOURNAL_LOG" ]; then
     fi
 fi
 
-# ── 5. Métricas para las alertas ──
+# ── 6. Métricas para las alertas ──
 # Se escriben también en --dry-run: no son destructivas, y así la alerta de
 # staleness se puede probar sin limpiar nada. `0` significa "nunca hubo
 # backup", y la alerta dispara igual.

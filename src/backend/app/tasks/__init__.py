@@ -1,10 +1,12 @@
 # Tasks package — import all task modules so celery autodiscovers them
 import app.tasks.budgets  # noqa: F401
+import app.tasks.check_upcoming_installments  # noqa: F401
 import app.tasks.check_upcoming_recurring  # noqa: F401
 import app.tasks.cleanup_audit_logs  # noqa: F401
 import app.tasks.cleanup_import_jobs  # noqa: F401
 import app.tasks.daily_uncategorized  # noqa: F401
 import app.tasks.detect_recurring  # noqa: F401
+import app.tasks.grafana_reconcile  # noqa: F401
 import app.tasks.heartbeat  # noqa: F401
 import app.tasks.import_processor  # noqa: F401
 import app.tasks.monthly_report  # noqa: F401

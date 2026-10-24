@@ -52,6 +52,8 @@ class FakeClient:
 
     def patch(self, path, json=None, auth=None):
         self.state.calls.append(("PATCH", path, json))
+        if getattr(self.state, "reject_patches", False):
+            return FakeResponse(500, {"message": "rejected"})
         self.state.roles[path] = json
         return FakeResponse(200, {})
 
@@ -94,6 +96,7 @@ def grafana(monkeypatch, state):
         )
 
     monkeypatch.setattr(grafana_sync, "GRAFANA_URL", "http://grafana:3000")
+    monkeypatch.setattr(grafana_sync, "GRAFANA_ADMIN_PASSWORD", "test-admin-password")
     monkeypatch.setattr(
         grafana_sync, "httpx", SimpleNamespace(Client=FakeHttpx(state, down).Client)
     )
@@ -142,6 +145,26 @@ class TestGrafanaSync:
         assert ok is False
         assert grafana.state.users == {}, "nothing may be provisioned while down"
 
+    def test_without_the_admin_password_it_refuses_to_guess(self, monkeypatch, grafana):
+        """`oikonomia2026` was the password production ran with. Without the
+        secret the sync must fail, not try a known password."""
+        monkeypatch.setattr(grafana_sync, "GRAFANA_ADMIN_PASSWORD", "")
+
+        ok = grafana_sync.sync_user_to_grafana("admin@example.com", "Admin", is_admin=True)
+
+        assert ok is False
+        assert grafana.state.calls == [], "it must not call Grafana without credentials"
+
+    def test_a_rejected_role_is_a_failure_not_a_success(self, grafana):
+        """A PATCH that Grafana rejects must not be reported as provisioned:
+        the admin would land in Grafana as a Viewer with no signal."""
+        grafana.state.users["admin@example.com"] = 7
+        grafana.state.reject_patches = True
+
+        ok = grafana_sync.sync_user_to_grafana("admin@example.com", "Admin", is_admin=True)
+
+        assert ok is False
+
 
 class TestGrafanaReconcile:
     def test_reconciles_only_admins(self, grafana):
@@ -180,3 +203,28 @@ class TestGrafanaOAuthProviderIsGone:
             content = f.read()
 
         assert "grafana_oauth" not in content
+
+
+class TestCeleryRegistration:
+    def test_reconcile_task_is_registered(self):
+        """celery beat can only enqueue a task that is registered, and tasks are
+        registered by being imported in app.tasks.__init__. An unregistered task
+        is enqueued, answered 'unregistered' by the worker, and quietly never
+        runs — which is how the hourly reconciliation was silently dead."""
+        import app.tasks  # noqa: F401 — registers every task module
+        from app.celery_app import celery_app
+
+        name = "app.tasks.grafana_reconcile.reconcile_grafana_admins"
+        assert name in celery_app.tasks, f"{name} is not registered"
+
+    def test_every_scheduled_task_is_registered(self):
+        """Whatever celery beat schedules has to exist."""
+        import app.tasks  # noqa: F401
+        from app import celery_schedule
+        from app.celery_app import celery_app
+
+        scheduled = {
+            entry["task"] for entry in celery_schedule.celery_app.conf.beat_schedule.values()
+        }
+        missing = scheduled - set(celery_app.tasks)
+        assert not missing, f"scheduled but unregistered: {sorted(missing)}"

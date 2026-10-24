@@ -75,33 +75,14 @@ export default function LoginPage() {
   const [forceToken, setForceToken] = useState("");
   const [mfaToken, setMfaToken] = useState("");
 
-  // Handle OAuth resume token (from Grafana SSO flow)
-  // Store in sessionStorage so it persists across URL changes
+  // El flujo de SSO de Grafana pasaba por el backend de Oikonomia y dejaba un
+  // `oauth_resume` acá para retomar el authorize. Ese proveedor ya no existe:
+  // Grafana autentica contra Google.
+  // Check for ?mfa=required from OAuth callback
   const [searchParams] = useSearchParams();
-  const [oauthResume, setOauthResume] = useState<string | null>(null);
-
-  useEffect(() => {
-    const param = searchParams.get("oauth_resume");
-    if (param) {
-      sessionStorage.setItem("oauth_resume", param);
-      setOauthResume(param);
-    } else {
-      const stored = sessionStorage.getItem("oauth_resume");
-      if (stored) {
-        setOauthResume(stored);
-      }
-    }
-  }, [searchParams]);
 
   const handleSuccess = () => {
-    const token = oauthResume || sessionStorage.getItem("oauth_resume");
-    if (token) {
-      sessionStorage.removeItem("oauth_resume");
-      // Redirect to the OAuth resume endpoint which continues the authorize flow
-      window.location.href = `/api/auth/oauth/grafana/resume?token=${token}`;
-    } else {
-      navigate("/");
-    }
+    navigate("/");
   };
 
   // Check for ?mfa=required from OAuth callback
