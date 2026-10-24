@@ -1326,7 +1326,9 @@ jobs:
             if [ "$GOT" = "200" ]; then
               echo "Grafana admin ya usa el secret"
             else
+              echo "  admin + secret -> HTTP $GOT"
               for OLD in oikonomia2026; do
+                echo "  admin + password vieja -> HTTP $(grafana_auth "$OLD")"
                 if [ "$(grafana_auth "$OLD")" = "200" ]; then
                   echo "Grafana quedó con la password vieja — sincronizando con el secret"
                   PAYLOAD=$(python3 -c 'import json,sys; print(json.dumps({"oldPassword": sys.argv[1], "newPassword": sys.argv[2]}))' "$OLD" "$WANT")
@@ -1343,10 +1345,32 @@ jobs:
                   break
                 fi
               done
+
               if [ "$GOT" != "200" ]; then
-                echo "::error::No se pudo autenticar como admin de Grafana (HTTP $GOT). Resetear con: podman exec oikonomia-monitoring_grafana_1 grafana cli admin reset-admin-password '<nueva>'"
+                # Ninguna password conocida: el volumen puede traer una que se
+                # cambió a mano. El secret manda — se resetea desde la CLI.
+                # Se hace adentro del contenedor contra el mismo SQLite, así que
+                # no depende de tener la password anterior.
+                GRAFANA_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_grafana_' | head -1 || true)
+                if [ -n "$GRAFANA_CONTAINER" ]; then
+                  echo "Reseteando el admin de Grafana al secret desde la CLI..."
+                  if podman exec "$GRAFANA_CONTAINER" grafana cli admin reset-admin-password "$WANT" >/tmp/gf-reset.out 2>&1; then
+                    cat /tmp/gf-reset.out
+                  else
+                    cat /tmp/gf-reset.out 2>/dev/null || true
+                    echo ""
+                    echo "::error::No se pudo resetear el admin de Grafana"
+                    exit 1
+                  fi
+                  GOT=$(grafana_auth "$WANT")
+                fi
+              fi
+
+              if [ "$GOT" != "200" ]; then
+                echo "::error::No se pudo converger el admin de Grafana (HTTP $GOT)"
                 exit 1
               fi
+              echo "Admin de Grafana converge al secret"
             fi
 
             # ── 9d. Verify Grafana can reach both datasources ──
