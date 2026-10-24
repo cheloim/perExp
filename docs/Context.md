@@ -10,7 +10,7 @@ Read `.sdd/guides/ai-agent-guide.md` for core rules and workflow.
 
 - `docs/specs/architecture/` — System overview, data model, tech stack, API rules
 - `docs/specs/features/` — Feature specifications (one per domain)
-- `docs/specs/openapi.yaml` — API contract (auto-generated from FastAPI)
+- `docs/specs/openapi.yaml` — API contract (curated by hand; orval input — see `docs/specs/README.md`)
 
 ## Conventions
 

@@ -29,6 +29,9 @@ Plan.md
 *.txt
 last_check
 
+# Generated API contract (raw FastAPI export — see docs/specs/README.md)
+docs/specs/openapi.generated.yaml
+
 # Secrets
 config/secrets/
 secrets/
