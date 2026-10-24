@@ -51,6 +51,7 @@ jobs:
       nginx: ${{ steps.changes.outputs.nginx }}
       bots: ${{ steps.changes.outputs.bots }}
       infra: ${{ steps.changes.outputs.infra }}
+      ops: ${{ steps.changes.outputs.ops }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -78,6 +79,16 @@ jobs:
               - 'docker/docker-compose.bots.yml'
             infra:
               - 'docker/docker-compose.infra.yml'
+            # Cambios que hay que empujar al server pero que no construyen
+            # imágenes: sin este filtro no se deployaban (write-config sólo
+            # corría si algún build había tenido éxito).
+            ops:
+              - 'docker/ops/**'
+              - 'docker/prometheus/**'
+              - 'docker/grafana/**'
+              - 'docker/loki/**'
+              - 'docker/journal-export.service'
+              - 'scripts/housekeeping.sh'
 
   detect-arch:
     runs-on: ubuntu-latest
@@ -273,10 +284,10 @@ jobs:
 
   write-config:
     runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend, build-landing]
+    needs: [build-backend, build-frontend, build-landing, detect-changes]
     if: |
       always() && !cancelled() &&
-      (needs.build-backend.result == 'success' || needs.build-frontend.result == 'success' || needs.build-landing.result == 'success' || inputs.action == 'full')
+      (needs.build-backend.result == 'success' || needs.build-frontend.result == 'success' || needs.build-landing.result == 'success' || needs.detect-changes.outputs.ops == 'true' || inputs.action == 'full')
 
     steps:
       - name: Checkout
@@ -337,7 +348,17 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ vars.SSH_PORT || '43422' }}
           script: |
+            # Si no hubo builds, el IMAGE_TAG nuevo nunca se construyó: conservar
+            # el que está corriendo para no mover los contenedores a un tag
+            # inexistente. Un cambio de ops no debe tocar la aplicación.
+            OLD_TAG=$(grep '^IMAGE_TAG=' /opt/creditcardanalyzer/.env 2>/dev/null | cut -d= -f2 || true)
             echo "${{ steps.env-file.outputs.env_b64 }}" | base64 -d > /opt/creditcardanalyzer/.env
+            if [ "${{ needs.build-backend.result }}" != "success" ] && [ "${{ needs.build-frontend.result }}" != "success" ] && [ "${{ needs.build-landing.result }}" != "success" ]; then
+              if [ -n "$OLD_TAG" ]; then
+                echo "Run sin builds — se conserva IMAGE_TAG=$OLD_TAG"
+                sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$OLD_TAG/" /opt/creditcardanalyzer/.env
+              fi
+            fi
             chmod 600 /opt/creditcardanalyzer/.env
             echo "Config file written securely (base64 transfer)"
 
@@ -464,7 +485,7 @@ jobs:
 
   pull-images:
     runs-on: ubuntu-latest
-    needs: write-config
+    needs: [write-config, detect-changes]
     if: always() && needs.write-config.result == 'success'
 
     steps:
@@ -523,9 +544,13 @@ jobs:
 
             # Verify platform images exist
             echo "Verifying images..."
-            podman image inspect ${BACKEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1 || { echo "ERROR: Backend image not found"; exit 1; }
-            podman image inspect ${FRONTEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1 || { echo "ERROR: Frontend image not found"; exit 1; }
-            echo "Images verified"
+            if [ "${{ needs.detect-changes.outputs.platform }}" = "true" ] || [ "${{ inputs.action }}" = "full" ]; then
+              podman image inspect ${BACKEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1 || { echo "ERROR: Backend image not found"; exit 1; }
+              podman image inspect ${FRONTEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1 || { echo "ERROR: Frontend image not found"; exit 1; }
+              echo "Images verified"
+            else
+              echo "Run sin build de plataforma: se conserva el tag corriendo, no hay imágenes nuevas que verificar"
+            fi
 
   backup-db:
     runs-on: ubuntu-latest
@@ -1018,11 +1043,25 @@ jobs:
             export PATH="$HOME/.local/bin:$PATH"
             set -a; source .env; set +a
 
-            echo "Updating nginx (rolling restart)..."
-            # up -d is idempotent: if config unchanged, container stays running.
-            # If config changed, compose does rolling replacement (new starts, old stops).
-            # No manual stop needed — zero downtime.
-            podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d
+            NGINX_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_nginx_' | head -1)
+
+            if [ -z "$NGINX_CONTAINER" ]; then
+              echo "No hay nginx corriendo — levantando (primer deploy)"
+              podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d
+            else
+              # La config nueva ya está montada desde el host. Validar y
+              # recargar en caliente: recrear el contenedor que publica 443
+              # abre una ventana de caída para TODOS los vhosts (landing,
+              # plataforma y grafana), no sólo para el que cambió.
+              echo "Validando la config de nginx..."
+              if ! podman exec "$NGINX_CONTAINER" nginx -t >/tmp/nginx-test.out 2>&1; then
+                echo "::error::La config de nginx no valida:"
+                cat /tmp/nginx-test.out
+                exit 1
+              fi
+              echo "Config OK — recargando nginx"
+              podman exec "$NGINX_CONTAINER" nginx -s reload
+            fi
 
             # Verify nginx is responding (any HTTP response = healthy)
             NGINX_OK=false
@@ -1046,8 +1085,13 @@ jobs:
 
   deploy-landing:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, detect-changes]
-    if: always() && !cancelled() && (needs.detect-changes.outputs.landing == 'true' || inputs.action == 'full')
+    # Después de la plataforma y sólo si quedó sana: si el deploy falla y hay
+    # rollback, la landing se queda con el bundle que se sabe que anda.
+    needs: [deploy-platform, detect-changes]
+    if: |
+      always() && !cancelled() &&
+      needs.deploy-platform.result == 'success' &&
+      (needs.detect-changes.outputs.landing == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
 
     steps:
       - name: Restart landing
@@ -1063,9 +1107,9 @@ jobs:
             export PATH="$HOME/.local/bin:$PATH"
             set -a; source .env; set +a
 
-            # Guard: skip if landing image not available
-            if ! podman image inspect ${LANDING_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1; then
-              echo "Landing image not available, skipping (src/landing/ may not exist yet)"
+            # Guard: skip if the image is not available
+            if ! podman image inspect ${FRONTEND_IMAGE}:${IMAGE_TAG} > /dev/null 2>&1; then
+              echo "Frontend image not available, skipping"
               exit 0
             fi
 
@@ -1303,6 +1347,8 @@ jobs:
             podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             echo ""
 
+            ERRORS=0
+
             # Verify no legacy containers remain
             LEGACY_COUNT=$(podman ps -a --format '{{.Names}}' | grep -c '^creditcardanalyzer_' 2>/dev/null || echo "0")
             if [ "$LEGACY_COUNT" -gt 0 ]; then
@@ -1311,13 +1357,22 @@ jobs:
               ERRORS=$((ERRORS + 1))
             fi
 
-            ERRORS=0
-
-            # Check landing site (non-fatal — DNS may not be propagated)
+            # Check landing site (critical: tiene que sobrevivir a los deploys de la plataforma)
             LANDING_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" https://${{ vars.DOMAIN_NAME }}/ 2>/dev/null || echo "000")
             echo "Landing (${{ vars.DOMAIN_NAME }}): $LANDING_STATUS"
-            if [ "$LANDING_STATUS" = "000" ]; then
-              echo "::warning::Landing site unreachable (DNS may not be propagated)"
+            if [ "$LANDING_STATUS" != "200" ]; then
+              echo "::error::Landing site devolvió $LANDING_STATUS"
+              ERRORS=$((ERRORS + 1))
+            fi
+
+            LANDING_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_landing_' | head -1)
+            if [ -n "$LANDING_CONTAINER" ]; then
+              LANDING_HEALTH=$(podman inspect --format='{{.State.Health.Status}}' "$LANDING_CONTAINER" 2>/dev/null || echo "no-healthcheck")
+              echo "Landing container: $LANDING_HEALTH"
+              if [ "$LANDING_HEALTH" = "unhealthy" ]; then
+                echo "::error::Landing container unhealthy"
+                ERRORS=$((ERRORS + 1))
+              fi
             fi
 
             # Check platform (critical) — via localhost (DNS-independent)

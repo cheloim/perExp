@@ -119,6 +119,30 @@ Además, `housekeeping.sh` avisa por Telegram si `journal.log` supera el tope
 `oikonomia_housekeeping_last_success_timestamp_seconds` para que la alerta de
 staleness detecte una limpieza que dejó de correr.
 
+### Borde: nginx y landing
+
+`docker/nginx/nginx.conf` define tres vhosts sobre el mismo nginx:
+
+| Host | Upstream | Durante un deploy de la plataforma |
+|------|----------|-----------------------------------|
+| `oikonomia.ar` | `landing:80` | **queda arriba** |
+| `platform.oikonomia.ar` | `platform-frontend:80` | muestra la página de mantenimiento |
+| `grafana.oikonomia.ar` | `grafana:3000` | queda arriba |
+
+La landing corre en su propio contenedor (`docker-compose.web-landing.yml`) con
+la **misma imagen que el frontend**: el SPA ya renderiza el sitio institucional
+cuando el hostname es el apex (`App.tsx`), así que no hace falta un build
+aparte. `deploy-landing` corre **después** de `deploy-platform` y sólo si quedó
+sano: si el deploy falla y hay rollback, la landing se queda con el bundle que
+se sabe que anda.
+
+Dos reglas para no perder el borde:
+
+* Los cambios de config se aplican con `nginx -t` + `nginx -s reload`. Recrear
+  el contenedor que publica 443 es una ventana de caída para los tres vhosts.
+* Grafana se alcanza por nombre de servicio (`grafana:3000`) en la red
+  compartida `oikonomia`, y su puerto queda sólo en loopback en el host.
+
 ### Celery Beat Schedule
 
 | Schedule               | Task                          | Description                          |

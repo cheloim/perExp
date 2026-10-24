@@ -23,7 +23,14 @@ services:
   grafana:
     image: docker.io/grafana/grafana:latest
     ports:
-      - "3000:3000"
+      # Sólo loopback: el acceso público entra por nginx vía la red `oikonomia`.
+      # Publicarlo en 0.0.0.0 dependía de que firewalld lo tape.
+      - "127.0.0.1:3000:3000"
+    networks:
+      - default
+      # Red compartida con la plataforma: nginx lo resuelve como `grafana:3000`
+      # y el backend puede sincronizar usuarios contra él.
+      - oikonomia
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-oikonomia2026}
@@ -171,3 +178,14 @@ volumes:
     external: true
     name: oikonomia_loki_data
   alloy_data:
+
+networks:
+  # Red interna del stack de monitoreo: prometheus, loki, alloy y grafana se
+  # resuelven por nombre de servicio.
+  default: {}
+  # Red compartida con la plataforma. Sólo grafana se engancha, para que nginx
+  # (proyecto oikonomia-nginx) y el backend puedan alcanzarlo por `grafana:3000`
+  # sin exponer el puerto en el host.
+  oikonomia:
+    external: true
+    name: ${NETWORK_NAME:-oikonomia}
