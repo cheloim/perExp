@@ -23,6 +23,7 @@ HOUSEKEEPING = os.path.join(REPO_ROOT, "scripts", "housekeeping.sh")
 NGINX_CONF = os.path.join(REPO_ROOT, "docker", "nginx", "nginx.conf")
 LANDING_COMPOSE = os.path.join(REPO_ROOT, "docker", "docker-compose.web-landing.yml")
 MONITORING_COMPOSE = os.path.join(REPO_ROOT, "docker", "docker-compose.monitoring.yml")
+NGINX_COMPOSE = os.path.join(REPO_ROOT, "docker", "docker-compose.nginx.yml")
 
 
 def _read(path: str) -> str:
@@ -416,6 +417,44 @@ class TestNginxEdge:
         )
         assert "127.0.0.1:3000:3000" in compose or "3000" not in compose
 
+    def test_nginx_config_is_mounted_as_a_directory(self):
+        """A single-file bind mount pins the inode: the deploy replaces
+        nginx.conf by scp (new inode) and the container keeps serving the old
+        one forever — `nginx -s reload` reloads the old inode too. That is what
+        kept Grafana 502ing on 2026-10-24 while the host already had the right
+        config. Mounting the directory makes the replaced file visible inside,
+        so a reload is enough."""
+        compose = _read(NGINX_COMPOSE)
+        assert "./nginx/nginx.conf:/etc/nginx/conf.d/default.conf" not in compose, (
+            "mounting the file alone pins the inode and the new config never loads"
+        )
+        assert "./nginx:/etc/nginx/conf.d" in compose, (
+            "the nginx config must be mounted as a directory"
+        )
+
+    def test_deploy_checks_the_loaded_config_not_the_file(self):
+        """`nginx -t` and reload read whatever the mount exposes. The deploy has
+        to look at the config the PROCESS loaded (`nginx -T`) and refuse the
+        stale upstream — otherwise a stale mount fails in production and not in
+        the deploy that caused it."""
+        deploy = _read(DEPLOY_YML)
+        job = deploy.split("deploy-nginx:")[1].split("deploy-landing:")[0]
+        assert "nginx -T" in job, "the deploy must inspect the loaded config"
+        assert "host.containers.internal:3000" in job, (
+            "the stale Grafana upstream must fail the deploy"
+        )
+
+    def test_health_check_fails_when_the_grafana_vhost_502s(self):
+        """The old check accepted anything that was not 000, so a 502 on
+        grafana.<domain> passed the deploy. A broken Grafana vhost is an
+        outage and must fail the health check end-to-end (nginx → grafana)."""
+        deploy = _read(DEPLOY_YML)
+        check = deploy.split("# Check Grafana")[1].split("# Check platform")[0]
+        assert "grafana.${{ vars.DOMAIN_NAME }}" in check
+        assert "/api/health" in check
+        assert "::error::" in check, "a dead Grafana vhost must fail the deploy"
+        assert "::warning::" not in check
+
 
     def test_monitoring_stack_uses_the_shared_network(self):
         """A service declared on two networks loses its alias on the external
@@ -494,9 +533,12 @@ class TestLandingIndependence:
         assert init_at < increment_at, "ERRORS must be initialized before it is used"
 
     def test_nginx_reloads_instead_of_recreating(self):
-        """Recreating the container that owns :443 is a gap, not a rolling restart."""
+        """Recreating the container that owns :443 is a gap, not a rolling
+        restart. Config changes are applied with a hot reload; the only
+        legitimate recreate is when the container still mounts a stale inode
+        and cannot even see the new config (the 2026-10-24 incident)."""
         deploy = _read(DEPLOY_YML)
-        job = deploy.split("deploy-nginx:")[1]
+        job = deploy.split("deploy-nginx:")[1].split("deploy-landing:")[0]
         assert "nginx -s reload" in job, "config changes must be applied with a hot reload"
 
         # Creating the container is only legitimate when there is nothing to
@@ -504,8 +546,17 @@ class TestLandingIndependence:
         guard = re.search(r'if \[ -z "\$NGINX_CONTAINER" \]; then(.*?)\n\s*else', job, re.DOTALL)
         assert guard, "creating the nginx container must be guarded by an existence check"
         assert "up -d" in guard.group(1), "the first deploy still needs to create the container"
+        assert "HOST_INODE" in job and "CTR_INODE" in job, (
+            "recreating must be guarded by the stale-mounted-inode check"
+        )
         outside = job.replace(guard.group(1), "")
-        assert "podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d" not in outside
+        for match in re.finditer(
+            r"podman-compose -p oikonomia-nginx -f docker-compose\.nginx\.yml up -d(.*)",
+            outside,
+        ):
+            assert "--force-recreate" in match.group(0), (
+                f"unconditional recreate outside the stale-inode guard: {match.group(0)}"
+            )
 
 
 # ── alerting ───────────────────────────────────────────────────────

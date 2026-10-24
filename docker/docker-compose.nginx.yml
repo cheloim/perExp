@@ -5,7 +5,12 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # El DIRECTORIO, no el archivo suelto: montar un archivo fija el inodo.
+      # El deploy reemplaza nginx.conf por scp (nuevo inodo) y el contenedor
+      # seguía viendo el viejo — la config nueva nunca cargaba y el reload
+      # recargaba el inodo viejo. Con el directorio, el archivo reemplazado se
+      # ve dentro del contenedor y `nginx -s reload` lo aplica sin recrear nada.
+      - ./nginx:/etc/nginx/conf.d:ro
       - ./certbot/conf:/etc/letsencrypt:ro,z
       - ./nginx/maintenance:/usr/share/nginx/maintenance:ro
     healthcheck:

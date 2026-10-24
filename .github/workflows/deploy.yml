@@ -1005,19 +1005,39 @@ jobs:
             if [ -z "$NGINX_CONTAINER" ]; then
               echo "No hay nginx corriendo — levantando (primer deploy)"
               podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d
+              NGINX_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_nginx_' | head -1)
             else
-              # La config nueva ya está montada desde el host. Validar y
-              # recargar en caliente: recrear el contenedor que publica 443
-              # abre una ventana de caída para TODOS los vhosts (landing,
-              # plataforma y grafana), no sólo para el que cambió.
-              echo "Validando la config de nginx..."
-              if ! podman exec "$NGINX_CONTAINER" nginx -t >/tmp/nginx-test.out 2>&1; then
-                echo "::error::La config de nginx no valida:"
-                cat /tmp/nginx-test.out
-                exit 1
+              # El deploy reemplaza nginx.conf por scp, o sea que el host queda
+              # con un inodo NUEVO. Un contenedor montado sobre el archivo viejo
+              # no ve el cambio: reload recarga la config vieja y el 502 queda
+              # para siempre. Si los inodos no coinciden, recrear UNA vez para
+              # tomar el mount nuevo; después de eso esto es siempre falso y
+              # sólo se recarga en caliente (sin ventana de caída para los
+              # vhosts de landing, plataforma y grafana).
+              HOST_INODE=$(stat -c %i /opt/creditcardanalyzer/nginx/nginx.conf)
+              CTR_INODE=$(podman exec "$NGINX_CONTAINER" stat -c %i /etc/nginx/conf.d/nginx.conf 2>/dev/null || echo "missing")
+              if [ "$HOST_INODE" != "$CTR_INODE" ]; then
+                echo "El contenedor monta el inodo viejo ($CTR_INODE) y el host tiene el $HOST_INODE — recreando una vez"
+                podman-compose -p oikonomia-nginx -f docker-compose.nginx.yml up -d --force-recreate nginx
+                NGINX_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_nginx_' | head -1)
               fi
-              echo "Config OK — recargando nginx"
-              podman exec "$NGINX_CONTAINER" nginx -s reload
+            fi
+
+            echo "Validando la config de nginx..."
+            if ! podman exec "$NGINX_CONTAINER" nginx -t >/tmp/nginx-test.out 2>&1; then
+              echo "::error::La config de nginx no valida:"
+              cat /tmp/nginx-test.out
+              exit 1
+            fi
+            echo "Config OK — recargando nginx"
+            podman exec "$NGINX_CONTAINER" nginx -s reload
+
+            # Mirar la config CARGADA por el proceso, no la del disco: si el
+            # reload leyó un inodo viejo, esto lo ve y falla acá en vez de
+            # devolverle 502 a quien entre a los dashboards.
+            if podman exec "$NGINX_CONTAINER" nginx -T 2>/dev/null | grep -q "host.containers.internal:3000"; then
+              echo "::error::nginx sigue con la config vieja cargada (upstream por host.containers.internal)"
+              exit 1
             fi
 
             # Verify nginx is responding (any HTTP response = healthy)
@@ -1520,6 +1540,25 @@ jobs:
                 echo "::error::Landing container unhealthy"
                 ERRORS=$((ERRORS + 1))
               fi
+            fi
+
+            # Check Grafana vhost end-to-end (nginx → grafana:3000). Un 502 acá
+            # es una caída de los dashboards, no un warning: el chequeo viejo
+            # aceptaba cualquier cosa distinta de 000 y un 502 pasó limpio.
+            GRAFANA_STATUS="000"
+            for i in $(seq 1 15); do
+              GRAFANA_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" --resolve grafana.${{ vars.DOMAIN_NAME }}:443:127.0.0.1 "https://grafana.${{ vars.DOMAIN_NAME }}/api/health" 2>/dev/null || echo "000")
+              if [ "$GRAFANA_STATUS" = "200" ]; then
+                echo "Grafana vhost OK tras ${i} intento(s)"
+                break
+              fi
+              echo "Intento $i/15: grafana devolvió $GRAFANA_STATUS, reintentando en 3s..."
+              sleep 3
+            done
+            echo "Grafana (grafana.${{ vars.DOMAIN_NAME }}): $GRAFANA_STATUS"
+            if [ "$GRAFANA_STATUS" != "200" ]; then
+              echo "::error::Grafana vhost devolvió $GRAFANA_STATUS — nginx no llega a grafana:3000"
+              ERRORS=$((ERRORS + 1))
             fi
 
             # Check platform (critical) — via localhost (DNS-independent)
