@@ -39,6 +39,12 @@ export function AssistantShell({
   const [input, setInput] = useState("");
   const [clearConfirm, setClearConfirm] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
+  /**
+   * The data window the spending assistant analyses. Not persisted: the shell
+   * stays mounted while the drawer is closed, so the choice survives within a
+   * session, and a preference that must survive a reload belongs server-side.
+   */
+  const [months, setMonths] = useState<number>(12);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   /**
@@ -151,6 +157,7 @@ export function AssistantShell({
           {
             question: text,
             history,
+            months,
             debugMode,
             context: buildContext ? buildContext() : undefined,
           },
@@ -190,6 +197,7 @@ export function AssistantShell({
       updateThread,
       debugMode,
       buildContext,
+      months,
     ],
   );
 
@@ -299,6 +307,32 @@ export function AssistantShell({
                 </svg>
               </span>
               <span className="text-base font-semibold text-primary">{config.title}</span>
+              {/* The window the next question is analysed in. Spending only:
+                  the investments endpoint takes no period. */}
+              {config.domain === "spending" && (
+                <div
+                  role="group"
+                  aria-label="Período de análisis"
+                  className="flex items-center gap-1 ml-1"
+                >
+                  <span className="text-xs text-[var(--text-tertiary)]">Período</span>
+                  {[3, 6, 12].map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setMonths(m)}
+                      aria-pressed={months === m}
+                      title={`Analizar los últimos ${m} meses`}
+                      className={`text-xs px-2 py-1 rounded-full border transition-colors ${
+                        months === m
+                          ? "bg-[var(--color-primary-strong)]/15 border-[var(--color-primary)] text-[var(--accent-color)]"
+                          : "border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)]"
+                      }`}
+                    >
+                      {m}m
+                    </button>
+                  ))}
+                </div>
+              )}
               {streaming && (
                 <span className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
                   <span

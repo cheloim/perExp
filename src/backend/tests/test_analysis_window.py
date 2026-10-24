@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.database import get_db
-from app.models import Expense
+from app.models import Category, Expense, User
 from app.routers import analysis
 from app.schemas import AnalysisRequest
 from app.services.auth import get_current_user
@@ -186,3 +186,132 @@ def test_months_outside_1_to_24_is_a_422(db, test_user, bad):
     response = TestClient(app).post("/analysis/stream", json={"question": "hola", "months": bad})
 
     assert response.status_code == 422
+
+
+# ── Twelve months, comparisons, retrieval (#417) ─────────────────────
+
+
+def test_twelve_months_is_the_window_by_default(db, test_user, fake_llm):
+    """A question that names no period gets twelve months, not the whole
+    history — long enough for trends, bounded enough for the prompt."""
+    _add_expense(db, test_user, _first_day_months_ago(11), "gasto de hace once meses", 100.0)
+    _add_expense(db, test_user, _first_day_months_ago(12), "gasto de hace un año", 100.0)
+
+    _stream(AnalysisRequest(question="¿cómo vengo?"), db, test_user)
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert f"Período: {_first_day_months_ago(11)} → {date.today()}" in prompt
+    assert "gasto de hace once meses" in prompt
+    assert "gasto de hace un año" not in prompt
+
+
+def test_twelve_months_can_be_asked_for_by_name(db, test_user, fake_llm):
+    _add_expense(db, test_user, _first_day_months_ago(11), "gasto viejo", 100.0)
+    _add_expense(db, test_user, _first_day_months_ago(12), "gasto fuera", 100.0)
+
+    _stream(AnalysisRequest(months=12), db, test_user)
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert "gasto viejo" in prompt
+    assert "gasto fuera" not in prompt
+
+
+def test_month_over_month_deltas_are_computed_for_the_model(db, test_user, fake_llm):
+    prev_key = _first_day_months_ago(1).strftime("%Y-%m")
+    curr_key = _first_day_months_ago(0).strftime("%Y-%m")
+    _add_expense(db, test_user, _first_day_months_ago(1), "gasto del mes pasado", 2000.0)
+    _add_expense(db, test_user, _first_day_months_ago(0), "gasto de este mes", 3000.0)
+
+    _stream(AnalysisRequest(months=2), db, test_user)
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert "COMPARACIÓN MES A MES:" in prompt
+    assert f"- {curr_key}: $3,000.00 (vs {prev_key}: +50.0%, +$1,000.00)" in prompt
+
+
+def test_the_top_categories_compare_the_newest_month_against_the_previous_one(
+    db, test_user, fake_llm
+):
+    super_m = Category(name="Supermercado", user_id=test_user.id)
+    libreria = Category(name="Librería", user_id=test_user.id)
+    db.add_all([super_m, libreria])
+    db.flush()
+
+    for cat, on, amount in (
+        (super_m, _first_day_months_ago(1), 1000.0),
+        (super_m, _first_day_months_ago(0), 3000.0),
+        (libreria, _first_day_months_ago(0), 500.0),
+    ):
+        exp = _add_expense(db, test_user, on, f"compra en {cat.name}", amount)
+        exp.category_id = cat.id
+
+    _stream(AnalysisRequest(months=2), db, test_user)
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert "CATEGORÍAS — " in prompt
+    assert "- Supermercado: $3,000.00 (vs $1,000.00, +200.0%)" in prompt
+    assert "- Librería: $500.00 (vs $0.00, sin base)" in prompt
+
+
+def test_a_question_retrieves_the_spend_it_is_about(db, test_user, fake_llm):
+    """The window arrives aggregated; the words of the question find the spends
+    it is about so a merchant question has something to answer from."""
+    _add_expense(db, test_user, date.today() - timedelta(days=1), "YENNY TORTUGAS OPEN MALL", 55479.67)
+    _add_expense(db, test_user, date.today() - timedelta(days=2), "SUPERMERCADO COTO", 12000.0)
+
+    _stream(
+        AnalysisRequest(question="¿Cuánto gasté en YENNY TORTUGAS?", months=3),
+        db,
+        test_user,
+    )
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert "GASTOS QUE COINCIDEN CON LA PREGUNTA (yenny, tortugas)" in prompt
+    block = prompt.split("GASTOS QUE COINCIDEN CON LA PREGUNTA")[1]
+    assert "YENNY TORTUGAS OPEN MALL" in block
+    assert "$55,479.67" in block
+
+
+def test_retrieval_never_leaves_the_user(db, test_user, fake_llm):
+    other = User(
+        email="other@example.com",
+        full_name="Other, User",
+        hashed_password="x",
+        email_verified=True,
+    )
+    db.add(other)
+    db.flush()
+    _add_expense(db, other, date.today(), "YENNY TORTUGAS OPEN MALL", 999999.0)
+    _add_expense(db, test_user, date.today(), "YENNY TORTUGAS OPEN MALL", 55479.67)
+
+    _stream(
+        AnalysisRequest(question="¿Cuánto gasté en YENNY TORTUGAS?", months=3),
+        db,
+        test_user,
+    )
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert "YENNY TORTUGAS OPEN MALL" in prompt
+    assert "$999,999.00" not in prompt
+    assert "$55,479.67" in prompt
+
+
+def test_the_prompt_stays_bounded_at_twelve_months(db, test_user, fake_llm):
+    """Aggregates plus top 10 plus the retrieval block: a year of spending must
+    not turn the prompt into a transaction dump."""
+    for i in range(500):
+        _add_expense(
+            db,
+            test_user,
+            _first_day_months_ago(i % 12),
+            f"comercio numero {i}",
+            10.0 + i,
+        )
+
+    _stream(
+        AnalysisRequest(question="¿Cuánto gasté en el comercio 42?", months=12),
+        db,
+        test_user,
+    )
+
+    assert len(_prompt_text(fake_llm.prompts)) < 16000

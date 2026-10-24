@@ -1,11 +1,11 @@
 feature: analysis
 domain: AI Spending Analysis
 type: full
-version: "1.2.0"
+version: "1.3.0"
 status: implemented
 owner: full-stack
 created: 2026-08-16
-updated: 2026-10-20
+updated: 2026-10-24
 github_issue: null
 
 description: >
@@ -98,12 +98,14 @@ endpoints:
       months:
         type: "integer"
         required: false
-        default: null
+        default: 12
         description: >
           Data window length when no exact month is named: the current month
           plus `months - 1` previous ones, from the first day of the oldest
-          month up to today (no upper bound on the date). The assistant sends
-          3, so it sees the current month and the two before it.
+          month up to today (no upper bound on the date). The assistant offers
+          3, 6 and 12 from the period selector and sends the one in force; a
+          request that names none gets 12, and no request analyses the whole
+          history.
         constraints: "integer, 1 ≤ months ≤ 24; anything else is a 422"
       debug_mode:
         type: "boolean"
@@ -155,10 +157,33 @@ business_rules:
   - name: "Analysis Window"
     description: >
       The assistant analyses a window, not a single month. `months` selects the
-      current month plus `months - 1` previous ones, and the client asks for 3.
-      An exact `month` wins over the window when both arrive. With neither, all
-      the user's expenses are analysed. `AnalysisHistory.month` stores the exact
+      current month plus `months - 1` previous ones, and the client picks the
+      length from a 3/6/12-month selector (12 unless the user changes it). An
+      exact `month` wins over the window when both arrive. The window is always
+      bounded — 12 months unless a length is named — so no question silently
+      asks for the whole history. `AnalysisHistory.month` stores the exact
       month only: a window leaves it null, because a window is not a month.
+  - name: "Month-over-Month Comparison"
+    description: >
+      The prompt carries the deltas already computed: each month against the
+      one before it, and the top 5 categories of the newest month against the
+      previous one. The model reports the comparison instead of subtracting
+      totals, which it gets wrong often enough to matter.
+  - name: "Question Retrieval"
+    description: >
+      The window arrives aggregated, so the words of the question retrieve the
+      spends it is about — the merchant or category named in it — matching on
+      description and category name, accent- and case-insensitive, ranked by
+      match and amount, capped at 20. Deliberately keyword-based rather than
+      embeddings: the stack has no vector store, and the question words the
+      user types are the merchant words the descriptions contain. Same
+      scoping as everything else: only the authenticated user's expenses.
+  - name: "Prompt Budget"
+    description: >
+      Aggregates, top 10, comparison blocks and the capped retrieval block —
+      never a transaction dump. A year of spending (500 expenses) stays under
+      16.000 characters, asserted by a test, so the window length cannot turn
+      into unbounded token spend.
   - name: "Data Scoping"
     description: "Only the authenticated user's expenses are included in the LLM prompt"
   - name: "PII Minimization"
@@ -268,13 +293,70 @@ tests:
       - "Assert it is not the literal 'Solo puedo ayudarte con el análisis de tus gastos y finanzas personales.'"
     expected: "A decline in the model's own words, not a muletilla"
 
+  - name: "Twelve months is the default window"
+    type: "integration"
+    description: "A request that names no period analyses twelve months, not the whole history"
+    steps:
+      - "Add expenses eleven and twelve months back"
+      - "POST /analysis/stream with only a question"
+      - "Assert the eleven-month expense is analysed and the twelve-month one is not"
+    expected: "The window is the current month plus the eleven before it"
+
+  - name: "Month-over-month deltas reach the model"
+    type: "integration"
+    description: "Each month is compared against the one before it, and the top categories too"
+    steps:
+      - "Add expenses in two consecutive months"
+      - "POST /analysis/stream with months=2"
+      - "Assert the prompt carries the comparison blocks with the computed deltas"
+    expected: "The model reports the comparison instead of computing it"
+
+  - name: "A question retrieves the spends it is about"
+    type: "integration"
+    description: "The words of the question match spends by description or category, capped at 20"
+    steps:
+      - "Add an expense at YENNY TORTUGAS and an unrelated one"
+      - "POST /analysis/stream with '¿Cuánto gasté en YENNY TORTUGAS?'"
+      - "Assert the matching spend is retrieved into the prompt"
+    expected: "The merchant question is answerable from the window"
+
+  - name: "Retrieval stays inside the user"
+    type: "integration"
+    description: "Another user's spend with the same description never reaches the prompt"
+    steps:
+      - "User B adds a spend at the same merchant"
+      - "User A asks about that merchant"
+      - "Assert only User A's spend is in the prompt"
+    expected: "No cross-user data in the prompt"
+
+  - name: "The prompt stays bounded at twelve months"
+    type: "unit"
+    description: >
+      Aggregates, top 10, the comparison blocks and the capped retrieval
+      block — never a transaction dump
+    steps:
+      - "Add 500 expenses across the window"
+      - "POST /analysis/stream with months=12 and a merchant question"
+      - "Assert the prompt is under 16.000 characters"
+    expected: "The window length cannot turn into unbounded token spend"
+
 documentation:
   - type: "api"
     description: "Analysis endpoints documented in OpenAPI spec"
   - type: "integration"
     description: "Gemini Flash setup instructions in project docs"
+  - type: "cost"
+    description: "Window, retrieval and prompt budget in docs/Asistente-IA-Unificacion.md"
 
 changelog:
+  - version: "1.3.0"
+    date: "2026-10-24"
+    changes:
+      - "Twelve-month default window (issue #417): always bounded, 1..24 when a length is named"
+      - "Period selector in the assistant (3/6/12 months), so the UI states the period consulted"
+      - "Month-over-month deltas computed for the model: per month and top 5 categories"
+      - "Question retrieval: the words of the question pull the matching spends (keyword-based, capped at 20) into the prompt"
+      - "Prompt budget asserted: a year of spending stays under 16.000 characters"
   - version: "1.2.0"
     date: "2026-10-20"
     changes:

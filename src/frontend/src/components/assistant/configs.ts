@@ -90,10 +90,11 @@ const SPENDING_CONFIG: AssistantConfig = {
   followUps: ["Compará con el mes pasado", "¿Dónde más puedo recortar?", "Detallame por categoría"],
   streamUrl: "/api/analysis/stream",
   buildBody: (args: StreamArgs) => ({
-    // The assistant analyses a window — the current month plus the two before
-    // it — not a single month, so the thread can answer "¿cómo vengo?" style
-    // questions. A caller that names a length gets that one instead.
-    months: args.months ?? 3,
+    // The assistant analyses a window — the current month plus the eleven
+    // before it — not a single month, so the thread can answer trend and
+    // comparison questions. The period selector names a length; a caller that
+    // names none gets the twelve-month default, never the whole history.
+    months: args.months ?? 12,
     question: args.question,
     debug_mode: args.debugMode ?? false,
     messages: wireMessages(args.history),
