@@ -51,6 +51,10 @@ export type ListExpensesParams = {
   card?: string;
   card_type?: string;
   installment?: boolean;
+  /**
+   * Filter by account name (substring, decrypted at application level)
+   */
+  account?: string;
   account_id?: number;
   tag_id?: number;
   untagged?: boolean;
