@@ -344,3 +344,19 @@ def test_monthly_report_current_month_mtd_and_projection(db, dashboard_user, mon
         assert result["previous_mtd_total"] == result["previous_total"] == 58000
     days_in_month = monthrange(today.year, today.month)[1]
     assert result["projected_total"] == round(12000 / today.day * days_in_month, 2)
+
+
+def test_summary_has_no_dead_search_param():
+    """Issue #472: `search` was accepted by /dashboard/summary and silently ignored.
+
+    Its only effect was varying the cache key, so distinct searches cached
+    identical results under distinct keys. Either the parameter filters (with
+    a test) or it must not exist — this guards against it coming back as a
+    no-op.
+    """
+    import inspect
+
+    from app.routers.dashboard import _apply_filters, get_summary
+
+    assert "search" not in inspect.signature(get_summary).parameters
+    assert "search_val" not in inspect.signature(_apply_filters).parameters
