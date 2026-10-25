@@ -659,7 +659,7 @@ export default function ExpensesPage() {
             </button>
           )}
         </div>
-        <p className="text-xs text-tertiary mt-1" aria-live="polite">
+        <p className="text-xs text-secondary mt-1" aria-live="polite">
           {filterSearch
             ? `${expenses.length}${expenses.length >= visibleCount ? "+" : ""} gastos para «${filterSearch}»`
             : ""}
