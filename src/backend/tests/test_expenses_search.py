@@ -113,3 +113,29 @@ class TestSearchFilter:
 
         assert len(get_expenses(search="", db=db, current_user=test_user)) == 2
         assert len(get_expenses(db=db, current_user=test_user)) == 2
+
+
+class TestSearchPagination:
+    def test_search_respects_skip_and_limit(self, db, test_user):
+        from app.routers.expenses import get_expenses
+
+        made = [_make_expense(db, test_user.id, f"Farmacia {i}") for i in range(5)]
+        _make_expense(db, test_user.id, "Nafta")
+
+        pages = [
+            get_expenses(search="farmacia", db=db, current_user=test_user, limit=2, skip=skip)
+            for skip in (0, 2, 4)
+        ]
+        flat = [e.id for page in pages for e in page]
+
+        # pages partition the matches: complete coverage, no duplicates
+        assert sorted(flat) == sorted(e.id for e in made)
+        assert len(set(flat)) == 5
+        assert len(pages[2]) == 1
+
+    def test_search_skip_beyond_results_returns_empty(self, db, test_user):
+        from app.routers.expenses import get_expenses
+
+        _make_expense(db, test_user.id, "Farmacia Central")
+
+        assert get_expenses(search="farmacia", db=db, current_user=test_user, skip=10) == []
