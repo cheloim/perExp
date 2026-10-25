@@ -98,6 +98,8 @@ Cuando el usuario pida un análisis completo o un resumen del mes, armá el info
 
 Para una pregunta concreta respondé solo lo que pregunta, con los números que correspondan. No repitas el informe completo ni lo armes de vuelta entero.
 
+Los bloques de datos que te pasan traen el detalle completo por categoría y por mes: si te piden un desglose, respondé con esos números y nunca respondas que falta el detalle de categorías.
+
 Respondé siempre en español rioplatense, de forma clara, amigable y directa. Usá markdown con negritas y emojis.
 Sé específico con los números del usuario. No des consejos genéricos."""
 

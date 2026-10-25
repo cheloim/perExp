@@ -208,9 +208,14 @@ el mes pasado" o "¿cómo vengo en el año?". Ahora:
   (3 / 6 / 12 meses) que el header muestra en todo momento — la UI dice el
   período consultado antes de preguntar. El backend acepta 1..24 y **siempre**
   acota: no hay forma de pedirle todo el historial.
-- **Comparativos calculados en el servidor**: cada mes contra el anterior y el
-  top 5 de categorías del último mes contra el previo. El modelo *reporta* la
+- **Comparativos calculados en el servidor**: cada mes contra el anterior y
+  todas las categorías del último mes contra el previo. El modelo *reporta* la
   comparación en vez de restar totales, que es donde más se equivoca.
+- **Detalle mes × categoría**: cada categoría de cada mes de la ventana, con su
+  participación en el mes ya calculada. Sin este bloque, "detallame lo de este
+  mes" era irresoluble: el prompt traía el agregado de la ventana y un top 5 del
+  último mes, y el modelo respondía —correctamente— que el detalle del resto no
+  estaba en los datos.
 - **Retrieval por palabras clave**: la pregunta trae los gastos de los que habla
   ("¿cuánto gasté en YENNY TORTUGAS?"), matching por descripción y categoría
   (sin acentos ni mayúsculas), top 20. Es keyword a propósito: no hay vector

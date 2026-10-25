@@ -166,9 +166,19 @@ business_rules:
   - name: "Month-over-Month Comparison"
     description: >
       The prompt carries the deltas already computed: each month against the
-      one before it, and the top 5 categories of the newest month against the
+      one before it, and every category of the newest month against the
       previous one. The model reports the comparison instead of subtracting
       totals, which it gets wrong often enough to matter.
+  - name: "Month × Category Detail"
+    description: >
+      Every category of every month in the window, with its share of that
+      month already computed. The window block aggregates across months and
+      the comparison only names the newest two, so without this matrix a
+      question about any single month ("detallame lo de este mes") has no
+      detail to answer from — the model can only subtract the rows it has
+      and say the rest is missing, which is exactly what it did. Categories
+      are labelled "Parent > Child" so a subcategory is never a row unrelated
+      to its parent.
   - name: "Question Retrieval"
     description: >
       The window arrives aggregated, so the words of the question retrieve the
@@ -180,8 +190,9 @@ business_rules:
       scoping as everything else: only the authenticated user's expenses.
   - name: "Prompt Budget"
     description: >
-      Aggregates, top 10, comparison blocks and the capped retrieval block —
-      never a transaction dump. A year of spending (500 expenses) stays under
+      Aggregates (window totals and the month × category matrix), top 10,
+      comparison blocks and the capped retrieval block — never a transaction
+      dump. A year of spending (500 expenses) stays under
       16.000 characters, asserted by a test, so the window length cannot turn
       into unbounded token spend.
   - name: "Data Scoping"
@@ -304,12 +315,30 @@ tests:
 
   - name: "Month-over-month deltas reach the model"
     type: "integration"
-    description: "Each month is compared against the one before it, and the top categories too"
+    description: "Each month is compared against the one before it, and every category of the newest month too"
     steps:
       - "Add expenses in two consecutive months"
       - "POST /analysis/stream with months=2"
       - "Assert the prompt carries the comparison blocks with the computed deltas"
     expected: "The model reports the comparison instead of computing it"
+
+  - name: "Every month details every category"
+    type: "integration"
+    description: "The month × category matrix has no top-N cut — the tail is data too"
+    steps:
+      - "Add expenses in six categories across two months"
+      - "POST /analysis/stream with months=2"
+      - "Assert every category of every month reaches the prompt with its share of the month"
+    expected: "A single-month question is answerable from the prompt alone"
+
+  - name: "A subcategory names its parent"
+    type: "integration"
+    description: "Subcategory rows carry the parent in the label, as the monthly report writes them"
+    steps:
+      - "Add a parent category, a subcategory, and an expense on each"
+      - "POST /analysis/stream"
+      - "Assert the subcategory row reads 'Parent > Child' and the parent row keeps its own name"
+    expected: "Parent and subcategory never read as unrelated rows"
 
   - name: "A question retrieves the spends it is about"
     type: "integration"
@@ -349,6 +378,13 @@ documentation:
     description: "Window, retrieval and prompt budget in docs/Asistente-IA-Unificacion.md"
 
 changelog:
+  - version: "1.3.1"
+    date: "2026-10-25"
+    changes:
+      - "Month × category detail: every category of every month reaches the prompt — the top-5 cut made 'detallame lo de este mes' unanswerable and the model said the detail was missing"
+      - "Category comparison covers every category of the newest month, not the top 5"
+      - "Subcategories are labelled 'Parent > Child' in the prompt, as the monthly report writes them"
+      - "The analysis prompt tells the model to answer from the data blocks instead of claiming category detail is missing"
   - version: "1.3.0"
     date: "2026-10-24"
     changes:
