@@ -13,18 +13,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class _SuppressHealthFilter(logging.Filter):
-    """Drop uvicorn access log lines for internal health/metrics probes."""
+from app.log_filters import RedactQueryFilter, SuppressHealthFilter
 
-    _SUPPRESSED = ("/health", "/metrics")
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        msg = record.getMessage()
-        return not any(path in msg for path in self._SUPPRESSED)
-
-
-# Silence noisy internal requests from uvicorn access log
-logging.getLogger("uvicorn.access").addFilter(_SuppressHealthFilter())
+# Keep internal probe noise and user content (query strings) out of the
+# uvicorn access log
+logging.getLogger("uvicorn.access").addFilter(RedactQueryFilter())
+logging.getLogger("uvicorn.access").addFilter(SuppressHealthFilter())
 
 from app.services.platform_log_handler import PlatformLogHandler
 
