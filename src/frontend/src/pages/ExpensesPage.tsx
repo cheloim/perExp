@@ -658,18 +658,38 @@ export default function ExpensesPage() {
       )}
 
       {/* Search box — always visible (issue #420) */}
-      <div className="relative">
-        <input
-          type="text"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="Buscar por descripción, nota o categoría…"
-          aria-label="Buscar gastos"
-          className="input text-sm pl-8"
-        />
-        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tertiary">
-          <SymbolicIcon name="search" size={14} />
-        </span>
+      <div>
+        <div className="relative">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setSearchInput("");
+            }}
+            placeholder="Buscar por descripción, nota o categoría…"
+            aria-label="Buscar gastos"
+            className="input text-sm pl-8 pr-8"
+          />
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tertiary">
+            <SymbolicIcon name="search" size={14} />
+          </span>
+          {searchInput && (
+            <button
+              type="button"
+              onClick={() => setSearchInput("")}
+              aria-label="Limpiar búsqueda"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-tertiary hover:text-primary transition"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-tertiary mt-1" aria-live="polite">
+          {filterSearch
+            ? `${expenses.length}${expenses.length >= visibleCount ? "+" : ""} gastos para «${filterSearch}»`
+            : ""}
+        </p>
       </div>
 
       {/* Filter panel - collapsible */}
