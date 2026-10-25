@@ -416,6 +416,7 @@ export const getExpenses = (params?: {
   untagged?: boolean;
   cuenta_id?: number;
   sin_cuenta?: boolean;
+  search?: string;
   limit?: number;
   offset?: number;
 }) => api.get<Expense[]>("/expenses", { params }).then((r) => r.data);
