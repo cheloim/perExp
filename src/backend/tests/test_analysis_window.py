@@ -253,6 +253,123 @@ def test_the_top_categories_compare_the_newest_month_against_the_previous_one(
     assert "- Librería: $500.00 (vs $0.00, sin base)" in prompt
 
 
+# ── Month × category detail: the tail is data too ────────────────────
+
+
+def _cat_expense(db, user, cat, on: date, description: str, amount: float) -> Expense:
+    exp = _add_expense(db, user, on, description, amount)
+    exp.category_id = cat.id
+    return exp
+
+
+def test_every_month_details_every_category_not_just_the_top_five(db, test_user, fake_llm):
+    """A month question ("detallame lo de este mes") used to hit a five-row
+    block. The model subtracted those five from the month total and honestly
+    answered that the detail of the rest was not in the data — it wasn't."""
+    cats = [Category(name=f"Cat {i}", user_id=test_user.id) for i in range(6)]
+    db.add_all(cats)
+    db.flush()
+    prev_key = _first_day_months_ago(1).strftime("%Y-%m")
+    curr_key = _first_day_months_ago(0).strftime("%Y-%m")
+
+    _cat_expense(db, test_user, cats[0], _first_day_months_ago(1), "compra vieja", 1000.0)
+    for cat, amount in zip(cats, (3000.0, 2000.0, 1500.0, 1000.0, 800.0, 500.0), strict=True):
+        _cat_expense(db, test_user, cat, _first_day_months_ago(0), f"compra en {cat.name}", amount)
+
+    _stream(AnalysisRequest(months=2), db, test_user)
+
+    prompt = _prompt_text(fake_llm.prompts)
+    detail = prompt.split("DETALLE POR MES Y CATEGORÍA:")[1]
+    assert f"{prev_key} (total $1,000.00" in detail
+    assert f"{curr_key} (total $8,800.00" in detail
+    # The sixth category of the month — outside any top five — with its share
+    # of the month already computed, so the model never divides.
+    assert "- Cat 5: $500.00 (5.7%)" in detail
+    assert "- Cat 0: $3,000.00 (34.1%)" in detail
+    assert "- Cat 0: $1,000.00 (100.0%)" in detail
+
+
+def test_the_category_comparison_no_longer_cuts_the_tail(db, test_user, fake_llm):
+    """The month-over-month block compared the top 5 categories of the newest
+    month only; the sixth and below were invisible to the model."""
+    cats = [Category(name=f"Cat {i}", user_id=test_user.id) for i in range(6)]
+    previa = Category(name="Vieja", user_id=test_user.id)
+    db.add_all(cats + [previa])
+    db.flush()
+    # A spend in the previous month so there are two months to compare.
+    _cat_expense(db, test_user, previa, _first_day_months_ago(1), "compra vieja", 1000.0)
+    for cat, amount in zip(cats, (3000.0, 2000.0, 1500.0, 1000.0, 800.0, 500.0), strict=True):
+        _cat_expense(db, test_user, cat, _first_day_months_ago(0), f"compra en {cat.name}", amount)
+
+    _stream(AnalysisRequest(months=2), db, test_user)
+
+    comp = _prompt_text(fake_llm.prompts).split("CATEGORÍAS — ")[1]
+    assert "- Cat 0: $3,000.00 (vs $0.00, sin base)" in comp
+    assert "- Cat 5: $500.00 (vs $0.00, sin base)" in comp
+
+
+def test_a_subcategory_names_its_parent_too(db, test_user, fake_llm):
+    """Leaf names alone read as unrelated rows: "Mantenimiento" next to
+    "Mantenimiento Automotor" when one is the parent of the other."""
+    padre = Category(name="Mantenimiento", user_id=test_user.id)
+    db.add(padre)
+    db.flush()
+    hijo = Category(name="Mantenimiento Automotor", user_id=test_user.id, parent_id=padre.id)
+    db.add(hijo)
+    db.flush()
+
+    _cat_expense(db, test_user, hijo, _first_day_months_ago(0), "service", 700.0)
+    _cat_expense(db, test_user, padre, _first_day_months_ago(0), "lavado", 300.0)
+
+    _stream(AnalysisRequest(months=1), db, test_user)
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert "- Mantenimiento > Mantenimiento Automotor: $700.00" in prompt
+    assert "- Mantenimiento: $300.00" in prompt
+
+
+def test_a_month_without_spending_stays_visible_in_the_detail(db, test_user, fake_llm):
+    """An empty month of the window is data too. Omitted, the model cannot say
+    "ese mes no tiene gastos" — and a prompt that tells it not to claim detail
+    is missing would push it towards inventing the month instead."""
+    empty_key = _first_day_months_ago(1).strftime("%Y-%m")
+    _add_expense(db, test_user, _first_day_months_ago(2), "gasto de hace dos meses", 100.0)
+    _add_expense(db, test_user, _first_day_months_ago(0), "gasto actual", 200.0)
+
+    _stream(AnalysisRequest(months=3), db, test_user)
+
+    detail = _prompt_text(fake_llm.prompts).split("DETALLE POR MES Y CATEGORÍA:")[1]
+    assert f"{empty_key} (total $0.00):\n- (sin gastos registrados)" in detail
+
+
+def test_a_parent_of_another_user_never_names_a_row(db, test_user, fake_llm):
+    """`parent_id` is not validated at write time: a category pointing at
+    another user's category would leak that name through the label."""
+    other = User(
+        email="other@example.com",
+        full_name="Other, User",
+        hashed_password="x",
+        email_verified=True,
+    )
+    db.add(other)
+    db.flush()
+    secreta = Category(name="Secreta", user_id=other.id)
+    db.add(secreta)
+    db.flush()
+    hija = Category(name="Hija", user_id=test_user.id, parent_id=secreta.id)
+    db.add(hija)
+    db.flush()
+
+    exp = _add_expense(db, test_user, _first_day_months_ago(0), "compra", 100.0)
+    exp.category_id = hija.id
+
+    _stream(AnalysisRequest(months=1), db, test_user)
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert "- Hija: $100.00" in prompt
+    assert "Secreta" not in prompt
+
+
 def test_a_question_retrieves_the_spend_it_is_about(db, test_user, fake_llm):
     """The window arrives aggregated; the words of the question find the spends
     it is about so a merchant question has something to answer from."""
@@ -299,16 +416,17 @@ def test_retrieval_never_leaves_the_user(db, test_user, fake_llm):
 
 
 def test_the_prompt_stays_bounded_at_twelve_months(db, test_user, fake_llm):
-    """Aggregates plus top 10 plus the retrieval block: a year of spending must
-    not turn the prompt into a transaction dump."""
+    """Aggregates (window and month × category), top 10, the comparison blocks
+    and the capped retrieval block — never a transaction dump. What scales is
+    months × categories; the transaction count must not move the prompt."""
+    cats = [Category(name=f"Cat {i:02d}", user_id=test_user.id) for i in range(20)]
+    db.add_all(cats)
+    db.flush()
     for i in range(500):
-        _add_expense(
-            db,
-            test_user,
-            _first_day_months_ago(i % 12),
-            f"comercio numero {i}",
-            10.0 + i,
+        exp = _add_expense(
+            db, test_user, _first_day_months_ago(i % 12), f"comercio numero {i}", 10.0 + i
         )
+        exp.category_id = cats[i % 20].id
 
     _stream(
         AnalysisRequest(question="¿Cuánto gasté en el comercio 42?", months=12),
