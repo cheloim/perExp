@@ -38,7 +38,7 @@ requirements:
       description: "Auto-categorize expense by keyword matching on categories"
       priority: must
     - id: EXP-F08
-      description: "Filter by month, date range, category, bank, person, card, installment, account"
+      description: "Filter by month, date range, category, bank, person, card, installment, account, free-text search"
       priority: must
     - id: EXP-F09
       description: "Computed fields: category_name, category_color, card, bank, person"
@@ -225,6 +225,7 @@ endpoints:
       - { name: installment, type: "bool | null" }
       - { name: account, type: "str | null" }
       - { name: account_id, type: "int | null" }
+      - { name: search, type: "str | null", notes: "Free text over description, notes and category name" }
       - { name: skip, type: int, default: 0 }
       - { name: limit, type: int, default: 200 }
     logic:
@@ -233,6 +234,7 @@ endpoints:
       - "Apply date/month filters at DB level"
       - "Apply category filters at DB level"
       - "Application-level filtering for bank, person, card (decrypt then filter)"
+      - "Application-level text search for description, notes, category name (decrypt then filter)"
       - "Order by date desc, offset/limit"
 
   - method: GET
@@ -376,6 +378,10 @@ tests:
     type: integration
     description: "GET /expenses?bank=Galicia filters via application-level decryption"
     expected: "Only expenses with card.bank matching 'Galicia' returned"
+  - name: "Filter by text search (encrypted fields)"
+    type: integration
+    description: "GET /expenses?search=farmacia matches description, notes or category name case- and accent-insensitively"
+    expected: "Only matching expenses returned; empty search returns all"
   - name: "Bulk delete"
     type: integration
     description: "POST /expenses/bulk-delete with ids=[1,2,3]"
@@ -392,6 +398,9 @@ documentation:
     section: "Pagination & Filtering"
 
 changelog:
+  - date: "2026-10-24"
+    version: "1.1.0"
+    changes: ["Added free-text search (search param) over description, notes and category name"]
   - date: "2026-08-16"
     version: "1.0.0"
     changes: ["Initial feature spec created"]
