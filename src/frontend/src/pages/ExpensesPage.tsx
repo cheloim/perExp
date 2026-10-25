@@ -75,7 +75,15 @@ function groupSmallCategories(
 
 export default function ExpensesPage() {
   const queryClient = useQueryClient();
-  const { filters, setFilter, clearFilters, searchParams, setSearchParams } = useExpenseFilters();
+  const {
+    filters,
+    setFilter,
+    clearFilters,
+    searchParams,
+    setSearchParams,
+    searchInput,
+    setSearchInput,
+  } = useExpenseFilters();
 
   const filterCategory = filters.categoryId;
   const filterUncategorized = filters.uncategorized;
@@ -86,6 +94,7 @@ export default function ExpensesPage() {
   const filterUntagged = filters.untagged;
   const filterCuentaId = filters.cuentaId;
   const filterSinCuenta = filters.sinCuenta;
+  const filterSearch = filters.q;
 
   // Category suggestions from API
   const { data: suggestionsData = [], refetch: refetchSuggestions } = useQuery({
@@ -129,12 +138,13 @@ export default function ExpensesPage() {
     filterUntagged || undefined,
     filterCuentaId || undefined,
     filterSinCuenta || undefined,
+    filterSearch,
   ].filter(Boolean).length;
 
   const [visibleCount, setVisibleCount] = useState(100);
 
   // Reset visible count when filters change
-  const filterKey = `${filterCategory}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}-${filterCuentaId}-${filterSinCuenta}`;
+  const filterKey = `${filterCategory}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}-${filterCuentaId}-${filterSinCuenta}-${filterSearch}`;
   const prevFilterKey = useRef(filterKey);
   if (filterKey !== prevFilterKey.current) {
     prevFilterKey.current = filterKey;
@@ -155,6 +165,7 @@ export default function ExpensesPage() {
       filterUntagged,
       filterCuentaId,
       filterSinCuenta,
+      filterSearch,
       visibleCount,
     ],
     queryFn: () =>
@@ -168,6 +179,7 @@ export default function ExpensesPage() {
         untagged: filterUntagged || undefined,
         cuenta_id: filterCuentaId,
         sin_cuenta: filterSinCuenta || undefined,
+        search: filterSearch,
         limit: visibleCount,
       }),
     placeholderData: (prev) => prev,
@@ -537,6 +549,7 @@ export default function ExpensesPage() {
       date_to: filterDateTo,
       tag_id: filterTagId,
       untagged: filterUntagged || undefined,
+      search: filterSearch,
       limit: 10000,
     });
     const headers = ["Fecha", "Descripción", "Monto", "Moneda", "Categoría", "Cuenta", "Etiquetas"];
@@ -643,6 +656,21 @@ export default function ExpensesPage() {
           </div>
         </div>
       )}
+
+      {/* Search box — always visible (issue #420) */}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Buscar por descripción, nota o categoría…"
+          aria-label="Buscar gastos"
+          className="input text-sm pl-8"
+        />
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tertiary">
+          <SymbolicIcon name="search" size={14} />
+        </span>
+      </div>
 
       {/* Filter panel - collapsible */}
       <div className="card">

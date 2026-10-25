@@ -62,6 +62,10 @@ export type ListExpensesParams = {
    * Show only expenses without a cuenta-group tag
    */
   sin_cuenta?: boolean;
+  /**
+   * Free-text search over description, notes and category name (decrypted at application level)
+   */
+  search?: string;
   skip?: number;
   limit?: number;
 };

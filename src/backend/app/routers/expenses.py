@@ -17,6 +17,7 @@ from app.services.auth import get_current_user
 from app.services.categorization import _normalize_merchant_key, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
 from app.services.encryption import compute_hmac
+from app.services.expense_search import expense_matches
 from app.services.import_utils import _is_duplicate, _normalize_text
 from app.services.tag_sync import assign_tags_validated, sync_category_tag
 
@@ -95,7 +96,7 @@ def _track_merchant_preference(user_id: int, description: str, category_id: int,
     "",
     response_model=list[ExpenseResponse],
     summary="List expenses",
-    description="Returns expenses for the user's family group with filters for date range, category, bank, person, card type, installment status, and account.",
+    description="Returns expenses for the user's family group with filters for date range, category, bank, person, card type, installment status, account, and free-text search.",
 )
 def get_expenses(
     date_from: date | None = None,
@@ -115,6 +116,7 @@ def get_expenses(
     untagged: bool = False,
     cuenta_id: int | None = None,
     sin_cuenta: bool = False,
+    search: str | None = None,
     skip: int = 0,
     limit: int = 200,
     db: Session = Depends(get_db),
@@ -217,6 +219,23 @@ def get_expenses(
             ExpenseTag.tag_id.in_(cuenta_tag_ids)
         )
         q = q.filter(~Expense.id.in_(cuenta_expense_ids))
+    # Text search — description, notes and category name are encrypted, so
+    # matching happens at application level (same as bank/person/card above)
+    if search:
+        category_names = {
+            c.id: c.name for c in db.query(Category).filter(Category.user_id.in_(uid_list)).all()
+        }
+        candidates = (
+            db.query(Expense.id, Expense.description, Expense.notes, Expense.category_id)
+            .filter(Expense.user_id.in_(uid_list))
+            .all()
+        )
+        matching_ids = [
+            eid
+            for eid, description, notes, category_id in candidates
+            if expense_matches(search, description, notes, category_names.get(category_id))
+        ]
+        q = q.filter(Expense.id.in_(matching_ids) if matching_ids else Expense.id == -1)
     # Only exclude future installments when NOT filtering by specific category
     # (category-specific views like side panel need to show all expenses)
     if not category_id and not category_ids:

@@ -835,6 +835,11 @@ paths:
           schema:
             type: boolean
           description: Show only expenses without a cuenta-group tag
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: 'Free-text search over description, notes and category name (decrypted at application level)'
         - name: skip
           in: query
           schema:
