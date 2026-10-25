@@ -1019,27 +1019,86 @@ paths:
       summary: Expense statistics summary
       operationId: expenseStats
       parameters:
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
         - name: month
           in: query
           schema:
             type: string
           description: 'YYYY-MM format'
-        - name: card
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: category_ids
           in: query
           schema:
             type: string
+          description: Comma-separated IDs
+        - name: uncategorized
+          in: query
+          schema:
+            type: boolean
         - name: bank
           in: query
           schema:
             type: string
+        - name: person
+          in: query
+          schema:
+            type: string
+        - name: card
+          in: query
+          schema:
+            type: string
+        - name: card_type
+          in: query
+          schema:
+            type: string
+        - name: installment
+          in: query
+          schema:
+            type: boolean
         - name: account
           in: query
           schema:
             type: string
+          description: Filter by account name (substring, decrypted at application level)
         - name: account_id
           in: query
           schema:
             type: integer
+        - name: tag_id
+          in: query
+          schema:
+            type: integer
+        - name: untagged
+          in: query
+          schema:
+            type: boolean
+        - name: cuenta_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by cuenta-group tag ID
+        - name: sin_cuenta
+          in: query
+          schema:
+            type: boolean
+          description: Show only expenses without a cuenta-group tag
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: 'Free-text search over description, notes and category name (decrypted at application level)'
       responses:
         '200':
           description: Stats
@@ -1050,19 +1109,86 @@ paths:
       summary: Breakdown by category
       operationId: expensesByCategory
       parameters:
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
         - name: month
           in: query
           schema:
             type: string
           description: 'YYYY-MM format'
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: category_ids
+          in: query
+          schema:
+            type: string
+          description: Comma-separated IDs
+        - name: uncategorized
+          in: query
+          schema:
+            type: boolean
+        - name: bank
+          in: query
+          schema:
+            type: string
+        - name: person
+          in: query
+          schema:
+            type: string
         - name: card
           in: query
           schema:
             type: string
+        - name: card_type
+          in: query
+          schema:
+            type: string
+        - name: installment
+          in: query
+          schema:
+            type: boolean
+        - name: account
+          in: query
+          schema:
+            type: string
+          description: Filter by account name (substring, decrypted at application level)
         - name: account_id
           in: query
           schema:
             type: integer
+        - name: tag_id
+          in: query
+          schema:
+            type: integer
+        - name: untagged
+          in: query
+          schema:
+            type: boolean
+        - name: cuenta_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by cuenta-group tag ID
+        - name: sin_cuenta
+          in: query
+          schema:
+            type: boolean
+          description: Show only expenses without a cuenta-group tag
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: 'Free-text search over description, notes and category name (decrypted at application level)'
       responses:
         '200':
           description: Category breakdown
@@ -1073,11 +1199,86 @@ paths:
       summary: Breakdown by card holder
       operationId: expensesByPerson
       parameters:
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
         - name: month
           in: query
           schema:
             type: string
           description: 'YYYY-MM format'
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: category_ids
+          in: query
+          schema:
+            type: string
+          description: Comma-separated IDs
+        - name: uncategorized
+          in: query
+          schema:
+            type: boolean
+        - name: bank
+          in: query
+          schema:
+            type: string
+        - name: person
+          in: query
+          schema:
+            type: string
+        - name: card
+          in: query
+          schema:
+            type: string
+        - name: card_type
+          in: query
+          schema:
+            type: string
+        - name: installment
+          in: query
+          schema:
+            type: boolean
+        - name: account
+          in: query
+          schema:
+            type: string
+          description: Filter by account name (substring, decrypted at application level)
+        - name: account_id
+          in: query
+          schema:
+            type: integer
+        - name: tag_id
+          in: query
+          schema:
+            type: integer
+        - name: untagged
+          in: query
+          schema:
+            type: boolean
+        - name: cuenta_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by cuenta-group tag ID
+        - name: sin_cuenta
+          in: query
+          schema:
+            type: boolean
+          description: Show only expenses without a cuenta-group tag
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: 'Free-text search over description, notes and category name (decrypted at application level)'
       responses:
         '200':
           description: Person breakdown

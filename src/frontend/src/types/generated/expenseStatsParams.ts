@@ -34,12 +34,40 @@
  */
 
 export type ExpenseStatsParams = {
+  date_from?: string;
+  date_to?: string;
   /**
    * YYYY-MM format
    */
   month?: string;
-  card?: string;
+  category_id?: number;
+  /**
+   * Comma-separated IDs
+   */
+  category_ids?: string;
+  uncategorized?: boolean;
   bank?: string;
+  person?: string;
+  card?: string;
+  card_type?: string;
+  installment?: boolean;
+  /**
+   * Filter by account name (substring, decrypted at application level)
+   */
   account?: string;
   account_id?: number;
+  tag_id?: number;
+  untagged?: boolean;
+  /**
+   * Filter by cuenta-group tag ID
+   */
+  cuenta_id?: number;
+  /**
+   * Show only expenses without a cuenta-group tag
+   */
+  sin_cuenta?: boolean;
+  /**
+   * Free-text search over description, notes and category name (decrypted at application level)
+   */
+  search?: string;
 };
