@@ -72,9 +72,7 @@ def _load_cards_and_accounts(uid_list: list[int], expenses: list[Expense], db: S
     return cards_by_id, accounts_by_id
 
 
-def _apply_filters(
-    q, month_val, search_val, person_val, cat_id_val, bank_val=None, uid_list=None, db=None
-):
+def _apply_filters(q, month_val, person_val, cat_id_val, bank_val=None, uid_list=None, db=None):
     if month_val:
         try:
             if "-" in month_val:
@@ -123,7 +121,6 @@ def _apply_filters(
 def get_summary(
     month: str | None = None,
     group_by: str = "month",
-    search: str | None = None,
     person: str | None = None,
     category_id: int | None = None,
     bank: str | None = None,
@@ -134,13 +131,11 @@ def get_summary(
 
     uid_list = get_group_user_ids(current_user.id, db)
     gh = group_hash(uid_list)
-    cache_key = (
-        dash_summary_key(gh, month, person, category_id, bank, group_by) + f":{search or '-'}"
-    )
+    cache_key = dash_summary_key(gh, month, person, category_id, bank, group_by)
     cached = get_json(cache_key)
     if cached is not None:
         return cached
-    result = _compute_summary(month, group_by, search, person, category_id, bank, db, current_user)
+    result = _compute_summary(month, group_by, person, category_id, bank, db, current_user)
     set_json(cache_key, result, ttl=90)
     return result
 
@@ -148,7 +143,6 @@ def get_summary(
 def _compute_summary(
     month: str | None = None,
     group_by: str = "month",
-    search: str | None = None,
     person: str | None = None,
     category_id: int | None = None,
     bank: str | None = None,
@@ -165,7 +159,7 @@ def _compute_summary(
         .filter(Expense.user_id.in_(uid_list))
     )
     expenses = (
-        _apply_filters(base_q, month, search, person, category_id, bank, uid_list, db)
+        _apply_filters(base_q, month, person, category_id, bank, uid_list, db)
         .order_by(desc(Expense.date))
         .all()
     )
@@ -251,7 +245,7 @@ def _compute_summary(
             is_current_month = f"{y}-{m:02d}" == today.strftime("%Y-%m")
             mtd_cutoff = min(today.day, monthrange(py, pm)[1]) if is_current_month else None
             prev_expenses = _apply_filters(
-                base_q, f"{py}-{pm:02d}", search, person, category_id, bank, uid_list, db
+                base_q, f"{py}-{pm:02d}", person, category_id, bank, uid_list, db
             ).all()
             for e in prev_expenses:
                 # Skip income from previous month calculation
