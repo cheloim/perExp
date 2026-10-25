@@ -79,6 +79,7 @@ import type {
   CategoryResponse,
   CategorySuggestResponse,
   ChangePasswordBody,
+  CheckDuplicateParams,
   ConfirmImportJob200,
   CreateGroupBody,
   CreateImportJobBody,
@@ -90,7 +91,11 @@ import type {
   ExecuteScheduledExpense201,
   ExpenseCreate,
   ExpenseResponse,
+  ExpenseStatsParams,
+  ExpenseTrendParams,
   ExpenseUpdate,
+  ExpensesByCategoryParams,
+  ExpensesByPersonParams,
   ForgotPasswordBody,
   GroupResponse,
   ImpersonationSessionResponse,
@@ -3856,29 +3861,36 @@ export function useCardOptions<
  * @summary Check if expense already exists
  */
 export const checkDuplicate = (
+  params: CheckDuplicateParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
-  return customInstance<void>({ url: `/expenses/check-duplicate`, method: "GET", signal }, options);
+  return customInstance<void>(
+    { url: `/expenses/check-duplicate`, method: "GET", params, signal },
+    options,
+  );
 };
 
-export const getCheckDuplicateQueryKey = () => {
-  return [`/expenses/check-duplicate`] as const;
+export const getCheckDuplicateQueryKey = (params?: CheckDuplicateParams) => {
+  return [`/expenses/check-duplicate`, ...(params ? [params] : [])] as const;
 };
 
 export const getCheckDuplicateQueryOptions = <
   TData = Awaited<ReturnType<typeof checkDuplicate>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof checkDuplicate>>, TError, TData>>;
-  request?: SecondParameter<typeof customInstance>;
-}) => {
+>(
+  params: CheckDuplicateParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof checkDuplicate>>, TError, TData>>;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getCheckDuplicateQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getCheckDuplicateQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof checkDuplicate>>> = ({ signal }) =>
-    checkDuplicate(requestOptions, signal);
+    checkDuplicate(params, requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof checkDuplicate>>,
@@ -3894,6 +3906,7 @@ export function useCheckDuplicate<
   TData = Awaited<ReturnType<typeof checkDuplicate>>,
   TError = ErrorType<unknown>,
 >(
+  params: CheckDuplicateParams,
   options: {
     query: Partial<UseQueryOptions<Awaited<ReturnType<typeof checkDuplicate>>, TError, TData>> &
       Pick<
@@ -3912,6 +3925,7 @@ export function useCheckDuplicate<
   TData = Awaited<ReturnType<typeof checkDuplicate>>,
   TError = ErrorType<unknown>,
 >(
+  params: CheckDuplicateParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof checkDuplicate>>, TError, TData>> &
       Pick<
@@ -3930,6 +3944,7 @@ export function useCheckDuplicate<
   TData = Awaited<ReturnType<typeof checkDuplicate>>,
   TError = ErrorType<unknown>,
 >(
+  params: CheckDuplicateParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof checkDuplicate>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
@@ -3944,13 +3959,14 @@ export function useCheckDuplicate<
   TData = Awaited<ReturnType<typeof checkDuplicate>>,
   TError = ErrorType<unknown>,
 >(
+  params: CheckDuplicateParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof checkDuplicate>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getCheckDuplicateQueryOptions(options);
+  const queryOptions = getCheckDuplicateQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -4204,29 +4220,33 @@ export const useDetectInstallments = <TError = ErrorType<unknown>, TContext = un
  * @summary Expense statistics summary
  */
 export const expenseStats = (
+  params?: ExpenseStatsParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
-  return customInstance<void>({ url: `/expenses/stats`, method: "GET", signal }, options);
+  return customInstance<void>({ url: `/expenses/stats`, method: "GET", params, signal }, options);
 };
 
-export const getExpenseStatsQueryKey = () => {
-  return [`/expenses/stats`] as const;
+export const getExpenseStatsQueryKey = (params?: ExpenseStatsParams) => {
+  return [`/expenses/stats`, ...(params ? [params] : [])] as const;
 };
 
 export const getExpenseStatsQueryOptions = <
   TData = Awaited<ReturnType<typeof expenseStats>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseStats>>, TError, TData>>;
-  request?: SecondParameter<typeof customInstance>;
-}) => {
+>(
+  params?: ExpenseStatsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseStats>>, TError, TData>>;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getExpenseStatsQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getExpenseStatsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof expenseStats>>> = ({ signal }) =>
-    expenseStats(requestOptions, signal);
+    expenseStats(params, requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof expenseStats>>,
@@ -4242,6 +4262,7 @@ export function useExpenseStats<
   TData = Awaited<ReturnType<typeof expenseStats>>,
   TError = ErrorType<unknown>,
 >(
+  params: undefined | ExpenseStatsParams,
   options: {
     query: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseStats>>, TError, TData>> &
       Pick<
@@ -4260,6 +4281,7 @@ export function useExpenseStats<
   TData = Awaited<ReturnType<typeof expenseStats>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpenseStatsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseStats>>, TError, TData>> &
       Pick<
@@ -4278,6 +4300,7 @@ export function useExpenseStats<
   TData = Awaited<ReturnType<typeof expenseStats>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpenseStatsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseStats>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
@@ -4292,13 +4315,14 @@ export function useExpenseStats<
   TData = Awaited<ReturnType<typeof expenseStats>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpenseStatsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseStats>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getExpenseStatsQueryOptions(options);
+  const queryOptions = getExpenseStatsQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -4311,29 +4335,36 @@ export function useExpenseStats<
  * @summary Breakdown by category
  */
 export const expensesByCategory = (
+  params?: ExpensesByCategoryParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
-  return customInstance<void>({ url: `/expenses/by-category`, method: "GET", signal }, options);
+  return customInstance<void>(
+    { url: `/expenses/by-category`, method: "GET", params, signal },
+    options,
+  );
 };
 
-export const getExpensesByCategoryQueryKey = () => {
-  return [`/expenses/by-category`] as const;
+export const getExpensesByCategoryQueryKey = (params?: ExpensesByCategoryParams) => {
+  return [`/expenses/by-category`, ...(params ? [params] : [])] as const;
 };
 
 export const getExpensesByCategoryQueryOptions = <
   TData = Awaited<ReturnType<typeof expensesByCategory>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expensesByCategory>>, TError, TData>>;
-  request?: SecondParameter<typeof customInstance>;
-}) => {
+>(
+  params?: ExpensesByCategoryParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expensesByCategory>>, TError, TData>>;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getExpensesByCategoryQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getExpensesByCategoryQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof expensesByCategory>>> = ({ signal }) =>
-    expensesByCategory(requestOptions, signal);
+    expensesByCategory(params, requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof expensesByCategory>>,
@@ -4351,6 +4382,7 @@ export function useExpensesByCategory<
   TData = Awaited<ReturnType<typeof expensesByCategory>>,
   TError = ErrorType<unknown>,
 >(
+  params: undefined | ExpensesByCategoryParams,
   options: {
     query: Partial<UseQueryOptions<Awaited<ReturnType<typeof expensesByCategory>>, TError, TData>> &
       Pick<
@@ -4369,6 +4401,7 @@ export function useExpensesByCategory<
   TData = Awaited<ReturnType<typeof expensesByCategory>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpensesByCategoryParams,
   options?: {
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof expensesByCategory>>, TError, TData>
@@ -4389,6 +4422,7 @@ export function useExpensesByCategory<
   TData = Awaited<ReturnType<typeof expensesByCategory>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpensesByCategoryParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expensesByCategory>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
@@ -4403,13 +4437,14 @@ export function useExpensesByCategory<
   TData = Awaited<ReturnType<typeof expensesByCategory>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpensesByCategoryParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expensesByCategory>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getExpensesByCategoryQueryOptions(options);
+  const queryOptions = getExpensesByCategoryQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -4422,29 +4457,36 @@ export function useExpensesByCategory<
  * @summary Breakdown by card holder
  */
 export const expensesByPerson = (
+  params?: ExpensesByPersonParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
-  return customInstance<void>({ url: `/expenses/by-person`, method: "GET", signal }, options);
+  return customInstance<void>(
+    { url: `/expenses/by-person`, method: "GET", params, signal },
+    options,
+  );
 };
 
-export const getExpensesByPersonQueryKey = () => {
-  return [`/expenses/by-person`] as const;
+export const getExpensesByPersonQueryKey = (params?: ExpensesByPersonParams) => {
+  return [`/expenses/by-person`, ...(params ? [params] : [])] as const;
 };
 
 export const getExpensesByPersonQueryOptions = <
   TData = Awaited<ReturnType<typeof expensesByPerson>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expensesByPerson>>, TError, TData>>;
-  request?: SecondParameter<typeof customInstance>;
-}) => {
+>(
+  params?: ExpensesByPersonParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expensesByPerson>>, TError, TData>>;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getExpensesByPersonQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getExpensesByPersonQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof expensesByPerson>>> = ({ signal }) =>
-    expensesByPerson(requestOptions, signal);
+    expensesByPerson(params, requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof expensesByPerson>>,
@@ -4460,6 +4502,7 @@ export function useExpensesByPerson<
   TData = Awaited<ReturnType<typeof expensesByPerson>>,
   TError = ErrorType<unknown>,
 >(
+  params: undefined | ExpensesByPersonParams,
   options: {
     query: Partial<UseQueryOptions<Awaited<ReturnType<typeof expensesByPerson>>, TError, TData>> &
       Pick<
@@ -4478,6 +4521,7 @@ export function useExpensesByPerson<
   TData = Awaited<ReturnType<typeof expensesByPerson>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpensesByPersonParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expensesByPerson>>, TError, TData>> &
       Pick<
@@ -4496,6 +4540,7 @@ export function useExpensesByPerson<
   TData = Awaited<ReturnType<typeof expensesByPerson>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpensesByPersonParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expensesByPerson>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
@@ -4510,13 +4555,14 @@ export function useExpensesByPerson<
   TData = Awaited<ReturnType<typeof expensesByPerson>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpensesByPersonParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expensesByPerson>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getExpensesByPersonQueryOptions(options);
+  const queryOptions = getExpensesByPersonQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -4529,29 +4575,33 @@ export function useExpensesByPerson<
  * @summary Monthly spending trend
  */
 export const expenseTrend = (
+  params?: ExpenseTrendParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
-  return customInstance<void>({ url: `/expenses/trend`, method: "GET", signal }, options);
+  return customInstance<void>({ url: `/expenses/trend`, method: "GET", params, signal }, options);
 };
 
-export const getExpenseTrendQueryKey = () => {
-  return [`/expenses/trend`] as const;
+export const getExpenseTrendQueryKey = (params?: ExpenseTrendParams) => {
+  return [`/expenses/trend`, ...(params ? [params] : [])] as const;
 };
 
 export const getExpenseTrendQueryOptions = <
   TData = Awaited<ReturnType<typeof expenseTrend>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseTrend>>, TError, TData>>;
-  request?: SecondParameter<typeof customInstance>;
-}) => {
+>(
+  params?: ExpenseTrendParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseTrend>>, TError, TData>>;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getExpenseTrendQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getExpenseTrendQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof expenseTrend>>> = ({ signal }) =>
-    expenseTrend(requestOptions, signal);
+    expenseTrend(params, requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof expenseTrend>>,
@@ -4567,6 +4617,7 @@ export function useExpenseTrend<
   TData = Awaited<ReturnType<typeof expenseTrend>>,
   TError = ErrorType<unknown>,
 >(
+  params: undefined | ExpenseTrendParams,
   options: {
     query: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseTrend>>, TError, TData>> &
       Pick<
@@ -4585,6 +4636,7 @@ export function useExpenseTrend<
   TData = Awaited<ReturnType<typeof expenseTrend>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpenseTrendParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseTrend>>, TError, TData>> &
       Pick<
@@ -4603,6 +4655,7 @@ export function useExpenseTrend<
   TData = Awaited<ReturnType<typeof expenseTrend>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpenseTrendParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseTrend>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
@@ -4617,13 +4670,14 @@ export function useExpenseTrend<
   TData = Awaited<ReturnType<typeof expenseTrend>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ExpenseTrendParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof expenseTrend>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getExpenseTrendQueryOptions(options);
+  const queryOptions = getExpenseTrendQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

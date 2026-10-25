@@ -813,6 +813,11 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: account
+          in: query
+          schema:
+            type: string
+          description: Filter by account name (substring, decrypted at application level)
         - name: account_id
           in: query
           schema:
@@ -916,6 +921,27 @@ paths:
       tags: [expenses]
       summary: Check if expense already exists
       operationId: checkDuplicate
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: amount
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: description
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: transaction_id
+          in: query
+          schema:
+            type: string
       responses:
         '200':
           description: Duplicate check result
@@ -992,6 +1018,28 @@ paths:
       tags: [expenses]
       summary: Expense statistics summary
       operationId: expenseStats
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+          description: 'YYYY-MM format'
+        - name: card
+          in: query
+          schema:
+            type: string
+        - name: bank
+          in: query
+          schema:
+            type: string
+        - name: account
+          in: query
+          schema:
+            type: string
+        - name: account_id
+          in: query
+          schema:
+            type: integer
       responses:
         '200':
           description: Stats
@@ -1001,6 +1049,20 @@ paths:
       tags: [expenses]
       summary: Breakdown by category
       operationId: expensesByCategory
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+          description: 'YYYY-MM format'
+        - name: card
+          in: query
+          schema:
+            type: string
+        - name: account_id
+          in: query
+          schema:
+            type: integer
       responses:
         '200':
           description: Category breakdown
@@ -1010,6 +1072,12 @@ paths:
       tags: [expenses]
       summary: Breakdown by card holder
       operationId: expensesByPerson
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+          description: 'YYYY-MM format'
       responses:
         '200':
           description: Person breakdown
@@ -1019,6 +1087,12 @@ paths:
       tags: [expenses]
       summary: Monthly spending trend
       operationId: expenseTrend
+      parameters:
+        - name: months
+          in: query
+          schema:
+            type: integer
+            default: 6
       responses:
         '200':
           description: Trend data
