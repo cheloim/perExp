@@ -191,6 +191,11 @@ def _cat_name(expense, cat_map: dict) -> str:
     # "Mantenimiento" beside "Mantenimiento Automotor" — so the parent goes in
     # the label, the way the monthly report already writes it.
     parent = cat_map.get(category.parent_id) if category.parent_id else None
+    # A parent owned by someone else is not this user's tree: `parent_id` is
+    # not validated at write time, and a foreign name must never reach the
+    # prompt through the label.
+    if parent is not None and parent.user_id != category.user_id:
+        parent = None
     return f"{parent.name} > {category.name}" if parent else category.name
 
 
@@ -299,18 +304,33 @@ async def stream_analysis(
             pct = f"{(curr_val - prev_val) / prev_val * 100:+.1f}%" if prev_val else "sin base"
             cat_deltas.append(f"- {name}: ${curr_val:,.2f} (vs ${prev_val:,.2f}, {pct})")
 
-    # Every category of every month, at full length. The window block above is
-    # aggregated across months and the comparison only covers the newest two;
-    # without this matrix a question about any single month has no detail to
-    # answer from — the model can only subtract the known rows and shrug.
+    # Every month of the window and every category of each, at full length. The
+    # window block above is aggregated across months and the comparison only
+    # covers the newest two; without this matrix a question about any single
+    # month has no detail to answer from — the model can only subtract the
+    # known rows and shrug. Months without spending are named as such: omitted,
+    # the model cannot say so and is pushed towards inventing them.
+    if exact_month:
+        detail_keys = [f"{exact_month[0]}-{exact_month[1]:02d}"]
+    else:
+        assert window_start is not None  # the window branch above always sets it
+        detail_keys = []
+        cursor = window_start
+        while cursor <= date.today():
+            detail_keys.append(cursor.strftime("%Y-%m"))
+            cursor = _first_of_month_back(cursor, -1)
+
     detail_blocks = []
-    for key in sorted(by_month_cat):
-        month_total = by_month[key]
+    for key in detail_keys:
+        month_cats = by_month_cat.get(key, {})
+        month_total = by_month.get(key, 0.0)
         in_course = ", mes en curso" if key == current_key else ""
         rows = []
-        for name, val in sorted(by_month_cat[key].items(), key=lambda x: x[1], reverse=True):
+        for name, val in sorted(month_cats.items(), key=lambda x: x[1], reverse=True):
             share = f" ({val / month_total * 100:.1f}%)" if month_total else ""
             rows.append(f"- {name}: ${val:,.2f}{share}")
+        if not rows:
+            rows.append("- (sin gastos registrados)")
         detail_blocks.append(f"{key} (total ${month_total:,.2f}{in_course}):\n" + "\n".join(rows))
 
     # The spends a question is about, found from the words in the question. The

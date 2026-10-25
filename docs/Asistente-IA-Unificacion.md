@@ -222,11 +222,12 @@ el mes pasado" o "¿cómo vengo en el año?". Ahora:
   store en el stack y las palabras que escribe el usuario son las palabras que
   están en las descripciones. Si un día hace falta semántica, el corte está en
   `_question_terms` y el bloque es el único que cambia.
-- **Presupuesto de prompt**: agregados + top 10 + comparativos + ≤20 matches,
-  nunca un dump de transacciones. Un año de gastos (500 movimientos) queda bajo
-  16.000 caracteres, con test que lo afirma. El costo por pregunta escala con
-  la ventana agregada, no con la cantidad de gastos: 12 meses son ~12 líneas de
-  totales más los bloques fijos, del orden de 1–2k tokens contra el modelo.
+- **Presupuesto de prompt**: agregados (ventana y mes × categoría) + top 10 +
+  comparativos + ≤20 matches, nunca un dump de transacciones. Lo que escala es
+  **meses × categorías**, nunca la cantidad de gastos: un año con 20 categorías
+  (500 movimientos) queda bajo 16.000 caracteres, con test que lo afirma. La
+  matriz va completa a propósito —un corte top-N es lo que hacía irresoluble
+  "detallame lo de este mes"—, así que ventana × categorías acotan el prompt.
 
 ## Arquitectura propuesta
 

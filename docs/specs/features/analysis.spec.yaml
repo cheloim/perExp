@@ -176,9 +176,11 @@ business_rules:
       the comparison only names the newest two, so without this matrix a
       question about any single month ("detallame lo de este mes") has no
       detail to answer from — the model can only subtract the rows it has
-      and say the rest is missing, which is exactly what it did. Categories
-      are labelled "Parent > Child" so a subcategory is never a row unrelated
-      to its parent.
+      and say the rest is missing, which is exactly what it did. Months
+      without spending appear as such, so the model can say so instead of
+      inventing them. Categories are labelled "Parent > Child" — never with
+      a parent owned by another user, since `parent_id` is not validated at
+      write time — so a subcategory is never a row unrelated to its parent.
   - name: "Question Retrieval"
     description: >
       The window arrives aggregated, so the words of the question retrieve the
@@ -192,9 +194,11 @@ business_rules:
     description: >
       Aggregates (window totals and the month × category matrix), top 10,
       comparison blocks and the capped retrieval block — never a transaction
-      dump. A year of spending (500 expenses) stays under
-      16.000 characters, asserted by a test, so the window length cannot turn
-      into unbounded token spend.
+      dump. What scales is months × categories, never the transaction count:
+      a year of spending across 20 categories (500 expenses) stays under
+      16.000 characters, asserted by a test. The matrix is deliberately full
+      (no top-N cut — a cut is what made month questions unanswerable), so
+      the window length and the category count together bound the prompt.
   - name: "Data Scoping"
     description: "Only the authenticated user's expenses are included in the LLM prompt"
   - name: "PII Minimization"
@@ -361,13 +365,31 @@ tests:
   - name: "The prompt stays bounded at twelve months"
     type: "unit"
     description: >
-      Aggregates, top 10, the comparison blocks and the capped retrieval
-      block — never a transaction dump
+      Aggregates (window and month × category), top 10, the comparison blocks
+      and the capped retrieval block — never a transaction dump
     steps:
-      - "Add 500 expenses across the window"
+      - "Add 500 expenses across the window and 20 categories"
       - "POST /analysis/stream with months=12 and a merchant question"
       - "Assert the prompt is under 16.000 characters"
-    expected: "The window length cannot turn into unbounded token spend"
+    expected: "Months × categories bound the prompt; the transaction count does not"
+
+  - name: "A month without spending is named"
+    type: "integration"
+    description: "An empty month of the window appears in the detail as such, never omitted"
+    steps:
+      - "Add expenses two months back and this month, nothing in between"
+      - "POST /analysis/stream with months=3"
+      - "Assert the middle month is in the detail marked as without spending"
+    expected: "The model can say a month has no spending instead of inventing it"
+
+  - name: "A parent of another user never names a row"
+    type: "integration"
+    description: "`parent_id` is not validated at write time; a foreign category name must not reach the prompt"
+    steps:
+      - "User A creates a category parented to a category of User B"
+      - "User A asks for an analysis"
+      - "Assert User B's category name is absent from the prompt"
+    expected: "Labels never cross users"
 
 documentation:
   - type: "api"
@@ -383,8 +405,9 @@ changelog:
     changes:
       - "Month × category detail: every category of every month reaches the prompt — the top-5 cut made 'detallame lo de este mes' unanswerable and the model said the detail was missing"
       - "Category comparison covers every category of the newest month, not the top 5"
-      - "Subcategories are labelled 'Parent > Child' in the prompt, as the monthly report writes them"
-      - "The analysis prompt tells the model to answer from the data blocks instead of claiming category detail is missing"
+      - "Subcategories are labelled 'Parent > Child' in the prompt, as the monthly report writes them — never with a parent owned by another user"
+      - "Months without spending appear in the detail as such, so the model says so instead of inventing them"
+      - "The analysis prompt tells the model to answer from the data blocks and to never estimate what they do not have"
   - version: "1.3.0"
     date: "2026-10-24"
     changes:

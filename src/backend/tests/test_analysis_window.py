@@ -328,6 +328,48 @@ def test_a_subcategory_names_its_parent_too(db, test_user, fake_llm):
     assert "- Mantenimiento: $300.00" in prompt
 
 
+def test_a_month_without_spending_stays_visible_in_the_detail(db, test_user, fake_llm):
+    """An empty month of the window is data too. Omitted, the model cannot say
+    "ese mes no tiene gastos" — and a prompt that tells it not to claim detail
+    is missing would push it towards inventing the month instead."""
+    empty_key = _first_day_months_ago(1).strftime("%Y-%m")
+    _add_expense(db, test_user, _first_day_months_ago(2), "gasto de hace dos meses", 100.0)
+    _add_expense(db, test_user, _first_day_months_ago(0), "gasto actual", 200.0)
+
+    _stream(AnalysisRequest(months=3), db, test_user)
+
+    detail = _prompt_text(fake_llm.prompts).split("DETALLE POR MES Y CATEGORÍA:")[1]
+    assert f"{empty_key} (total $0.00):\n- (sin gastos registrados)" in detail
+
+
+def test_a_parent_of_another_user_never_names_a_row(db, test_user, fake_llm):
+    """`parent_id` is not validated at write time: a category pointing at
+    another user's category would leak that name through the label."""
+    other = User(
+        email="other@example.com",
+        full_name="Other, User",
+        hashed_password="x",
+        email_verified=True,
+    )
+    db.add(other)
+    db.flush()
+    secreta = Category(name="Secreta", user_id=other.id)
+    db.add(secreta)
+    db.flush()
+    hija = Category(name="Hija", user_id=test_user.id, parent_id=secreta.id)
+    db.add(hija)
+    db.flush()
+
+    exp = _add_expense(db, test_user, _first_day_months_ago(0), "compra", 100.0)
+    exp.category_id = hija.id
+
+    _stream(AnalysisRequest(months=1), db, test_user)
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert "- Hija: $100.00" in prompt
+    assert "Secreta" not in prompt
+
+
 def test_a_question_retrieves_the_spend_it_is_about(db, test_user, fake_llm):
     """The window arrives aggregated; the words of the question find the spends
     it is about so a merchant question has something to answer from."""
@@ -374,16 +416,17 @@ def test_retrieval_never_leaves_the_user(db, test_user, fake_llm):
 
 
 def test_the_prompt_stays_bounded_at_twelve_months(db, test_user, fake_llm):
-    """Aggregates plus top 10 plus the retrieval block: a year of spending must
-    not turn the prompt into a transaction dump."""
+    """Aggregates (window and month × category), top 10, the comparison blocks
+    and the capped retrieval block — never a transaction dump. What scales is
+    months × categories; the transaction count must not move the prompt."""
+    cats = [Category(name=f"Cat {i:02d}", user_id=test_user.id) for i in range(20)]
+    db.add_all(cats)
+    db.flush()
     for i in range(500):
-        _add_expense(
-            db,
-            test_user,
-            _first_day_months_ago(i % 12),
-            f"comercio numero {i}",
-            10.0 + i,
+        exp = _add_expense(
+            db, test_user, _first_day_months_ago(i % 12), f"comercio numero {i}", 10.0 + i
         )
+        exp.category_id = cats[i % 20].id
 
     _stream(
         AnalysisRequest(question="¿Cuánto gasté en el comercio 42?", months=12),

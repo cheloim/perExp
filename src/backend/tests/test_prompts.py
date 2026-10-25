@@ -78,12 +78,13 @@ def test_the_investments_prompt_keeps_its_advice_boundaries():
 
 
 def test_the_analysis_prompt_never_says_the_category_detail_is_missing():
-    # The data block carries every category of every month. The model once
-    # answered "no tengo el detalle individual de esos rubros" after showing a
-    # five-row block — half the fix is the full data, the other half is never
-    # claiming the detail is absent when it is right there.
-    assert "nunca respondas que falta" in ANALYSIS_SYSTEM_PROMPT
-    assert "detalle completo" in ANALYSIS_SYSTEM_PROMPT
+    # The data blocks carry every category of every month with spending and
+    # name the months without it. The model once answered "no tengo el detalle
+    # individual de esos rubros" after showing a five-row block — half the fix
+    # is the full data, the other half is answering from it, and never
+    # estimating what the blocks do not have.
+    assert "detalle completo por categoría y por mes" in ANALYSIS_SYSTEM_PROMPT
+    assert "no estimés" in ANALYSIS_SYSTEM_PROMPT
 
 
 def test_both_prompts_answer_in_argentine_spanish():
