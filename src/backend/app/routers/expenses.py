@@ -1,5 +1,4 @@
 import re
-from calendar import monthrange
 from datetime import date, datetime
 
 import pandas as pd
@@ -17,7 +16,7 @@ from app.services.auth import get_current_user
 from app.services.categorization import _normalize_merchant_key, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
 from app.services.encryption import compute_hmac
-from app.services.expense_search import expense_matches
+from app.services.expense_filters import apply_expense_filters
 from app.services.import_utils import _is_duplicate, _normalize_text
 from app.services.tag_sync import assign_tags_validated, sync_category_tag
 
@@ -133,113 +132,29 @@ def get_expenses(
         )
         .filter(Expense.user_id.in_(uid_list))
     )
-    if month:
-        try:
-            y, m = int(month[:4]), int(month[5:7])
-            q = q.filter(
-                Expense.date >= date(y, m, 1), Expense.date <= date(y, m, monthrange(y, m)[1])
-            )
-        except (ValueError, IndexError):
-            pass
-    if date_from:
-        q = q.filter(Expense.date >= date_from)
-    if date_to:
-        q = q.filter(Expense.date <= date_to)
-    if category_id is not None:
-        q = q.filter(Expense.category_id == category_id)
-    elif category_ids:
-        id_list = [int(x) for x in category_ids.split(",") if x.strip().isdigit()]
-        if id_list:
-            q = q.filter(Expense.category_id.in_(id_list))
-    elif uncategorized:
-        q = q.filter(Expense.category_id.is_(None))
-    # Application-level filtering for bank, person, card, account
-    if bank or person or card or card_type:
-        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
-        if bank:
-            matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
-            q = q.filter(Expense.card_id.in_(matching_ids))
-        if person:
-            matching_card_ids = [
-                c.id for c in all_cards if person.lower() in (c.holder or "").lower()
-            ]
-            if matching_card_ids:
-                tag_expense_ids = (
-                    db.query(ExpenseTag.expense_id)
-                    .join(Tag, Tag.id == ExpenseTag.tag_id)
-                    .filter(Tag.card_id.in_(matching_card_ids))
-                )
-                q = q.filter(
-                    (Expense.card_id.in_(matching_card_ids)) | (Expense.id.in_(tag_expense_ids))
-                )
-            else:
-                q = q.filter(Expense.id == -1)
-        if card:
-            matching_ids = [c.id for c in all_cards if card.lower() in (c.card_name or "").lower()]
-            q = q.filter(Expense.card_id.in_(matching_ids))
-        if card_type:
-            matching_ids = [c.id for c in all_cards if c.card_type == card_type]
-            q = q.filter(Expense.card_id.in_(matching_ids))
-    if installment is True:
-        q = q.filter(Expense.installment_group_id.isnot(None))
-    elif installment is False:
-        q = q.filter(Expense.installment_group_id.is_(None))
-    if account_id:
-        q = q.filter(Expense.account_id == account_id)
-    if account:
-        from app.models import Account
-
-        all_accounts = db.query(Account).filter(Account.user_id.in_(uid_list)).all()
-        matching_ids = [a.id for a in all_accounts if account.lower() in (a.name or "").lower()]
-        q = q.filter(Expense.account_id.in_(matching_ids))
-    # Tag filtering
-    if tag_id:
-        q = q.join(ExpenseTag, ExpenseTag.expense_id == Expense.id).filter(
-            ExpenseTag.tag_id == tag_id
-        )
-    elif untagged:
-        tagged_ids = (
-            db.query(ExpenseTag.expense_id)
-            .join(Tag, Tag.id == ExpenseTag.tag_id)
-            .filter(Tag.group_name != "categoria")
-            .subquery()
-        )
-        q = q.filter(~Expense.id.in_(db.query(tagged_ids.c.expense_id)))
-    # Cuenta filtering
-    if cuenta_id:
-        cuenta_expense_ids = (
-            db.query(ExpenseTag.expense_id)
-            .join(Tag, Tag.id == ExpenseTag.tag_id)
-            .filter(ExpenseTag.tag_id == cuenta_id, Tag.group_name == "cuenta")
-        )
-        q = q.filter(Expense.id.in_(cuenta_expense_ids))
-    elif sin_cuenta:
-        cuenta_tag_ids = db.query(Tag.id).filter(Tag.group_name == "cuenta")
-        cuenta_expense_ids = db.query(ExpenseTag.expense_id).filter(
-            ExpenseTag.tag_id.in_(cuenta_tag_ids)
-        )
-        q = q.filter(~Expense.id.in_(cuenta_expense_ids))
-    # Text search — description, notes and category name are encrypted, so
-    # matching happens at application level (same as bank/person/card above)
-    if search:
-        category_names = {
-            c.id: c.name for c in db.query(Category).filter(Category.user_id.in_(uid_list)).all()
-        }
-        candidates = (
-            db.query(Expense.id, Expense.description, Expense.notes, Expense.category_id)
-            .filter(Expense.user_id.in_(uid_list))
-            .all()
-        )
-        matching_ids = [
-            eid
-            for eid, description, notes, category_id in candidates
-            if expense_matches(search, description, notes, category_names.get(category_id))
-        ]
-        q = q.filter(Expense.id.in_(matching_ids) if matching_ids else Expense.id == -1)
-    # Only exclude future installments when NOT filtering by specific category
-    # (category-specific views like side panel need to show all expenses)
-    if not category_id and not category_ids:
-        q = q.filter((Expense.installment_group_id.is_(None)) | (Expense.date <= date.today()))
+    q = apply_expense_filters(
+        q,
+        uid_list=uid_list,
+        db=db,
+        month=month,
+        date_from=date_from,
+        date_to=date_to,
+        category_id=category_id,
+        category_ids=category_ids,
+        uncategorized=uncategorized,
+        bank=bank,
+        person=person,
+        card=card,
+        card_type=card_type,
+        installment=installment,
+        account=account,
+        account_id=account_id,
+        tag_id=tag_id,
+        untagged=untagged,
+        cuenta_id=cuenta_id,
+        sin_cuenta=sin_cuenta,
+        search=search,
+    )
     return q.order_by(desc(Expense.date)).offset(skip).limit(limit).all()
 
 
@@ -877,45 +792,52 @@ class ExpenseStatsResponse(BaseModel):
 )
 def get_expense_stats(
     month: str | None = None,
-    card: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    category_id: int | None = None,
+    category_ids: str | None = None,
+    uncategorized: bool = False,
     bank: str | None = None,
+    person: str | None = None,
+    card: str | None = None,
+    card_type: str | None = None,
+    installment: bool | None = None,
     account: str | None = None,
     account_id: int | None = None,
+    tag_id: int | None = None,
+    untagged: bool = False,
+    cuenta_id: int | None = None,
+    sin_cuenta: bool = False,
+    search: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
+    filters = dict(
+        month=month,
+        date_from=date_from,
+        date_to=date_to,
+        category_id=category_id,
+        category_ids=category_ids,
+        uncategorized=uncategorized,
+        bank=bank,
+        person=person,
+        card=card,
+        card_type=card_type,
+        installment=installment,
+        account=account,
+        account_id=account_id,
+        tag_id=tag_id,
+        untagged=untagged,
+        cuenta_id=cuenta_id,
+        sin_cuenta=sin_cuenta,
+        search=search,
+    )
     q = db.query(
         func.coalesce(func.sum(Expense.amount), 0.0),
         func.count(Expense.id),
     ).filter(Expense.user_id.in_(uid_list), Expense.amount > 0)
-
-    if month:
-        try:
-            y, m = int(month[:4]), int(month[5:7])
-            q = q.filter(
-                Expense.date >= date(y, m, 1),
-                Expense.date <= date(y, m, monthrange(y, m)[1]),
-            )
-        except (ValueError, IndexError):
-            pass
-    if account_id:
-        q = q.filter(Expense.account_id == account_id)
-    elif account:
-        from app.models import Account
-
-        all_accounts = db.query(Account).filter(Account.user_id.in_(uid_list)).all()
-        matching_ids = [a.id for a in all_accounts if account.lower() in (a.name or "").lower()]
-        q = q.filter(Expense.account_id.in_(matching_ids))
-    elif card or bank:
-        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
-        if card:
-            matching_ids = [c.id for c in all_cards if card.lower() in (c.card_name or "").lower()]
-            q = q.filter(Expense.card_id.in_(matching_ids))
-        elif bank:
-            matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
-            q = q.filter(Expense.card_id.in_(matching_ids))
-
+    q = apply_expense_filters(q, uid_list=uid_list, db=db, **filters)
     total, count = q.one()
 
     # Separate query for last_used (only from card-based expenses)
@@ -924,23 +846,7 @@ def get_expense_stats(
         Expense.amount > 0,
         Expense.card_id.isnot(None),
     )
-    if month:
-        try:
-            y, m = int(month[:4]), int(month[5:7])
-            last_used_q = last_used_q.filter(
-                Expense.date >= date(y, m, 1),
-                Expense.date <= date(y, m, monthrange(y, m)[1]),
-            )
-        except (ValueError, IndexError):
-            pass
-    if card or bank:
-        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
-        if card:
-            matching_ids = [c.id for c in all_cards if card.lower() in (c.card_name or "").lower()]
-            last_used_q = last_used_q.filter(Expense.card_id.in_(matching_ids))
-        elif bank:
-            matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
-            last_used_q = last_used_q.filter(Expense.card_id.in_(matching_ids))
+    last_used_q = apply_expense_filters(last_used_q, uid_list=uid_list, db=db, **filters)
     last_used = last_used_q.scalar()
     return ExpenseStatsResponse(
         total=float(total),
@@ -966,8 +872,23 @@ class CategoryBreakdownItem(BaseModel):
 )
 def get_expenses_by_category(
     month: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    category_id: int | None = None,
+    category_ids: str | None = None,
+    uncategorized: bool = False,
+    bank: str | None = None,
+    person: str | None = None,
     card: str | None = None,
+    card_type: str | None = None,
+    installment: bool | None = None,
+    account: str | None = None,
     account_id: int | None = None,
+    tag_id: int | None = None,
+    untagged: bool = False,
+    cuenta_id: int | None = None,
+    sin_cuenta: bool = False,
+    search: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -983,22 +904,29 @@ def get_expenses_by_category(
         .filter(Expense.user_id.in_(uid_list), Expense.amount > 0)
         .group_by(Expense.category_id)
     )
-
-    if month:
-        try:
-            y, m = int(month[:4]), int(month[5:7])
-            q = q.filter(
-                Expense.date >= date(y, m, 1),
-                Expense.date <= date(y, m, monthrange(y, m)[1]),
-            )
-        except (ValueError, IndexError):
-            pass
-    if account_id:
-        q = q.filter(Expense.account_id == account_id)
-    if card:
-        all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
-        matching_ids = [c.id for c in all_cards if card.lower() in (c.card_name or "").lower()]
-        q = q.filter(Expense.card_id.in_(matching_ids))
+    q = apply_expense_filters(
+        q,
+        uid_list=uid_list,
+        db=db,
+        month=month,
+        date_from=date_from,
+        date_to=date_to,
+        category_id=category_id,
+        category_ids=category_ids,
+        uncategorized=uncategorized,
+        bank=bank,
+        person=person,
+        card=card,
+        card_type=card_type,
+        installment=installment,
+        account=account,
+        account_id=account_id,
+        tag_id=tag_id,
+        untagged=untagged,
+        cuenta_id=cuenta_id,
+        sin_cuenta=sin_cuenta,
+        search=search,
+    )
 
     rows = q.all()
     result = []
@@ -1040,6 +968,23 @@ def _first_name(full_name: str) -> str:
 )
 def get_expenses_by_person(
     month: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    category_id: int | None = None,
+    category_ids: str | None = None,
+    uncategorized: bool = False,
+    bank: str | None = None,
+    person: str | None = None,
+    card: str | None = None,
+    card_type: str | None = None,
+    installment: bool | None = None,
+    account: str | None = None,
+    account_id: int | None = None,
+    tag_id: int | None = None,
+    untagged: bool = False,
+    cuenta_id: int | None = None,
+    sin_cuenta: bool = False,
+    search: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1056,16 +1001,29 @@ def get_expenses_by_person(
         .filter(Expense.user_id.in_(uid_list), Expense.amount > 0)
         .group_by(User.id, User.full_name)
     )
-
-    if month:
-        try:
-            y, m = int(month[:4]), int(month[5:7])
-            q = q.filter(
-                Expense.date >= date(y, m, 1),
-                Expense.date <= date(y, m, monthrange(y, m)[1]),
-            )
-        except (ValueError, IndexError):
-            pass
+    q = apply_expense_filters(
+        q,
+        uid_list=uid_list,
+        db=db,
+        month=month,
+        date_from=date_from,
+        date_to=date_to,
+        category_id=category_id,
+        category_ids=category_ids,
+        uncategorized=uncategorized,
+        bank=bank,
+        person=person,
+        card=card,
+        card_type=card_type,
+        installment=installment,
+        account=account,
+        account_id=account_id,
+        tag_id=tag_id,
+        untagged=untagged,
+        cuenta_id=cuenta_id,
+        sin_cuenta=sin_cuenta,
+        search=search,
+    )
 
     rows = q.all()
     return [

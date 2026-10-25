@@ -399,7 +399,7 @@ export const linkExpensesToEvent = (eventId: number, expenseIds: number[]) =>
   api.post(`/budgets/events/${eventId}/link-expenses`, expenseIds).then((r) => r.data);
 
 // Expenses
-export const getExpenses = (params?: {
+export type ExpenseFilterParams = {
   category_id?: number;
   category_ids?: string;
   uncategorized?: boolean;
@@ -410,6 +410,7 @@ export const getExpenses = (params?: {
   card_type?: string;
   installment?: boolean;
   account?: string;
+  account_id?: number;
   date_from?: string;
   date_to?: string;
   tag_id?: number;
@@ -417,17 +418,12 @@ export const getExpenses = (params?: {
   cuenta_id?: number;
   sin_cuenta?: boolean;
   search?: string;
-  limit?: number;
-  offset?: number;
-}) => api.get<Expense[]>("/expenses", { params }).then((r) => r.data);
+};
 
-export const getExpenseStats = (params?: {
-  month?: string;
-  card?: string;
-  bank?: string;
-  account?: string;
-  account_id?: number;
-}) =>
+export const getExpenses = (params?: ExpenseFilterParams & { limit?: number; offset?: number }) =>
+  api.get<Expense[]>("/expenses", { params }).then((r) => r.data);
+
+export const getExpenseStats = (params?: ExpenseFilterParams) =>
   api
     .get<{
       total: number;
@@ -440,11 +436,7 @@ export const getExpenseStats = (params?: {
 export const getUncategorizedCount = () =>
   api.get<{ count: number }>("/expenses/uncategorized-count").then((r) => r.data);
 
-export const getExpensesByCategory = (params?: {
-  month?: string;
-  card?: string;
-  account_id?: number;
-}) =>
+export const getExpensesByCategory = (params?: ExpenseFilterParams) =>
   api
     .get<
       {
@@ -457,7 +449,7 @@ export const getExpensesByCategory = (params?: {
     >("/expenses/by-category", { params })
     .then((r) => r.data);
 
-export const getExpensesByPerson = (params?: { month?: string }) =>
+export const getExpensesByPerson = (params?: ExpenseFilterParams) =>
   api
     .get<{ person: string; total: number; count: number }[]>("/expenses/by-person", { params })
     .then((r) => r.data);

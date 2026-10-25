@@ -108,10 +108,20 @@ export default function ExpensesPage() {
     [suggestionsData],
   );
 
-  const now = new Date();
-  const month = filterDateFrom
-    ? `${filterDateFrom.substring(0, 7)}`
-    : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  // The same filters feed the table, the stats cards and the breakdowns, so
+  // the numbers above always match the rows below (issue #477).
+  const filterParams = {
+    category_id: filterCategory,
+    uncategorized: filterUncategorized || undefined,
+    person: filterPerson,
+    date_from: filterDateFrom,
+    date_to: filterDateTo,
+    tag_id: filterTagId,
+    untagged: filterUntagged || undefined,
+    cuenta_id: filterCuentaId,
+    sin_cuenta: filterSinCuenta || undefined,
+    search: filterSearch,
+  };
 
   const handleCategoryFilter = (value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -154,34 +164,8 @@ export default function ExpensesPage() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["expenses-list"] });
 
   const { data: expenses = [], isLoading } = useQuery<Expense[]>({
-    queryKey: [
-      "expenses-list",
-      filterCategory,
-      filterUncategorized,
-      filterPerson,
-      filterDateFrom,
-      filterDateTo,
-      filterTagId,
-      filterUntagged,
-      filterCuentaId,
-      filterSinCuenta,
-      filterSearch,
-      visibleCount,
-    ],
-    queryFn: () =>
-      getExpenses({
-        category_id: filterCategory,
-        uncategorized: filterUncategorized || undefined,
-        person: filterPerson,
-        date_from: filterDateFrom,
-        date_to: filterDateTo,
-        tag_id: filterTagId,
-        untagged: filterUntagged || undefined,
-        cuenta_id: filterCuentaId,
-        sin_cuenta: filterSinCuenta || undefined,
-        search: filterSearch,
-        limit: visibleCount,
-      }),
+    queryKey: ["expenses-list", filterKey, visibleCount],
+    queryFn: () => getExpenses({ ...filterParams, limit: visibleCount }),
     placeholderData: (prev) => prev,
     staleTime: 30_000,
   });
@@ -198,21 +182,18 @@ export default function ExpensesPage() {
   });
 
   const { data: expenseStats } = useQuery({
-    queryKey: ["expense-stats", month],
-    queryFn: () =>
-      getExpenseStats({
-        month: month || undefined,
-      }),
+    queryKey: ["expense-stats", filterKey],
+    queryFn: () => getExpenseStats(filterParams),
   });
 
   const { data: categoryBreakdown = [] } = useQuery({
-    queryKey: ["expenses-by-category", month],
-    queryFn: () => getExpensesByCategory({ month: month || undefined }),
+    queryKey: ["expenses-by-category", filterKey],
+    queryFn: () => getExpensesByCategory(filterParams),
   });
 
   const { data: personBreakdown = [] } = useQuery({
-    queryKey: ["expenses-by-person", month],
-    queryFn: () => getExpensesByPerson({ month: month || undefined }),
+    queryKey: ["expenses-by-person", filterKey],
+    queryFn: () => getExpensesByPerson(filterParams),
   });
 
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
@@ -542,14 +523,7 @@ export default function ExpensesPage() {
 
   const exportCSV = async () => {
     const allData = await getExpenses({
-      category_id: filterCategory,
-      uncategorized: filterUncategorized || undefined,
-      person: filterPerson,
-      date_from: filterDateFrom,
-      date_to: filterDateTo,
-      tag_id: filterTagId,
-      untagged: filterUntagged || undefined,
-      search: filterSearch,
+      ...filterParams,
       limit: 10000,
     });
     const headers = ["Fecha", "Descripción", "Monto", "Moneda", "Categoría", "Cuenta", "Etiquetas"];
