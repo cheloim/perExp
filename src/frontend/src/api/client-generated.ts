@@ -49,22 +49,29 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AcceptBody,
   AccountCreate,
   AccountResponse,
   AccountUpdate,
   AnalysisHistoryEntry,
   AnalysisRequest,
+  ApproveAllSuggestionsSuggestionsApproveAllPostParams,
+  BlockRequest,
   BudgetCreate,
   BudgetEventCreate,
   BudgetEventResponse,
   BudgetGroupCreate,
   BudgetGroupResponse,
   BudgetResponse,
+  BudgetSummaryParams,
   BudgetSummaryResponse,
   BulkCategoryExpenses200,
   BulkCategoryExpensesBody,
   BulkDeleteExpenses200,
   BulkDeleteExpensesBody,
+  BulkNotifyRequest,
+  BulkUpdateExpensesExpensesBulkUpdatePatchBody,
+  BulkUpdateTagsExpensesBulkTagsPostBody,
   CardClosingCreate,
   CardClosingResponse,
   CardCreate,
@@ -76,7 +83,12 @@ import type {
   ChangePasswordBody,
   CheckDuplicateParams,
   ConfirmImportJob200,
+  CreateCardClosingParams,
   CreateImportJobBody,
+  DeleteAllExpensesExpensesAllDeleteBody,
+  DeleteBrokerSettingsSettingsBrokerBrokerDeleteParams,
+  DeleteSettingSettingsKeyDeleteParams,
+  DownloadMonthlyReportDashboardMonthlyReportDownloadGetParams,
   ExecuteScheduledExpense201,
   ExpenseCreate,
   ExpenseResponse,
@@ -85,37 +97,88 @@ import type {
   ExpenseUpdate,
   ExpensesByCategoryParams,
   ExpensesByPersonParams,
+  FeatureFlagUpdate,
+  ForceChangePasswordRequest,
   ForgotPasswordBody,
+  GenerateAllReportsAdminReportsGenerateAllPostParams,
+  GenerateMonthlyReportDashboardMonthlyReportsGeneratePostParams,
+  GenerateReportRequest,
+  GetAccountExpensesDashboardAccountExpensesGetParams,
+  GetAiTrendsDashboardAiTrendsGetParams,
+  GetAuditLogsAdminAuditLogsGetParams,
+  GetCardCategoryBreakdownDashboardCardCategoryBreakdownGetParams,
+  GetCategoryTrendDashboardCategoryTrendGetParams,
+  GetInvestmentHistoryInvestmentsInvIdHistoryGetParams,
+  GetLoginErrorsAdminLoginErrorsGetParams,
+  GetMonthlyReportDashboardMonthlyReportGetParams,
+  GetPlatformLogsAdminPlatformLogsGetParams,
+  GetReportsAdminReportsGetParams,
+  GetSettingsSettingsGetParams,
+  GetSummaryDashboardSummaryGetParams,
+  GetTagSummaryDashboardTagSummaryGetParams,
+  GetTopMerchantsDashboardTopMerchantsGetParams,
   ImportConfirmRequest,
   ImportJobResponse,
+  InitBudgetGroupsParams,
   InvestmentCreate,
   InvestmentListResponse,
   InvestmentResponse,
+  InvestmentsChatStreamInvestmentsChatStreamPostBody,
+  InviteRequest,
   ListExpensesParams,
   ListImportJobsParams,
+  ListInvestmentsParams,
   ListRecurringParams,
+  ListReviewsAdminCategorizationReviewsGetParams,
+  ListScheduledExpensesParams,
   ListSuggestions200,
   ListSuggestionsParams,
+  ListUsersAdminUsersGetParams,
   LoginMfaBody,
   LoginRequest,
+  LookupSymbolInvestmentsLookupGetParams,
+  LookupSymbolsInvestmentsLookupBatchGetParams,
+  MFAVerifyRequest,
+  MessageRequest,
   MfaDisableBody,
   MfaSetup200,
+  OAuthRequest,
+  PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutBody,
+  PutSettingSettingsKeyPutBody,
+  PutSettingSettingsKeyPutParams,
+  RecurringCreate,
   RecurringExpenseResponse,
+  RecurringUpdate,
   RefreshTokenBody,
   RegisterRequest,
   ResetPasswordBody,
+  ScanBody,
   ScheduledExpenseResponse,
   ScheduledExpenseUpdate,
+  SendNotificationRequest,
   SetCategoryBudgetGroupBody,
+  SetCategoryBudgetGroupParams,
+  SettingUpdate,
   SuggestCategoryBody,
+  SummarizeChatAnalysisSummarizePostBody,
   SyncCardHolders200,
+  TagCreate,
+  TagUpdate,
   TelegramKeyResponse,
+  TelegramLoginWidgetRequest,
+  TelegramOidcCallbackAuthTelegramCallbackGetParams,
+  TelegramOidcLinkRequest,
+  TelegramOidcRequest,
   TelegramStatusResponse,
+  TelegramWebAppRequest,
   Token,
   UncategorizedCount200,
   UpdateImportPreviewBody,
+  UpdateInvestmentPriceInvestmentsInvIdPricePatchBody,
   UserResponse,
   VerifyEmailBody,
+  VerifyWebhookWebhookWhatsappGetParams,
+  WhatsNewDismissRequest,
 } from "../types/generated";
 
 import { customInstance } from "./axios-instance.ts";
@@ -2880,6 +2943,7 @@ export function useListCardClosings<
  */
 export const createCardClosing = (
   cardClosingCreate: BodyType<CardClosingCreate>,
+  params: CreateCardClosingParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
@@ -2889,6 +2953,7 @@ export const createCardClosing = (
       method: "POST",
       headers: { "Content-Type": "application/json" },
       data: cardClosingCreate,
+      params,
       signal,
     },
     options,
@@ -2925,9 +2990,9 @@ export const getCreateCardClosingMutationOptions = <
     Awaited<ReturnType<typeof createCardClosing>>,
     CreateCardClosingMutationVariables
   > = (props) => {
-    const { data } = props ?? {};
+    const { data, params } = props ?? {};
 
-    return createCardClosing(data, requestOptions);
+    return createCardClosing(data, params, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -2938,7 +3003,10 @@ export type CreateCardClosingMutationResult = NonNullable<
 >;
 export type CreateCardClosingMutationBody = BodyType<CardClosingCreate>;
 export type CreateCardClosingMutationError = ErrorType<void>;
-export type CreateCardClosingMutationVariables = { data: BodyType<CardClosingCreate> };
+export type CreateCardClosingMutationVariables = {
+  data: BodyType<CardClosingCreate>;
+  params: CreateCardClosingParams;
+};
 
 /**
  * @summary Create card closing configuration
@@ -4492,32 +4560,36 @@ export const useDeleteExpense = <TError = ErrorType<unknown>, TContext = unknown
  * @summary List all investments
  */
 export const listInvestments = (
+  params?: ListInvestmentsParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
   return customInstance<InvestmentListResponse>(
-    { url: `/investments`, method: "GET", signal },
+    { url: `/investments`, method: "GET", params, signal },
     options,
   );
 };
 
-export const getListInvestmentsQueryKey = () => {
-  return [`/investments`] as const;
+export const getListInvestmentsQueryKey = (params?: ListInvestmentsParams) => {
+  return [`/investments`, ...(params ? [params] : [])] as const;
 };
 
 export const getListInvestmentsQueryOptions = <
   TData = Awaited<ReturnType<typeof listInvestments>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listInvestments>>, TError, TData>>;
-  request?: SecondParameter<typeof customInstance>;
-}) => {
+>(
+  params?: ListInvestmentsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listInvestments>>, TError, TData>>;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListInvestmentsQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListInvestmentsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listInvestments>>> = ({ signal }) =>
-    listInvestments(requestOptions, signal);
+    listInvestments(params, requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listInvestments>>,
@@ -4533,6 +4605,7 @@ export function useListInvestments<
   TData = Awaited<ReturnType<typeof listInvestments>>,
   TError = ErrorType<unknown>,
 >(
+  params: undefined | ListInvestmentsParams,
   options: {
     query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listInvestments>>, TError, TData>> &
       Pick<
@@ -4551,6 +4624,7 @@ export function useListInvestments<
   TData = Awaited<ReturnType<typeof listInvestments>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ListInvestmentsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listInvestments>>, TError, TData>> &
       Pick<
@@ -4569,6 +4643,7 @@ export function useListInvestments<
   TData = Awaited<ReturnType<typeof listInvestments>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ListInvestmentsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listInvestments>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
@@ -4583,13 +4658,14 @@ export function useListInvestments<
   TData = Awaited<ReturnType<typeof listInvestments>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ListInvestmentsParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listInvestments>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getListInvestmentsQueryOptions(options);
+  const queryOptions = getListInvestmentsQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -5679,34 +5755,38 @@ export function useNotificationsStream<
  * @summary List scheduled expenses
  */
 export const listScheduledExpenses = (
+  params?: ListScheduledExpensesParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
   return customInstance<ScheduledExpenseResponse[]>(
-    { url: `/scheduled-expenses`, method: "GET", signal },
+    { url: `/scheduled-expenses`, method: "GET", params, signal },
     options,
   );
 };
 
-export const getListScheduledExpensesQueryKey = () => {
-  return [`/scheduled-expenses`] as const;
+export const getListScheduledExpensesQueryKey = (params?: ListScheduledExpensesParams) => {
+  return [`/scheduled-expenses`, ...(params ? [params] : [])] as const;
 };
 
 export const getListScheduledExpensesQueryOptions = <
   TData = Awaited<ReturnType<typeof listScheduledExpenses>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<Awaited<ReturnType<typeof listScheduledExpenses>>, TError, TData>
-  >;
-  request?: SecondParameter<typeof customInstance>;
-}) => {
+>(
+  params?: ListScheduledExpensesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listScheduledExpenses>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListScheduledExpensesQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListScheduledExpensesQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listScheduledExpenses>>> = ({ signal }) =>
-    listScheduledExpenses(requestOptions, signal);
+    listScheduledExpenses(params, requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listScheduledExpenses>>,
@@ -5724,6 +5804,7 @@ export function useListScheduledExpenses<
   TData = Awaited<ReturnType<typeof listScheduledExpenses>>,
   TError = ErrorType<unknown>,
 >(
+  params: undefined | ListScheduledExpensesParams,
   options: {
     query: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listScheduledExpenses>>, TError, TData>
@@ -5744,6 +5825,7 @@ export function useListScheduledExpenses<
   TData = Awaited<ReturnType<typeof listScheduledExpenses>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ListScheduledExpensesParams,
   options?: {
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listScheduledExpenses>>, TError, TData>
@@ -5764,6 +5846,7 @@ export function useListScheduledExpenses<
   TData = Awaited<ReturnType<typeof listScheduledExpenses>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ListScheduledExpensesParams,
   options?: {
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listScheduledExpenses>>, TError, TData>
@@ -5780,6 +5863,7 @@ export function useListScheduledExpenses<
   TData = Awaited<ReturnType<typeof listScheduledExpenses>>,
   TError = ErrorType<unknown>,
 >(
+  params?: ListScheduledExpensesParams,
   options?: {
     query?: Partial<
       UseQueryOptions<Awaited<ReturnType<typeof listScheduledExpenses>>, TError, TData>
@@ -5788,7 +5872,7 @@ export function useListScheduledExpenses<
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getListScheduledExpensesQueryOptions(options);
+  const queryOptions = getListScheduledExpensesQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -6250,32 +6334,36 @@ export const useCreateBudget = <TError = ErrorType<unknown>, TContext = unknown>
  * @summary Budget summary with spending vs budget comparison
  */
 export const budgetSummary = (
+  params?: BudgetSummaryParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
   return customInstance<BudgetSummaryResponse>(
-    { url: `/budgets/summary`, method: "GET", signal },
+    { url: `/budgets/summary`, method: "GET", params, signal },
     options,
   );
 };
 
-export const getBudgetSummaryQueryKey = () => {
-  return [`/budgets/summary`] as const;
+export const getBudgetSummaryQueryKey = (params?: BudgetSummaryParams) => {
+  return [`/budgets/summary`, ...(params ? [params] : [])] as const;
 };
 
 export const getBudgetSummaryQueryOptions = <
   TData = Awaited<ReturnType<typeof budgetSummary>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof budgetSummary>>, TError, TData>>;
-  request?: SecondParameter<typeof customInstance>;
-}) => {
+>(
+  params?: BudgetSummaryParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof budgetSummary>>, TError, TData>>;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getBudgetSummaryQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getBudgetSummaryQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof budgetSummary>>> = ({ signal }) =>
-    budgetSummary(requestOptions, signal);
+    budgetSummary(params, requestOptions, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof budgetSummary>>,
@@ -6291,6 +6379,7 @@ export function useBudgetSummary<
   TData = Awaited<ReturnType<typeof budgetSummary>>,
   TError = ErrorType<unknown>,
 >(
+  params: undefined | BudgetSummaryParams,
   options: {
     query: Partial<UseQueryOptions<Awaited<ReturnType<typeof budgetSummary>>, TError, TData>> &
       Pick<
@@ -6309,6 +6398,7 @@ export function useBudgetSummary<
   TData = Awaited<ReturnType<typeof budgetSummary>>,
   TError = ErrorType<unknown>,
 >(
+  params?: BudgetSummaryParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof budgetSummary>>, TError, TData>> &
       Pick<
@@ -6327,6 +6417,7 @@ export function useBudgetSummary<
   TData = Awaited<ReturnType<typeof budgetSummary>>,
   TError = ErrorType<unknown>,
 >(
+  params?: BudgetSummaryParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof budgetSummary>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
@@ -6341,13 +6432,14 @@ export function useBudgetSummary<
   TData = Awaited<ReturnType<typeof budgetSummary>>,
   TError = ErrorType<unknown>,
 >(
+  params?: BudgetSummaryParams,
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof budgetSummary>>, TError, TData>>;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getBudgetSummaryQueryOptions(options);
+  const queryOptions = getBudgetSummaryQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -6936,10 +7028,14 @@ export const useCreateBudgetGroup = <TError = ErrorType<unknown>, TContext = unk
  * @summary Initialize default budget groups (50/30/20)
  */
 export const initBudgetGroups = (
+  params: InitBudgetGroupsParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
-  return customInstance<void>({ url: `/budgets/groups/init`, method: "POST", signal }, options);
+  return customInstance<void>(
+    { url: `/budgets/groups/init`, method: "POST", params, signal },
+    options,
+  );
 };
 
 export const getInitBudgetGroupsMutationKey = () => ["initBudgetGroups"] as const;
@@ -6951,11 +7047,16 @@ export const getInitBudgetGroupsMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof initBudgetGroups>>,
     TError,
-    void,
+    InitBudgetGroupsMutationVariables,
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
-}): UseMutationOptions<Awaited<ReturnType<typeof initBudgetGroups>>, TError, void, TContext> => {
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof initBudgetGroups>>,
+  TError,
+  InitBudgetGroupsMutationVariables,
+  TContext
+> => {
   const mutationKey = getInitBudgetGroupsMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
@@ -6963,8 +7064,13 @@ export const getInitBudgetGroupsMutationOptions = <
       : { ...options, mutation: { ...options.mutation, mutationKey } }
     : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<Awaited<ReturnType<typeof initBudgetGroups>>, void> = () => {
-    return initBudgetGroups(requestOptions);
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof initBudgetGroups>>,
+    InitBudgetGroupsMutationVariables
+  > = (props) => {
+    const { params } = props ?? {};
+
+    return initBudgetGroups(params, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -6975,6 +7081,7 @@ export type InitBudgetGroupsMutationResult = NonNullable<
 >;
 
 export type InitBudgetGroupsMutationError = ErrorType<unknown>;
+export type InitBudgetGroupsMutationVariables = { params: InitBudgetGroupsParams };
 
 /**
  * @summary Initialize default budget groups (50/30/20)
@@ -6984,13 +7091,18 @@ export const useInitBudgetGroups = <TError = ErrorType<unknown>, TContext = unkn
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof initBudgetGroups>>,
       TError,
-      void,
+      InitBudgetGroupsMutationVariables,
       TContext
     >;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
-): UseMutationResult<Awaited<ReturnType<typeof initBudgetGroups>>, TError, void, TContext> => {
+): UseMutationResult<
+  Awaited<ReturnType<typeof initBudgetGroups>>,
+  TError,
+  InitBudgetGroupsMutationVariables,
+  TContext
+> => {
   return useMutation(getInitBudgetGroupsMutationOptions(options), queryClient);
 };
 
@@ -7680,6 +7792,7 @@ export function useListBudgetEventExpenses<
 export const setCategoryBudgetGroup = (
   categoryId: number,
   setCategoryBudgetGroupBody: BodyType<SetCategoryBudgetGroupBody>,
+  params: SetCategoryBudgetGroupParams,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
@@ -7689,6 +7802,7 @@ export const setCategoryBudgetGroup = (
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       data: setCategoryBudgetGroupBody,
+      params,
       signal,
     },
     options,
@@ -7725,9 +7839,9 @@ export const getSetCategoryBudgetGroupMutationOptions = <
     Awaited<ReturnType<typeof setCategoryBudgetGroup>>,
     SetCategoryBudgetGroupMutationVariables
   > = (props) => {
-    const { categoryId, data } = props ?? {};
+    const { categoryId, data, params } = props ?? {};
 
-    return setCategoryBudgetGroup(categoryId, data, requestOptions);
+    return setCategoryBudgetGroup(categoryId, data, params, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -7741,6 +7855,7 @@ export type SetCategoryBudgetGroupMutationError = ErrorType<unknown>;
 export type SetCategoryBudgetGroupMutationVariables = {
   categoryId: number;
   data: BodyType<SetCategoryBudgetGroupBody>;
+  params: SetCategoryBudgetGroupParams;
 };
 
 /**
@@ -8079,3 +8194,14072 @@ export function useListRecurring<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+/**
+ * Create a new manually-defined recurring expense with frequency and alert settings.
+ * @summary Create a recurring expense
+ */
+export const createRecurringRecurringPost = (
+  recurringCreate: BodyType<RecurringCreate>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/recurring`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: recurringCreate,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCreateRecurringRecurringPostMutationKey = () =>
+  ["createRecurringRecurringPost"] as const;
+
+export const getCreateRecurringRecurringPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRecurringRecurringPost>>,
+    TError,
+    CreateRecurringRecurringPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createRecurringRecurringPost>>,
+  TError,
+  CreateRecurringRecurringPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateRecurringRecurringPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createRecurringRecurringPost>>,
+    CreateRecurringRecurringPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createRecurringRecurringPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateRecurringRecurringPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createRecurringRecurringPost>>
+>;
+export type CreateRecurringRecurringPostMutationBody = BodyType<RecurringCreate>;
+export type CreateRecurringRecurringPostMutationError = ErrorType<unknown>;
+export type CreateRecurringRecurringPostMutationVariables = { data: BodyType<RecurringCreate> };
+
+/**
+ * @summary Create a recurring expense
+ */
+export const useCreateRecurringRecurringPost = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createRecurringRecurringPost>>,
+      TError,
+      CreateRecurringRecurringPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createRecurringRecurringPost>>,
+  TError,
+  CreateRecurringRecurringPostMutationVariables,
+  TContext
+> => {
+  return useMutation(getCreateRecurringRecurringPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Liveness probe — always returns 200 if the process is running.
+ *
+ * Use for: container orchestrator liveness probe, uptime monitoring.
+ * Does NOT check dependencies (DB, Redis, etc).
+ * @summary Liveness check
+ */
+export const healthCheckHealthGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/health`, method: "GET", signal }, options);
+};
+
+export const getHealthCheckHealthGetQueryKey = () => {
+  return [`/health`] as const;
+};
+
+export const getHealthCheckHealthGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof healthCheckHealthGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof healthCheckHealthGet>>, TError, TData>>;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getHealthCheckHealthGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheckHealthGet>>> = ({ signal }) =>
+    healthCheckHealthGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof healthCheckHealthGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type HealthCheckHealthGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof healthCheckHealthGet>>
+>;
+export type HealthCheckHealthGetQueryError = ErrorType<unknown>;
+
+export function useHealthCheckHealthGet<
+  TData = Awaited<ReturnType<typeof healthCheckHealthGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof healthCheckHealthGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthCheckHealthGet>>,
+          TError,
+          Awaited<ReturnType<typeof healthCheckHealthGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useHealthCheckHealthGet<
+  TData = Awaited<ReturnType<typeof healthCheckHealthGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof healthCheckHealthGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthCheckHealthGet>>,
+          TError,
+          Awaited<ReturnType<typeof healthCheckHealthGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useHealthCheckHealthGet<
+  TData = Awaited<ReturnType<typeof healthCheckHealthGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof healthCheckHealthGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Liveness check
+ */
+
+export function useHealthCheckHealthGet<
+  TData = Awaited<ReturnType<typeof healthCheckHealthGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof healthCheckHealthGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getHealthCheckHealthGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Readiness probe — checks if the service can handle requests.
+ *
+ * Returns 200 if all critical services are healthy or degraded.
+ * Returns 503 if critical services (DB, Redis, Celery) are down.
+ *
+ * Use for: load balancer readiness, blackbox exporter.
+ * @summary Readiness check
+ */
+export const healthReadyHealthReadyGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/health/ready`, method: "GET", signal }, options);
+};
+
+export const getHealthReadyHealthReadyGetQueryKey = () => {
+  return [`/health/ready`] as const;
+};
+
+export const getHealthReadyHealthReadyGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof healthReadyHealthReadyGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof healthReadyHealthReadyGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getHealthReadyHealthReadyGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof healthReadyHealthReadyGet>>> = ({
+    signal,
+  }) => healthReadyHealthReadyGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof healthReadyHealthReadyGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type HealthReadyHealthReadyGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof healthReadyHealthReadyGet>>
+>;
+export type HealthReadyHealthReadyGetQueryError = ErrorType<unknown>;
+
+export function useHealthReadyHealthReadyGet<
+  TData = Awaited<ReturnType<typeof healthReadyHealthReadyGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof healthReadyHealthReadyGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthReadyHealthReadyGet>>,
+          TError,
+          Awaited<ReturnType<typeof healthReadyHealthReadyGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useHealthReadyHealthReadyGet<
+  TData = Awaited<ReturnType<typeof healthReadyHealthReadyGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof healthReadyHealthReadyGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthReadyHealthReadyGet>>,
+          TError,
+          Awaited<ReturnType<typeof healthReadyHealthReadyGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useHealthReadyHealthReadyGet<
+  TData = Awaited<ReturnType<typeof healthReadyHealthReadyGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof healthReadyHealthReadyGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Readiness check
+ */
+
+export function useHealthReadyHealthReadyGet<
+  TData = Awaited<ReturnType<typeof healthReadyHealthReadyGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof healthReadyHealthReadyGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getHealthReadyHealthReadyGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Exchanges a Google authorization code for user data, then authenticates or creates the user account.
+ * @summary Handle OAuth authorization code callback
+ */
+export const oauthCallbackAuthOauthCallbackPost = (
+  oAuthRequest: BodyType<OAuthRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/auth/oauth/callback`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: oAuthRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getOauthCallbackAuthOauthCallbackPostMutationKey = () =>
+  ["oauthCallbackAuthOauthCallbackPost"] as const;
+
+export const getOauthCallbackAuthOauthCallbackPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof oauthCallbackAuthOauthCallbackPost>>,
+    TError,
+    OauthCallbackAuthOauthCallbackPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof oauthCallbackAuthOauthCallbackPost>>,
+  TError,
+  OauthCallbackAuthOauthCallbackPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getOauthCallbackAuthOauthCallbackPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof oauthCallbackAuthOauthCallbackPost>>,
+    OauthCallbackAuthOauthCallbackPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return oauthCallbackAuthOauthCallbackPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type OauthCallbackAuthOauthCallbackPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof oauthCallbackAuthOauthCallbackPost>>
+>;
+export type OauthCallbackAuthOauthCallbackPostMutationBody = BodyType<OAuthRequest>;
+export type OauthCallbackAuthOauthCallbackPostMutationError = ErrorType<unknown>;
+export type OauthCallbackAuthOauthCallbackPostMutationVariables = { data: BodyType<OAuthRequest> };
+
+/**
+ * @summary Handle OAuth authorization code callback
+ */
+export const useOauthCallbackAuthOauthCallbackPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof oauthCallbackAuthOauthCallbackPost>>,
+      TError,
+      OauthCallbackAuthOauthCallbackPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof oauthCallbackAuthOauthCallbackPost>>,
+  TError,
+  OauthCallbackAuthOauthCallbackPostMutationVariables,
+  TContext
+> => {
+  return useMutation(getOauthCallbackAuthOauthCallbackPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Validates Telegram WebApp initData HMAC and returns a JWT for a previously linked user.
+ * @summary Login via Telegram Mini App initData
+ */
+export const telegramWebappLoginAuthTelegramWebappPost = (
+  telegramWebAppRequest: BodyType<TelegramWebAppRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/auth/telegram/webapp`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: telegramWebAppRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getTelegramWebappLoginAuthTelegramWebappPostMutationKey = () =>
+  ["telegramWebappLoginAuthTelegramWebappPost"] as const;
+
+export const getTelegramWebappLoginAuthTelegramWebappPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof telegramWebappLoginAuthTelegramWebappPost>>,
+    TError,
+    TelegramWebappLoginAuthTelegramWebappPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof telegramWebappLoginAuthTelegramWebappPost>>,
+  TError,
+  TelegramWebappLoginAuthTelegramWebappPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTelegramWebappLoginAuthTelegramWebappPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof telegramWebappLoginAuthTelegramWebappPost>>,
+    TelegramWebappLoginAuthTelegramWebappPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return telegramWebappLoginAuthTelegramWebappPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TelegramWebappLoginAuthTelegramWebappPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof telegramWebappLoginAuthTelegramWebappPost>>
+>;
+export type TelegramWebappLoginAuthTelegramWebappPostMutationBody = BodyType<TelegramWebAppRequest>;
+export type TelegramWebappLoginAuthTelegramWebappPostMutationError = ErrorType<unknown>;
+export type TelegramWebappLoginAuthTelegramWebappPostMutationVariables = {
+  data: BodyType<TelegramWebAppRequest>;
+};
+
+/**
+ * @summary Login via Telegram Mini App initData
+ */
+export const useTelegramWebappLoginAuthTelegramWebappPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof telegramWebappLoginAuthTelegramWebappPost>>,
+      TError,
+      TelegramWebappLoginAuthTelegramWebappPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof telegramWebappLoginAuthTelegramWebappPost>>,
+  TError,
+  TelegramWebappLoginAuthTelegramWebappPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getTelegramWebappLoginAuthTelegramWebappPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Links the authenticated user's Telegram account using initData from the MiniApp context.
+ * @summary Link Telegram account via MiniApp initData
+ */
+export const telegramWebappLinkAuthTelegramLinkWebappPost = (
+  telegramWebAppRequest: BodyType<TelegramWebAppRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/auth/telegram/link-webapp`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: telegramWebAppRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getTelegramWebappLinkAuthTelegramLinkWebappPostMutationKey = () =>
+  ["telegramWebappLinkAuthTelegramLinkWebappPost"] as const;
+
+export const getTelegramWebappLinkAuthTelegramLinkWebappPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof telegramWebappLinkAuthTelegramLinkWebappPost>>,
+    TError,
+    TelegramWebappLinkAuthTelegramLinkWebappPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof telegramWebappLinkAuthTelegramLinkWebappPost>>,
+  TError,
+  TelegramWebappLinkAuthTelegramLinkWebappPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTelegramWebappLinkAuthTelegramLinkWebappPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof telegramWebappLinkAuthTelegramLinkWebappPost>>,
+    TelegramWebappLinkAuthTelegramLinkWebappPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return telegramWebappLinkAuthTelegramLinkWebappPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TelegramWebappLinkAuthTelegramLinkWebappPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof telegramWebappLinkAuthTelegramLinkWebappPost>>
+>;
+export type TelegramWebappLinkAuthTelegramLinkWebappPostMutationBody =
+  BodyType<TelegramWebAppRequest>;
+export type TelegramWebappLinkAuthTelegramLinkWebappPostMutationError = ErrorType<unknown>;
+export type TelegramWebappLinkAuthTelegramLinkWebappPostMutationVariables = {
+  data: BodyType<TelegramWebAppRequest>;
+};
+
+/**
+ * @summary Link Telegram account via MiniApp initData
+ */
+export const useTelegramWebappLinkAuthTelegramLinkWebappPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof telegramWebappLinkAuthTelegramLinkWebappPost>>,
+      TError,
+      TelegramWebappLinkAuthTelegramLinkWebappPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof telegramWebappLinkAuthTelegramLinkWebappPost>>,
+  TError,
+  TelegramWebappLinkAuthTelegramLinkWebappPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getTelegramWebappLinkAuthTelegramLinkWebappPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Validates Telegram Login Widget callback data and returns a JWT for a previously linked user.
+ * @summary Login via Telegram Login Widget
+ */
+export const telegramWidgetLoginAuthTelegramLoginWidgetPost = (
+  telegramLoginWidgetRequest: BodyType<TelegramLoginWidgetRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/auth/telegram/login-widget`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: telegramLoginWidgetRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getTelegramWidgetLoginAuthTelegramLoginWidgetPostMutationKey = () =>
+  ["telegramWidgetLoginAuthTelegramLoginWidgetPost"] as const;
+
+export const getTelegramWidgetLoginAuthTelegramLoginWidgetPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof telegramWidgetLoginAuthTelegramLoginWidgetPost>>,
+    TError,
+    TelegramWidgetLoginAuthTelegramLoginWidgetPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof telegramWidgetLoginAuthTelegramLoginWidgetPost>>,
+  TError,
+  TelegramWidgetLoginAuthTelegramLoginWidgetPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTelegramWidgetLoginAuthTelegramLoginWidgetPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof telegramWidgetLoginAuthTelegramLoginWidgetPost>>,
+    TelegramWidgetLoginAuthTelegramLoginWidgetPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return telegramWidgetLoginAuthTelegramLoginWidgetPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TelegramWidgetLoginAuthTelegramLoginWidgetPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof telegramWidgetLoginAuthTelegramLoginWidgetPost>>
+>;
+export type TelegramWidgetLoginAuthTelegramLoginWidgetPostMutationBody =
+  BodyType<TelegramLoginWidgetRequest>;
+export type TelegramWidgetLoginAuthTelegramLoginWidgetPostMutationError = ErrorType<unknown>;
+export type TelegramWidgetLoginAuthTelegramLoginWidgetPostMutationVariables = {
+  data: BodyType<TelegramLoginWidgetRequest>;
+};
+
+/**
+ * @summary Login via Telegram Login Widget
+ */
+export const useTelegramWidgetLoginAuthTelegramLoginWidgetPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof telegramWidgetLoginAuthTelegramLoginWidgetPost>>,
+      TError,
+      TelegramWidgetLoginAuthTelegramLoginWidgetPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof telegramWidgetLoginAuthTelegramLoginWidgetPost>>,
+  TError,
+  TelegramWidgetLoginAuthTelegramLoginWidgetPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getTelegramWidgetLoginAuthTelegramLoginWidgetPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Exchanges an OIDC authorization code for a Telegram id_token, verifies it, and returns a JWT.
+ * @summary Login via Telegram OpenID Connect
+ */
+export const telegramOidcLoginAuthTelegramOidcPost = (
+  telegramOidcRequest: BodyType<TelegramOidcRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/auth/telegram/oidc`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: telegramOidcRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getTelegramOidcLoginAuthTelegramOidcPostMutationKey = () =>
+  ["telegramOidcLoginAuthTelegramOidcPost"] as const;
+
+export const getTelegramOidcLoginAuthTelegramOidcPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof telegramOidcLoginAuthTelegramOidcPost>>,
+    TError,
+    TelegramOidcLoginAuthTelegramOidcPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof telegramOidcLoginAuthTelegramOidcPost>>,
+  TError,
+  TelegramOidcLoginAuthTelegramOidcPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTelegramOidcLoginAuthTelegramOidcPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof telegramOidcLoginAuthTelegramOidcPost>>,
+    TelegramOidcLoginAuthTelegramOidcPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return telegramOidcLoginAuthTelegramOidcPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TelegramOidcLoginAuthTelegramOidcPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof telegramOidcLoginAuthTelegramOidcPost>>
+>;
+export type TelegramOidcLoginAuthTelegramOidcPostMutationBody = BodyType<TelegramOidcRequest>;
+export type TelegramOidcLoginAuthTelegramOidcPostMutationError = ErrorType<unknown>;
+export type TelegramOidcLoginAuthTelegramOidcPostMutationVariables = {
+  data: BodyType<TelegramOidcRequest>;
+};
+
+/**
+ * @summary Login via Telegram OpenID Connect
+ */
+export const useTelegramOidcLoginAuthTelegramOidcPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof telegramOidcLoginAuthTelegramOidcPost>>,
+      TError,
+      TelegramOidcLoginAuthTelegramOidcPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof telegramOidcLoginAuthTelegramOidcPost>>,
+  TError,
+  TelegramOidcLoginAuthTelegramOidcPostMutationVariables,
+  TContext
+> => {
+  return useMutation(getTelegramOidcLoginAuthTelegramOidcPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Handles the redirect from Telegram's OIDC authorization endpoint. Exchanges code for token and redirects to frontend.
+ * @summary Telegram OIDC callback
+ */
+export const telegramOidcCallbackAuthTelegramCallbackGet = (
+  params?: TelegramOidcCallbackAuthTelegramCallbackGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/auth/telegram/callback`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getTelegramOidcCallbackAuthTelegramCallbackGetQueryKey = (
+  params?: TelegramOidcCallbackAuthTelegramCallbackGetParams,
+) => {
+  return [`/auth/telegram/callback`, ...(params ? [params] : [])] as const;
+};
+
+export const getTelegramOidcCallbackAuthTelegramCallbackGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: TelegramOidcCallbackAuthTelegramCallbackGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getTelegramOidcCallbackAuthTelegramCallbackGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>
+  > = ({ signal }) => telegramOidcCallbackAuthTelegramCallbackGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type TelegramOidcCallbackAuthTelegramCallbackGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>
+>;
+export type TelegramOidcCallbackAuthTelegramCallbackGetQueryError = ErrorType<unknown>;
+
+export function useTelegramOidcCallbackAuthTelegramCallbackGet<
+  TData = Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | TelegramOidcCallbackAuthTelegramCallbackGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+          TError,
+          Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTelegramOidcCallbackAuthTelegramCallbackGet<
+  TData = Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: TelegramOidcCallbackAuthTelegramCallbackGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+          TError,
+          Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTelegramOidcCallbackAuthTelegramCallbackGet<
+  TData = Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: TelegramOidcCallbackAuthTelegramCallbackGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Telegram OIDC callback
+ */
+
+export function useTelegramOidcCallbackAuthTelegramCallbackGet<
+  TData = Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: TelegramOidcCallbackAuthTelegramCallbackGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcCallbackAuthTelegramCallbackGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getTelegramOidcCallbackAuthTelegramCallbackGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Links the authenticated user's Telegram account using an OIDC authorization code.
+ * @summary Link Telegram account via OIDC
+ */
+export const telegramOidcLinkAuthTelegramLinkPost = (
+  telegramOidcLinkRequest: BodyType<TelegramOidcLinkRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/auth/telegram/link`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: telegramOidcLinkRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getTelegramOidcLinkAuthTelegramLinkPostMutationKey = () =>
+  ["telegramOidcLinkAuthTelegramLinkPost"] as const;
+
+export const getTelegramOidcLinkAuthTelegramLinkPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof telegramOidcLinkAuthTelegramLinkPost>>,
+    TError,
+    TelegramOidcLinkAuthTelegramLinkPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof telegramOidcLinkAuthTelegramLinkPost>>,
+  TError,
+  TelegramOidcLinkAuthTelegramLinkPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTelegramOidcLinkAuthTelegramLinkPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof telegramOidcLinkAuthTelegramLinkPost>>,
+    TelegramOidcLinkAuthTelegramLinkPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return telegramOidcLinkAuthTelegramLinkPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TelegramOidcLinkAuthTelegramLinkPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof telegramOidcLinkAuthTelegramLinkPost>>
+>;
+export type TelegramOidcLinkAuthTelegramLinkPostMutationBody = BodyType<TelegramOidcLinkRequest>;
+export type TelegramOidcLinkAuthTelegramLinkPostMutationError = ErrorType<unknown>;
+export type TelegramOidcLinkAuthTelegramLinkPostMutationVariables = {
+  data: BodyType<TelegramOidcLinkRequest>;
+};
+
+/**
+ * @summary Link Telegram account via OIDC
+ */
+export const useTelegramOidcLinkAuthTelegramLinkPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof telegramOidcLinkAuthTelegramLinkPost>>,
+      TError,
+      TelegramOidcLinkAuthTelegramLinkPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof telegramOidcLinkAuthTelegramLinkPost>>,
+  TError,
+  TelegramOidcLinkAuthTelegramLinkPostMutationVariables,
+  TContext
+> => {
+  return useMutation(getTelegramOidcLinkAuthTelegramLinkPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Changes the password using a short-lived token issued when a forced password change is required. No current password needed.
+ * @summary Force password change with token
+ */
+export const forceChangePasswordAuthForceChangePasswordPost = (
+  forceChangePasswordRequest: BodyType<ForceChangePasswordRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/auth/force-change-password`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: forceChangePasswordRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getForceChangePasswordAuthForceChangePasswordPostMutationKey = () =>
+  ["forceChangePasswordAuthForceChangePasswordPost"] as const;
+
+export const getForceChangePasswordAuthForceChangePasswordPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof forceChangePasswordAuthForceChangePasswordPost>>,
+    TError,
+    ForceChangePasswordAuthForceChangePasswordPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof forceChangePasswordAuthForceChangePasswordPost>>,
+  TError,
+  ForceChangePasswordAuthForceChangePasswordPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getForceChangePasswordAuthForceChangePasswordPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof forceChangePasswordAuthForceChangePasswordPost>>,
+    ForceChangePasswordAuthForceChangePasswordPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return forceChangePasswordAuthForceChangePasswordPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ForceChangePasswordAuthForceChangePasswordPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof forceChangePasswordAuthForceChangePasswordPost>>
+>;
+export type ForceChangePasswordAuthForceChangePasswordPostMutationBody =
+  BodyType<ForceChangePasswordRequest>;
+export type ForceChangePasswordAuthForceChangePasswordPostMutationError = ErrorType<unknown>;
+export type ForceChangePasswordAuthForceChangePasswordPostMutationVariables = {
+  data: BodyType<ForceChangePasswordRequest>;
+};
+
+/**
+ * @summary Force password change with token
+ */
+export const useForceChangePasswordAuthForceChangePasswordPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof forceChangePasswordAuthForceChangePasswordPost>>,
+      TError,
+      ForceChangePasswordAuthForceChangePasswordPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof forceChangePasswordAuthForceChangePasswordPost>>,
+  TError,
+  ForceChangePasswordAuthForceChangePasswordPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getForceChangePasswordAuthForceChangePasswordPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Returns a t.me deep link that opens the bot with the linking code pre-filled. Code expires in 2 minutes.
+ * @summary Get Telegram deep link for auto-linking
+ */
+export const getTelegramDeepLinkAuthMeTelegramDeepLinkGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/auth/me/telegram-deep-link`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getGetTelegramDeepLinkAuthMeTelegramDeepLinkGetQueryKey = () => {
+  return [`/auth/me/telegram-deep-link`] as const;
+};
+
+export const getGetTelegramDeepLinkAuthMeTelegramDeepLinkGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetTelegramDeepLinkAuthMeTelegramDeepLinkGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>
+  > = ({ signal }) => getTelegramDeepLinkAuthMeTelegramDeepLinkGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetTelegramDeepLinkAuthMeTelegramDeepLinkGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>
+>;
+export type GetTelegramDeepLinkAuthMeTelegramDeepLinkGetQueryError = ErrorType<unknown>;
+
+export function useGetTelegramDeepLinkAuthMeTelegramDeepLinkGet<
+  TData = Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+          TError,
+          Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTelegramDeepLinkAuthMeTelegramDeepLinkGet<
+  TData = Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+          TError,
+          Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTelegramDeepLinkAuthMeTelegramDeepLinkGet<
+  TData = Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get Telegram deep link for auto-linking
+ */
+
+export function useGetTelegramDeepLinkAuthMeTelegramDeepLinkGet<
+  TData = Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTelegramDeepLinkAuthMeTelegramDeepLinkGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetTelegramDeepLinkAuthMeTelegramDeepLinkGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Clears the auth cookie.
+ * @summary Logout
+ */
+export const logoutAuthLogoutPost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/auth/logout`, method: "POST", signal }, options);
+};
+
+export const getLogoutAuthLogoutPostMutationKey = () => ["logoutAuthLogoutPost"] as const;
+
+export const getLogoutAuthLogoutPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logoutAuthLogoutPost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof logoutAuthLogoutPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getLogoutAuthLogoutPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof logoutAuthLogoutPost>>,
+    void
+  > = () => {
+    return logoutAuthLogoutPost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LogoutAuthLogoutPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof logoutAuthLogoutPost>>
+>;
+
+export type LogoutAuthLogoutPostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Logout
+ */
+export const useLogoutAuthLogoutPost = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof logoutAuthLogoutPost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof logoutAuthLogoutPost>>, TError, void, TContext> => {
+  return useMutation(getLogoutAuthLogoutPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Records that the user has dismissed the What's New popup for a specific version. This preference syncs across all devices.
+ * @summary Dismiss What's New popup for a version
+ */
+export const dismissWhatsNewAuthMeWhatsNewDismissPut = (
+  whatsNewDismissRequest: BodyType<WhatsNewDismissRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/auth/me/whats-new-dismiss`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: whatsNewDismissRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getDismissWhatsNewAuthMeWhatsNewDismissPutMutationKey = () =>
+  ["dismissWhatsNewAuthMeWhatsNewDismissPut"] as const;
+
+export const getDismissWhatsNewAuthMeWhatsNewDismissPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissWhatsNewAuthMeWhatsNewDismissPut>>,
+    TError,
+    DismissWhatsNewAuthMeWhatsNewDismissPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof dismissWhatsNewAuthMeWhatsNewDismissPut>>,
+  TError,
+  DismissWhatsNewAuthMeWhatsNewDismissPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDismissWhatsNewAuthMeWhatsNewDismissPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof dismissWhatsNewAuthMeWhatsNewDismissPut>>,
+    DismissWhatsNewAuthMeWhatsNewDismissPutMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return dismissWhatsNewAuthMeWhatsNewDismissPut(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DismissWhatsNewAuthMeWhatsNewDismissPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof dismissWhatsNewAuthMeWhatsNewDismissPut>>
+>;
+export type DismissWhatsNewAuthMeWhatsNewDismissPutMutationBody = BodyType<WhatsNewDismissRequest>;
+export type DismissWhatsNewAuthMeWhatsNewDismissPutMutationError = ErrorType<unknown>;
+export type DismissWhatsNewAuthMeWhatsNewDismissPutMutationVariables = {
+  data: BodyType<WhatsNewDismissRequest>;
+};
+
+/**
+ * @summary Dismiss What's New popup for a version
+ */
+export const useDismissWhatsNewAuthMeWhatsNewDismissPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof dismissWhatsNewAuthMeWhatsNewDismissPut>>,
+      TError,
+      DismissWhatsNewAuthMeWhatsNewDismissPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof dismissWhatsNewAuthMeWhatsNewDismissPut>>,
+  TError,
+  DismissWhatsNewAuthMeWhatsNewDismissPutMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getDismissWhatsNewAuthMeWhatsNewDismissPutMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Returns whether multi-factor authentication is currently enabled for the user.
+ * @summary Get MFA status
+ */
+export const mfaStatusMfaStatusGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/mfa/status`, method: "GET", signal }, options);
+};
+
+export const getMfaStatusMfaStatusGetQueryKey = () => {
+  return [`/mfa/status`] as const;
+};
+
+export const getMfaStatusMfaStatusGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMfaStatusMfaStatusGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>> = ({ signal }) =>
+    mfaStatusMfaStatusGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type MfaStatusMfaStatusGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>
+>;
+export type MfaStatusMfaStatusGetQueryError = ErrorType<unknown>;
+
+export function useMfaStatusMfaStatusGet<
+  TData = Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>,
+          TError,
+          Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMfaStatusMfaStatusGet<
+  TData = Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>,
+          TError,
+          Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMfaStatusMfaStatusGet<
+  TData = Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get MFA status
+ */
+
+export function useMfaStatusMfaStatusGet<
+  TData = Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof mfaStatusMfaStatusGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getMfaStatusMfaStatusGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Verifies a TOTP code against the user's MFA secret and enables MFA if the code is valid.
+ * @summary Verify and enable MFA
+ */
+export const mfaVerifyMfaVerifyPost = (
+  mFAVerifyRequest: BodyType<MFAVerifyRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/mfa/verify`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: mFAVerifyRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getMfaVerifyMfaVerifyPostMutationKey = () => ["mfaVerifyMfaVerifyPost"] as const;
+
+export const getMfaVerifyMfaVerifyPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mfaVerifyMfaVerifyPost>>,
+    TError,
+    MfaVerifyMfaVerifyPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mfaVerifyMfaVerifyPost>>,
+  TError,
+  MfaVerifyMfaVerifyPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getMfaVerifyMfaVerifyPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mfaVerifyMfaVerifyPost>>,
+    MfaVerifyMfaVerifyPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return mfaVerifyMfaVerifyPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MfaVerifyMfaVerifyPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mfaVerifyMfaVerifyPost>>
+>;
+export type MfaVerifyMfaVerifyPostMutationBody = BodyType<MFAVerifyRequest>;
+export type MfaVerifyMfaVerifyPostMutationError = ErrorType<unknown>;
+export type MfaVerifyMfaVerifyPostMutationVariables = { data: BodyType<MFAVerifyRequest> };
+
+/**
+ * @summary Verify and enable MFA
+ */
+export const useMfaVerifyMfaVerifyPost = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof mfaVerifyMfaVerifyPost>>,
+      TError,
+      MfaVerifyMfaVerifyPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof mfaVerifyMfaVerifyPost>>,
+  TError,
+  MfaVerifyMfaVerifyPostMutationVariables,
+  TContext
+> => {
+  return useMutation(getMfaVerifyMfaVerifyPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Deletes all expenses for the current user. Requires a confirmation payload with 'DELETE_ALL'.
+ * @summary Delete all user expenses
+ */
+export const deleteAllExpensesExpensesAllDelete = (
+  deleteAllExpensesExpensesAllDeleteBody: BodyType<DeleteAllExpensesExpensesAllDeleteBody>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/expenses/all`,
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      data: deleteAllExpensesExpensesAllDeleteBody,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getDeleteAllExpensesExpensesAllDeleteMutationKey = () =>
+  ["deleteAllExpensesExpensesAllDelete"] as const;
+
+export const getDeleteAllExpensesExpensesAllDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAllExpensesExpensesAllDelete>>,
+    TError,
+    DeleteAllExpensesExpensesAllDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAllExpensesExpensesAllDelete>>,
+  TError,
+  DeleteAllExpensesExpensesAllDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeleteAllExpensesExpensesAllDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAllExpensesExpensesAllDelete>>,
+    DeleteAllExpensesExpensesAllDeleteMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return deleteAllExpensesExpensesAllDelete(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAllExpensesExpensesAllDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAllExpensesExpensesAllDelete>>
+>;
+export type DeleteAllExpensesExpensesAllDeleteMutationBody =
+  BodyType<DeleteAllExpensesExpensesAllDeleteBody>;
+export type DeleteAllExpensesExpensesAllDeleteMutationError = ErrorType<unknown>;
+export type DeleteAllExpensesExpensesAllDeleteMutationVariables = {
+  data: BodyType<DeleteAllExpensesExpensesAllDeleteBody>;
+};
+
+/**
+ * @summary Delete all user expenses
+ */
+export const useDeleteAllExpensesExpensesAllDelete = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteAllExpensesExpensesAllDelete>>,
+      TError,
+      DeleteAllExpensesExpensesAllDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAllExpensesExpensesAllDelete>>,
+  TError,
+  DeleteAllExpensesExpensesAllDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(getDeleteAllExpensesExpensesAllDeleteMutationOptions(options), queryClient);
+};
+
+/**
+ * Updates category, card, or account for multiple expenses at once by their IDs.
+ * @summary Bulk update expense fields
+ */
+export const bulkUpdateExpensesExpensesBulkUpdatePatch = (
+  bulkUpdateExpensesExpensesBulkUpdatePatchBody: BodyType<BulkUpdateExpensesExpensesBulkUpdatePatchBody>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/expenses/bulk-update`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: bulkUpdateExpensesExpensesBulkUpdatePatchBody,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getBulkUpdateExpensesExpensesBulkUpdatePatchMutationKey = () =>
+  ["bulkUpdateExpensesExpensesBulkUpdatePatch"] as const;
+
+export const getBulkUpdateExpensesExpensesBulkUpdatePatchMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkUpdateExpensesExpensesBulkUpdatePatch>>,
+    TError,
+    BulkUpdateExpensesExpensesBulkUpdatePatchMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkUpdateExpensesExpensesBulkUpdatePatch>>,
+  TError,
+  BulkUpdateExpensesExpensesBulkUpdatePatchMutationVariables,
+  TContext
+> => {
+  const mutationKey = getBulkUpdateExpensesExpensesBulkUpdatePatchMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkUpdateExpensesExpensesBulkUpdatePatch>>,
+    BulkUpdateExpensesExpensesBulkUpdatePatchMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkUpdateExpensesExpensesBulkUpdatePatch(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkUpdateExpensesExpensesBulkUpdatePatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkUpdateExpensesExpensesBulkUpdatePatch>>
+>;
+export type BulkUpdateExpensesExpensesBulkUpdatePatchMutationBody =
+  BodyType<BulkUpdateExpensesExpensesBulkUpdatePatchBody>;
+export type BulkUpdateExpensesExpensesBulkUpdatePatchMutationError = ErrorType<unknown>;
+export type BulkUpdateExpensesExpensesBulkUpdatePatchMutationVariables = {
+  data: BodyType<BulkUpdateExpensesExpensesBulkUpdatePatchBody>;
+};
+
+/**
+ * @summary Bulk update expense fields
+ */
+export const useBulkUpdateExpensesExpensesBulkUpdatePatch = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof bulkUpdateExpensesExpensesBulkUpdatePatch>>,
+      TError,
+      BulkUpdateExpensesExpensesBulkUpdatePatchMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof bulkUpdateExpensesExpensesBulkUpdatePatch>>,
+  TError,
+  BulkUpdateExpensesExpensesBulkUpdatePatchMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getBulkUpdateExpensesExpensesBulkUpdatePatchMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Assigns or removes tags for multiple expenses at once. Supports 'add', 'remove', or 'replace' mode.
+ * @summary Bulk assign tags
+ */
+export const bulkUpdateTagsExpensesBulkTagsPost = (
+  bulkUpdateTagsExpensesBulkTagsPostBody: BodyType<BulkUpdateTagsExpensesBulkTagsPostBody>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/expenses/bulk-tags`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: bulkUpdateTagsExpensesBulkTagsPostBody,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getBulkUpdateTagsExpensesBulkTagsPostMutationKey = () =>
+  ["bulkUpdateTagsExpensesBulkTagsPost"] as const;
+
+export const getBulkUpdateTagsExpensesBulkTagsPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkUpdateTagsExpensesBulkTagsPost>>,
+    TError,
+    BulkUpdateTagsExpensesBulkTagsPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkUpdateTagsExpensesBulkTagsPost>>,
+  TError,
+  BulkUpdateTagsExpensesBulkTagsPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getBulkUpdateTagsExpensesBulkTagsPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkUpdateTagsExpensesBulkTagsPost>>,
+    BulkUpdateTagsExpensesBulkTagsPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkUpdateTagsExpensesBulkTagsPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkUpdateTagsExpensesBulkTagsPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkUpdateTagsExpensesBulkTagsPost>>
+>;
+export type BulkUpdateTagsExpensesBulkTagsPostMutationBody =
+  BodyType<BulkUpdateTagsExpensesBulkTagsPostBody>;
+export type BulkUpdateTagsExpensesBulkTagsPostMutationError = ErrorType<unknown>;
+export type BulkUpdateTagsExpensesBulkTagsPostMutationVariables = {
+  data: BodyType<BulkUpdateTagsExpensesBulkTagsPostBody>;
+};
+
+/**
+ * @summary Bulk assign tags
+ */
+export const useBulkUpdateTagsExpensesBulkTagsPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof bulkUpdateTagsExpensesBulkTagsPost>>,
+      TError,
+      BulkUpdateTagsExpensesBulkTagsPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof bulkUpdateTagsExpensesBulkTagsPost>>,
+  TError,
+  BulkUpdateTagsExpensesBulkTagsPostMutationVariables,
+  TContext
+> => {
+  return useMutation(getBulkUpdateTagsExpensesBulkTagsPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Retrieve all investment-related settings for the current user or a family group member, including broker credentials configuration status.
+ * @summary Get user investment settings
+ */
+export const getSettingsSettingsGet = (
+  params?: GetSettingsSettingsGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/settings`, method: "GET", params, signal }, options);
+};
+
+export const getGetSettingsSettingsGetQueryKey = (params?: GetSettingsSettingsGetParams) => {
+  return [`/settings`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetSettingsSettingsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSettingsSettingsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetSettingsSettingsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSettingsSettingsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSettingsSettingsGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsSettingsGet>>> = ({ signal }) =>
+    getSettingsSettingsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSettingsSettingsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetSettingsSettingsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSettingsSettingsGet>>
+>;
+export type GetSettingsSettingsGetQueryError = ErrorType<unknown>;
+
+export function useGetSettingsSettingsGet<
+  TData = Awaited<ReturnType<typeof getSettingsSettingsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetSettingsSettingsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSettingsSettingsGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSettingsSettingsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getSettingsSettingsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetSettingsSettingsGet<
+  TData = Awaited<ReturnType<typeof getSettingsSettingsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetSettingsSettingsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSettingsSettingsGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSettingsSettingsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getSettingsSettingsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetSettingsSettingsGet<
+  TData = Awaited<ReturnType<typeof getSettingsSettingsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetSettingsSettingsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSettingsSettingsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get user investment settings
+ */
+
+export function useGetSettingsSettingsGet<
+  TData = Awaited<ReturnType<typeof getSettingsSettingsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetSettingsSettingsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSettingsSettingsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetSettingsSettingsGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Create or update a single investment setting by key for the current user or a family group member.
+ * @summary Update a setting
+ */
+export const putSettingSettingsKeyPut = (
+  key: string,
+  putSettingSettingsKeyPutBody: BodyType<PutSettingSettingsKeyPutBody>,
+  params?: PutSettingSettingsKeyPutParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/settings/${key}`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: putSettingSettingsKeyPutBody,
+      params,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getPutSettingSettingsKeyPutMutationKey = () => ["putSettingSettingsKeyPut"] as const;
+
+export const getPutSettingSettingsKeyPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putSettingSettingsKeyPut>>,
+    TError,
+    PutSettingSettingsKeyPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof putSettingSettingsKeyPut>>,
+  TError,
+  PutSettingSettingsKeyPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getPutSettingSettingsKeyPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof putSettingSettingsKeyPut>>,
+    PutSettingSettingsKeyPutMutationVariables
+  > = (props) => {
+    const { key, data, params } = props ?? {};
+
+    return putSettingSettingsKeyPut(key, data, params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PutSettingSettingsKeyPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof putSettingSettingsKeyPut>>
+>;
+export type PutSettingSettingsKeyPutMutationBody = BodyType<PutSettingSettingsKeyPutBody>;
+export type PutSettingSettingsKeyPutMutationError = ErrorType<unknown>;
+export type PutSettingSettingsKeyPutMutationVariables = {
+  key: string;
+  data: BodyType<PutSettingSettingsKeyPutBody>;
+  params?: PutSettingSettingsKeyPutParams;
+};
+
+/**
+ * @summary Update a setting
+ */
+export const usePutSettingSettingsKeyPut = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof putSettingSettingsKeyPut>>,
+      TError,
+      PutSettingSettingsKeyPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof putSettingSettingsKeyPut>>,
+  TError,
+  PutSettingSettingsKeyPutMutationVariables,
+  TContext
+> => {
+  return useMutation(getPutSettingSettingsKeyPutMutationOptions(options), queryClient);
+};
+
+/**
+ * Delete a single investment setting by key for the current user or a family group member.
+ * @summary Delete a setting
+ */
+export const deleteSettingSettingsKeyDelete = (
+  key: string,
+  params?: DeleteSettingSettingsKeyDeleteParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/settings/${key}`, method: "DELETE", params, signal },
+    options,
+  );
+};
+
+export const getDeleteSettingSettingsKeyDeleteMutationKey = () =>
+  ["deleteSettingSettingsKeyDelete"] as const;
+
+export const getDeleteSettingSettingsKeyDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSettingSettingsKeyDelete>>,
+    TError,
+    DeleteSettingSettingsKeyDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteSettingSettingsKeyDelete>>,
+  TError,
+  DeleteSettingSettingsKeyDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeleteSettingSettingsKeyDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteSettingSettingsKeyDelete>>,
+    DeleteSettingSettingsKeyDeleteMutationVariables
+  > = (props) => {
+    const { key, params } = props ?? {};
+
+    return deleteSettingSettingsKeyDelete(key, params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteSettingSettingsKeyDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteSettingSettingsKeyDelete>>
+>;
+
+export type DeleteSettingSettingsKeyDeleteMutationError = ErrorType<unknown>;
+export type DeleteSettingSettingsKeyDeleteMutationVariables = {
+  key: string;
+  params?: DeleteSettingSettingsKeyDeleteParams;
+};
+
+/**
+ * @summary Delete a setting
+ */
+export const useDeleteSettingSettingsKeyDelete = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteSettingSettingsKeyDelete>>,
+      TError,
+      DeleteSettingSettingsKeyDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteSettingSettingsKeyDelete>>,
+  TError,
+  DeleteSettingSettingsKeyDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(getDeleteSettingSettingsKeyDeleteMutationOptions(options), queryClient);
+};
+
+/**
+ * Remove all settings and investment records for a given broker (iol or ppi) for the current user.
+ * @summary Delete all broker settings and investments
+ */
+export const deleteBrokerSettingsSettingsBrokerBrokerDelete = (
+  broker: string,
+  params?: DeleteBrokerSettingsSettingsBrokerBrokerDeleteParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/settings/broker/${broker}`, method: "DELETE", params, signal },
+    options,
+  );
+};
+
+export const getDeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationKey = () =>
+  ["deleteBrokerSettingsSettingsBrokerBrokerDelete"] as const;
+
+export const getDeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBrokerSettingsSettingsBrokerBrokerDelete>>,
+    TError,
+    DeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteBrokerSettingsSettingsBrokerBrokerDelete>>,
+  TError,
+  DeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteBrokerSettingsSettingsBrokerBrokerDelete>>,
+    DeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationVariables
+  > = (props) => {
+    const { broker, params } = props ?? {};
+
+    return deleteBrokerSettingsSettingsBrokerBrokerDelete(broker, params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteBrokerSettingsSettingsBrokerBrokerDelete>>
+>;
+
+export type DeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationError = ErrorType<unknown>;
+export type DeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationVariables = {
+  broker: string;
+  params?: DeleteBrokerSettingsSettingsBrokerBrokerDeleteParams;
+};
+
+/**
+ * @summary Delete all broker settings and investments
+ */
+export const useDeleteBrokerSettingsSettingsBrokerBrokerDelete = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteBrokerSettingsSettingsBrokerBrokerDelete>>,
+      TError,
+      DeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteBrokerSettingsSettingsBrokerBrokerDelete>>,
+  TError,
+  DeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getDeleteBrokerSettingsSettingsBrokerBrokerDeleteMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Update all fields of an existing investment. Refreshes the current price from Yahoo Finance.
+ * @summary Update an investment
+ */
+export const updateInvestmentInvestmentsInvIdPut = (
+  invId: number,
+  investmentCreate: BodyType<InvestmentCreate>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/investments/${invId}`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: investmentCreate,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getUpdateInvestmentInvestmentsInvIdPutMutationKey = () =>
+  ["updateInvestmentInvestmentsInvIdPut"] as const;
+
+export const getUpdateInvestmentInvestmentsInvIdPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateInvestmentInvestmentsInvIdPut>>,
+    TError,
+    UpdateInvestmentInvestmentsInvIdPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateInvestmentInvestmentsInvIdPut>>,
+  TError,
+  UpdateInvestmentInvestmentsInvIdPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdateInvestmentInvestmentsInvIdPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateInvestmentInvestmentsInvIdPut>>,
+    UpdateInvestmentInvestmentsInvIdPutMutationVariables
+  > = (props) => {
+    const { invId, data } = props ?? {};
+
+    return updateInvestmentInvestmentsInvIdPut(invId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateInvestmentInvestmentsInvIdPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateInvestmentInvestmentsInvIdPut>>
+>;
+export type UpdateInvestmentInvestmentsInvIdPutMutationBody = BodyType<InvestmentCreate>;
+export type UpdateInvestmentInvestmentsInvIdPutMutationError = ErrorType<unknown>;
+export type UpdateInvestmentInvestmentsInvIdPutMutationVariables = {
+  invId: number;
+  data: BodyType<InvestmentCreate>;
+};
+
+/**
+ * @summary Update an investment
+ */
+export const useUpdateInvestmentInvestmentsInvIdPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateInvestmentInvestmentsInvIdPut>>,
+      TError,
+      UpdateInvestmentInvestmentsInvIdPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateInvestmentInvestmentsInvIdPut>>,
+  TError,
+  UpdateInvestmentInvestmentsInvIdPutMutationVariables,
+  TContext
+> => {
+  return useMutation(getUpdateInvestmentInvestmentsInvIdPutMutationOptions(options), queryClient);
+};
+
+/**
+ * Permanently delete an investment record by ID.
+ * @summary Delete an investment
+ */
+export const deleteInvestmentInvestmentsInvIdDelete = (
+  invId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/investments/${invId}`, method: "DELETE", signal }, options);
+};
+
+export const getDeleteInvestmentInvestmentsInvIdDeleteMutationKey = () =>
+  ["deleteInvestmentInvestmentsInvIdDelete"] as const;
+
+export const getDeleteInvestmentInvestmentsInvIdDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteInvestmentInvestmentsInvIdDelete>>,
+    TError,
+    DeleteInvestmentInvestmentsInvIdDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteInvestmentInvestmentsInvIdDelete>>,
+  TError,
+  DeleteInvestmentInvestmentsInvIdDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeleteInvestmentInvestmentsInvIdDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteInvestmentInvestmentsInvIdDelete>>,
+    DeleteInvestmentInvestmentsInvIdDeleteMutationVariables
+  > = (props) => {
+    const { invId } = props ?? {};
+
+    return deleteInvestmentInvestmentsInvIdDelete(invId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteInvestmentInvestmentsInvIdDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteInvestmentInvestmentsInvIdDelete>>
+>;
+
+export type DeleteInvestmentInvestmentsInvIdDeleteMutationError = ErrorType<unknown>;
+export type DeleteInvestmentInvestmentsInvIdDeleteMutationVariables = { invId: number };
+
+/**
+ * @summary Delete an investment
+ */
+export const useDeleteInvestmentInvestmentsInvIdDelete = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteInvestmentInvestmentsInvIdDelete>>,
+      TError,
+      DeleteInvestmentInvestmentsInvIdDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteInvestmentInvestmentsInvIdDelete>>,
+  TError,
+  DeleteInvestmentInvestmentsInvIdDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getDeleteInvestmentInvestmentsInvIdDeleteMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Manually update only the current price of an investment.
+ * @summary Update investment price
+ */
+export const updateInvestmentPriceInvestmentsInvIdPricePatch = (
+  invId: number,
+  updateInvestmentPriceInvestmentsInvIdPricePatchBody: BodyType<UpdateInvestmentPriceInvestmentsInvIdPricePatchBody>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/investments/${invId}/price`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: updateInvestmentPriceInvestmentsInvIdPricePatchBody,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getUpdateInvestmentPriceInvestmentsInvIdPricePatchMutationKey = () =>
+  ["updateInvestmentPriceInvestmentsInvIdPricePatch"] as const;
+
+export const getUpdateInvestmentPriceInvestmentsInvIdPricePatchMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateInvestmentPriceInvestmentsInvIdPricePatch>>,
+    TError,
+    UpdateInvestmentPriceInvestmentsInvIdPricePatchMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateInvestmentPriceInvestmentsInvIdPricePatch>>,
+  TError,
+  UpdateInvestmentPriceInvestmentsInvIdPricePatchMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdateInvestmentPriceInvestmentsInvIdPricePatchMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateInvestmentPriceInvestmentsInvIdPricePatch>>,
+    UpdateInvestmentPriceInvestmentsInvIdPricePatchMutationVariables
+  > = (props) => {
+    const { invId, data } = props ?? {};
+
+    return updateInvestmentPriceInvestmentsInvIdPricePatch(invId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateInvestmentPriceInvestmentsInvIdPricePatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateInvestmentPriceInvestmentsInvIdPricePatch>>
+>;
+export type UpdateInvestmentPriceInvestmentsInvIdPricePatchMutationBody =
+  BodyType<UpdateInvestmentPriceInvestmentsInvIdPricePatchBody>;
+export type UpdateInvestmentPriceInvestmentsInvIdPricePatchMutationError = ErrorType<unknown>;
+export type UpdateInvestmentPriceInvestmentsInvIdPricePatchMutationVariables = {
+  invId: number;
+  data: BodyType<UpdateInvestmentPriceInvestmentsInvIdPricePatchBody>;
+};
+
+/**
+ * @summary Update investment price
+ */
+export const useUpdateInvestmentPriceInvestmentsInvIdPricePatch = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateInvestmentPriceInvestmentsInvIdPricePatch>>,
+      TError,
+      UpdateInvestmentPriceInvestmentsInvIdPricePatchMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateInvestmentPriceInvestmentsInvIdPricePatch>>,
+  TError,
+  UpdateInvestmentPriceInvestmentsInvIdPricePatchMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getUpdateInvestmentPriceInvestmentsInvIdPricePatchMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Remove duplicate investment entries with the same ticker and broker, keeping the one with the best data.
+ * @summary Deduplicate investments
+ */
+export const deduplicateInvestmentsInvestmentsDeduplicatePost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/investments/deduplicate`, method: "POST", signal }, options);
+};
+
+export const getDeduplicateInvestmentsInvestmentsDeduplicatePostMutationKey = () =>
+  ["deduplicateInvestmentsInvestmentsDeduplicatePost"] as const;
+
+export const getDeduplicateInvestmentsInvestmentsDeduplicatePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deduplicateInvestmentsInvestmentsDeduplicatePost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deduplicateInvestmentsInvestmentsDeduplicatePost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getDeduplicateInvestmentsInvestmentsDeduplicatePostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deduplicateInvestmentsInvestmentsDeduplicatePost>>,
+    void
+  > = () => {
+    return deduplicateInvestmentsInvestmentsDeduplicatePost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeduplicateInvestmentsInvestmentsDeduplicatePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deduplicateInvestmentsInvestmentsDeduplicatePost>>
+>;
+
+export type DeduplicateInvestmentsInvestmentsDeduplicatePostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Deduplicate investments
+ */
+export const useDeduplicateInvestmentsInvestmentsDeduplicatePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deduplicateInvestmentsInvestmentsDeduplicatePost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deduplicateInvestmentsInvestmentsDeduplicatePost>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(
+    getDeduplicateInvestmentsInvestmentsDeduplicatePostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Fetch and synchronize investment portfolio from InvertirOnline (IOL) broker into the local database.
+ * @summary Sync investments from IOL
+ */
+export const syncIolInvestmentsSyncIolPost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/investments/sync/iol`, method: "POST", signal }, options);
+};
+
+export const getSyncIolInvestmentsSyncIolPostMutationKey = () =>
+  ["syncIolInvestmentsSyncIolPost"] as const;
+
+export const getSyncIolInvestmentsSyncIolPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncIolInvestmentsSyncIolPost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncIolInvestmentsSyncIolPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getSyncIolInvestmentsSyncIolPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncIolInvestmentsSyncIolPost>>,
+    void
+  > = () => {
+    return syncIolInvestmentsSyncIolPost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncIolInvestmentsSyncIolPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncIolInvestmentsSyncIolPost>>
+>;
+
+export type SyncIolInvestmentsSyncIolPostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Sync investments from IOL
+ */
+export const useSyncIolInvestmentsSyncIolPost = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof syncIolInvestmentsSyncIolPost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof syncIolInvestmentsSyncIolPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncIolInvestmentsSyncIolPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Fetch and synchronize investment portfolio from Portfolio Personal Inversiones (PPI) broker into the local database.
+ * @summary Sync investments from PPI
+ */
+export const syncPpiInvestmentsSyncPpiPost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/investments/sync/ppi`, method: "POST", signal }, options);
+};
+
+export const getSyncPpiInvestmentsSyncPpiPostMutationKey = () =>
+  ["syncPpiInvestmentsSyncPpiPost"] as const;
+
+export const getSyncPpiInvestmentsSyncPpiPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncPpiInvestmentsSyncPpiPost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncPpiInvestmentsSyncPpiPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getSyncPpiInvestmentsSyncPpiPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncPpiInvestmentsSyncPpiPost>>,
+    void
+  > = () => {
+    return syncPpiInvestmentsSyncPpiPost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncPpiInvestmentsSyncPpiPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncPpiInvestmentsSyncPpiPost>>
+>;
+
+export type SyncPpiInvestmentsSyncPpiPostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Sync investments from PPI
+ */
+export const useSyncPpiInvestmentsSyncPpiPost = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof syncPpiInvestmentsSyncPpiPost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof syncPpiInvestmentsSyncPpiPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncPpiInvestmentsSyncPpiPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Returns the current USD/ARS exchange rate, trying BNA, ADR-implied rate, and BCRA official sources in order.
+ * @summary Get USD/ARS exchange rate
+ */
+export const getUsdRateInvestmentsUsdRateGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/investments/usd-rate`, method: "GET", signal }, options);
+};
+
+export const getGetUsdRateInvestmentsUsdRateGetQueryKey = () => {
+  return [`/investments/usd-rate`] as const;
+};
+
+export const getGetUsdRateInvestmentsUsdRateGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetUsdRateInvestmentsUsdRateGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>> = ({
+    signal,
+  }) => getUsdRateInvestmentsUsdRateGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetUsdRateInvestmentsUsdRateGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>
+>;
+export type GetUsdRateInvestmentsUsdRateGetQueryError = ErrorType<unknown>;
+
+export function useGetUsdRateInvestmentsUsdRateGet<
+  TData = Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>,
+          TError,
+          Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetUsdRateInvestmentsUsdRateGet<
+  TData = Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>,
+          TError,
+          Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetUsdRateInvestmentsUsdRateGet<
+  TData = Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get USD/ARS exchange rate
+ */
+
+export function useGetUsdRateInvestmentsUsdRateGet<
+  TData = Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUsdRateInvestmentsUsdRateGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetUsdRateInvestmentsUsdRateGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve uninvested cash balances (ARS and USD) from configured IOL and PPI broker accounts.
+ * @summary Get broker cash balances
+ */
+export const getCashBalancesInvestmentsCashBalancesGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/investments/cash-balances`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getGetCashBalancesInvestmentsCashBalancesGetQueryKey = () => {
+  return [`/investments/cash-balances`] as const;
+};
+
+export const getGetCashBalancesInvestmentsCashBalancesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCashBalancesInvestmentsCashBalancesGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>
+  > = ({ signal }) => getCashBalancesInvestmentsCashBalancesGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetCashBalancesInvestmentsCashBalancesGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>
+>;
+export type GetCashBalancesInvestmentsCashBalancesGetQueryError = ErrorType<unknown>;
+
+export function useGetCashBalancesInvestmentsCashBalancesGet<
+  TData = Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCashBalancesInvestmentsCashBalancesGet<
+  TData = Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCashBalancesInvestmentsCashBalancesGet<
+  TData = Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get broker cash balances
+ */
+
+export function useGetCashBalancesInvestmentsCashBalancesGet<
+  TData = Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCashBalancesInvestmentsCashBalancesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetCashBalancesInvestmentsCashBalancesGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Trigger a background refresh of current prices for investments that were entered manually.
+ * @summary Refresh manual investment prices
+ */
+export const refreshManualPricesEndpointInvestmentsRefreshManualPricesPost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/investments/refresh-manual-prices`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getRefreshManualPricesEndpointInvestmentsRefreshManualPricesPostMutationKey = () =>
+  ["refreshManualPricesEndpointInvestmentsRefreshManualPricesPost"] as const;
+
+export const getRefreshManualPricesEndpointInvestmentsRefreshManualPricesPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshManualPricesEndpointInvestmentsRefreshManualPricesPost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof refreshManualPricesEndpointInvestmentsRefreshManualPricesPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getRefreshManualPricesEndpointInvestmentsRefreshManualPricesPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof refreshManualPricesEndpointInvestmentsRefreshManualPricesPost>>,
+    void
+  > = () => {
+    return refreshManualPricesEndpointInvestmentsRefreshManualPricesPost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RefreshManualPricesEndpointInvestmentsRefreshManualPricesPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof refreshManualPricesEndpointInvestmentsRefreshManualPricesPost>>
+  >;
+
+export type RefreshManualPricesEndpointInvestmentsRefreshManualPricesPostMutationError =
+  ErrorType<unknown>;
+
+/**
+ * @summary Refresh manual investment prices
+ */
+export const useRefreshManualPricesEndpointInvestmentsRefreshManualPricesPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof refreshManualPricesEndpointInvestmentsRefreshManualPricesPost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof refreshManualPricesEndpointInvestmentsRefreshManualPricesPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(
+    getRefreshManualPricesEndpointInvestmentsRefreshManualPricesPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Retrieve manually entered cash balances per broker stored in settings.
+ * @summary Get manual cash balances
+ */
+export const getManualCashBalancesInvestmentsManualCashBalancesGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/investments/manual-cash-balances`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getGetManualCashBalancesInvestmentsManualCashBalancesGetQueryKey = () => {
+  return [`/investments/manual-cash-balances`] as const;
+};
+
+export const getGetManualCashBalancesInvestmentsManualCashBalancesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetManualCashBalancesInvestmentsManualCashBalancesGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>
+  > = ({ signal }) => getManualCashBalancesInvestmentsManualCashBalancesGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetManualCashBalancesInvestmentsManualCashBalancesGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>
+>;
+export type GetManualCashBalancesInvestmentsManualCashBalancesGetQueryError = ErrorType<unknown>;
+
+export function useGetManualCashBalancesInvestmentsManualCashBalancesGet<
+  TData = Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+          TError,
+          Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetManualCashBalancesInvestmentsManualCashBalancesGet<
+  TData = Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+          TError,
+          Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetManualCashBalancesInvestmentsManualCashBalancesGet<
+  TData = Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get manual cash balances
+ */
+
+export function useGetManualCashBalancesInvestmentsManualCashBalancesGet<
+  TData = Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getManualCashBalancesInvestmentsManualCashBalancesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions =
+    getGetManualCashBalancesInvestmentsManualCashBalancesGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Create or update a manually tracked cash balance (ARS/USD) for a specific broker.
+ * @summary Update manual cash balance
+ */
+export const putManualCashBalanceInvestmentsManualCashBalancesBrokerPut = (
+  broker: string,
+  putManualCashBalanceInvestmentsManualCashBalancesBrokerPutBody: BodyType<PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutBody>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/investments/manual-cash-balances/${broker}`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: putManualCashBalanceInvestmentsManualCashBalancesBrokerPutBody,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getPutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationKey = () =>
+  ["putManualCashBalanceInvestmentsManualCashBalancesBrokerPut"] as const;
+
+export const getPutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putManualCashBalanceInvestmentsManualCashBalancesBrokerPut>>,
+    TError,
+    PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof putManualCashBalanceInvestmentsManualCashBalancesBrokerPut>>,
+  TError,
+  PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getPutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof putManualCashBalanceInvestmentsManualCashBalancesBrokerPut>>,
+    PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationVariables
+  > = (props) => {
+    const { broker, data } = props ?? {};
+
+    return putManualCashBalanceInvestmentsManualCashBalancesBrokerPut(broker, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof putManualCashBalanceInvestmentsManualCashBalancesBrokerPut>>
+>;
+export type PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationBody =
+  BodyType<PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutBody>;
+export type PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationError =
+  ErrorType<unknown>;
+export type PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationVariables = {
+  broker: string;
+  data: BodyType<PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutBody>;
+};
+
+/**
+ * @summary Update manual cash balance
+ */
+export const usePutManualCashBalanceInvestmentsManualCashBalancesBrokerPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof putManualCashBalanceInvestmentsManualCashBalancesBrokerPut>>,
+      TError,
+      PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof putManualCashBalanceInvestmentsManualCashBalancesBrokerPut>>,
+  TError,
+  PutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getPutManualCashBalanceInvestmentsManualCashBalancesBrokerPutMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Remove the manually tracked cash balance for a specific broker.
+ * @summary Delete manual cash balance
+ */
+export const deleteManualCashBalanceInvestmentsManualCashBalancesBrokerDelete = (
+  broker: string,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/investments/manual-cash-balances/${broker}`, method: "DELETE", signal },
+    options,
+  );
+};
+
+export const getDeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationKey = () =>
+  ["deleteManualCashBalanceInvestmentsManualCashBalancesBrokerDelete"] as const;
+
+export const getDeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteManualCashBalanceInvestmentsManualCashBalancesBrokerDelete>>,
+    TError,
+    DeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteManualCashBalanceInvestmentsManualCashBalancesBrokerDelete>>,
+  TError,
+  DeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey =
+    getDeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteManualCashBalanceInvestmentsManualCashBalancesBrokerDelete>>,
+    DeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationVariables
+  > = (props) => {
+    const { broker } = props ?? {};
+
+    return deleteManualCashBalanceInvestmentsManualCashBalancesBrokerDelete(broker, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof deleteManualCashBalanceInvestmentsManualCashBalancesBrokerDelete>>
+  >;
+
+export type DeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationError =
+  ErrorType<unknown>;
+export type DeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationVariables = {
+  broker: string;
+};
+
+/**
+ * @summary Delete manual cash balance
+ */
+export const useDeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDelete = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteManualCashBalanceInvestmentsManualCashBalancesBrokerDelete>>,
+      TError,
+      DeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteManualCashBalanceInvestmentsManualCashBalancesBrokerDelete>>,
+  TError,
+  DeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getDeleteManualCashBalanceInvestmentsManualCashBalancesBrokerDeleteMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * SSE streaming chat endpoint for the investments assistant. Answers questions about portfolios, markets, and financial analysis.
+ * @summary Investments chat assistant
+ */
+export const investmentsChatStreamInvestmentsChatStreamPost = (
+  investmentsChatStreamInvestmentsChatStreamPostBody: BodyType<InvestmentsChatStreamInvestmentsChatStreamPostBody>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/investments/chat/stream`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: investmentsChatStreamInvestmentsChatStreamPostBody,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getInvestmentsChatStreamInvestmentsChatStreamPostMutationKey = () =>
+  ["investmentsChatStreamInvestmentsChatStreamPost"] as const;
+
+export const getInvestmentsChatStreamInvestmentsChatStreamPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof investmentsChatStreamInvestmentsChatStreamPost>>,
+    TError,
+    InvestmentsChatStreamInvestmentsChatStreamPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof investmentsChatStreamInvestmentsChatStreamPost>>,
+  TError,
+  InvestmentsChatStreamInvestmentsChatStreamPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getInvestmentsChatStreamInvestmentsChatStreamPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof investmentsChatStreamInvestmentsChatStreamPost>>,
+    InvestmentsChatStreamInvestmentsChatStreamPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return investmentsChatStreamInvestmentsChatStreamPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type InvestmentsChatStreamInvestmentsChatStreamPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof investmentsChatStreamInvestmentsChatStreamPost>>
+>;
+export type InvestmentsChatStreamInvestmentsChatStreamPostMutationBody =
+  BodyType<InvestmentsChatStreamInvestmentsChatStreamPostBody>;
+export type InvestmentsChatStreamInvestmentsChatStreamPostMutationError = ErrorType<unknown>;
+export type InvestmentsChatStreamInvestmentsChatStreamPostMutationVariables = {
+  data: BodyType<InvestmentsChatStreamInvestmentsChatStreamPostBody>;
+};
+
+/**
+ * @summary Investments chat assistant
+ */
+export const useInvestmentsChatStreamInvestmentsChatStreamPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof investmentsChatStreamInvestmentsChatStreamPost>>,
+      TError,
+      InvestmentsChatStreamInvestmentsChatStreamPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof investmentsChatStreamInvestmentsChatStreamPost>>,
+  TError,
+  InvestmentsChatStreamInvestmentsChatStreamPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getInvestmentsChatStreamInvestmentsChatStreamPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Search Yahoo Finance for a single stock symbol and return its name and current price.
+ * @summary Lookup a stock symbol
+ */
+export const lookupSymbolInvestmentsLookupGet = (
+  params: LookupSymbolInvestmentsLookupGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/investments/lookup`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getLookupSymbolInvestmentsLookupGetQueryKey = (
+  params?: LookupSymbolInvestmentsLookupGetParams,
+) => {
+  return [`/investments/lookup`, ...(params ? [params] : [])] as const;
+};
+
+export const getLookupSymbolInvestmentsLookupGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupSymbolInvestmentsLookupGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLookupSymbolInvestmentsLookupGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>> = ({
+    signal,
+  }) => lookupSymbolInvestmentsLookupGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type LookupSymbolInvestmentsLookupGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>
+>;
+export type LookupSymbolInvestmentsLookupGetQueryError = ErrorType<unknown>;
+
+export function useLookupSymbolInvestmentsLookupGet<
+  TData = Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupSymbolInvestmentsLookupGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>,
+          TError,
+          Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLookupSymbolInvestmentsLookupGet<
+  TData = Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupSymbolInvestmentsLookupGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>,
+          TError,
+          Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLookupSymbolInvestmentsLookupGet<
+  TData = Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupSymbolInvestmentsLookupGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Lookup a stock symbol
+ */
+
+export function useLookupSymbolInvestmentsLookupGet<
+  TData = Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupSymbolInvestmentsLookupGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof lookupSymbolInvestmentsLookupGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLookupSymbolInvestmentsLookupGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Search Yahoo Finance for multiple comma-separated symbols and return their names and prices.
+ * @summary Lookup multiple stock symbols
+ */
+export const lookupSymbolsInvestmentsLookupBatchGet = (
+  params: LookupSymbolsInvestmentsLookupBatchGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/investments/lookup-batch`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getLookupSymbolsInvestmentsLookupBatchGetQueryKey = (
+  params?: LookupSymbolsInvestmentsLookupBatchGetParams,
+) => {
+  return [`/investments/lookup-batch`, ...(params ? [params] : [])] as const;
+};
+
+export const getLookupSymbolsInvestmentsLookupBatchGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupSymbolsInvestmentsLookupBatchGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getLookupSymbolsInvestmentsLookupBatchGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>
+  > = ({ signal }) => lookupSymbolsInvestmentsLookupBatchGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type LookupSymbolsInvestmentsLookupBatchGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>
+>;
+export type LookupSymbolsInvestmentsLookupBatchGetQueryError = ErrorType<unknown>;
+
+export function useLookupSymbolsInvestmentsLookupBatchGet<
+  TData = Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupSymbolsInvestmentsLookupBatchGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+          TError,
+          Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLookupSymbolsInvestmentsLookupBatchGet<
+  TData = Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupSymbolsInvestmentsLookupBatchGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+          TError,
+          Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useLookupSymbolsInvestmentsLookupBatchGet<
+  TData = Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupSymbolsInvestmentsLookupBatchGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Lookup multiple stock symbols
+ */
+
+export function useLookupSymbolsInvestmentsLookupBatchGet<
+  TData = Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: LookupSymbolsInvestmentsLookupBatchGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof lookupSymbolsInvestmentsLookupBatchGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getLookupSymbolsInvestmentsLookupBatchGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve historical price data for an investment from Yahoo Finance with configurable range (1d, 7d, 30d).
+ * @summary Get investment price history
+ */
+export const getInvestmentHistoryInvestmentsInvIdHistoryGet = (
+  invId: number,
+  params?: GetInvestmentHistoryInvestmentsInvIdHistoryGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/investments/${invId}/history`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGetInvestmentHistoryInvestmentsInvIdHistoryGetQueryKey = (
+  invId: number,
+  params?: GetInvestmentHistoryInvestmentsInvIdHistoryGetParams,
+) => {
+  return [`/investments/${invId}/history`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetInvestmentHistoryInvestmentsInvIdHistoryGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  invId: number,
+  params?: GetInvestmentHistoryInvestmentsInvIdHistoryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetInvestmentHistoryInvestmentsInvIdHistoryGetQueryKey(invId, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>
+  > = ({ signal }) =>
+    getInvestmentHistoryInvestmentsInvIdHistoryGet(invId, params, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: invId !== null && invId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetInvestmentHistoryInvestmentsInvIdHistoryGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>
+>;
+export type GetInvestmentHistoryInvestmentsInvIdHistoryGetQueryError = ErrorType<unknown>;
+
+export function useGetInvestmentHistoryInvestmentsInvIdHistoryGet<
+  TData = Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  invId: number,
+  params: undefined | GetInvestmentHistoryInvestmentsInvIdHistoryGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+          TError,
+          Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetInvestmentHistoryInvestmentsInvIdHistoryGet<
+  TData = Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  invId: number,
+  params?: GetInvestmentHistoryInvestmentsInvIdHistoryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+          TError,
+          Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetInvestmentHistoryInvestmentsInvIdHistoryGet<
+  TData = Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  invId: number,
+  params?: GetInvestmentHistoryInvestmentsInvIdHistoryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get investment price history
+ */
+
+export function useGetInvestmentHistoryInvestmentsInvIdHistoryGet<
+  TData = Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  invId: number,
+  params?: GetInvestmentHistoryInvestmentsInvIdHistoryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInvestmentHistoryInvestmentsInvIdHistoryGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetInvestmentHistoryInvestmentsInvIdHistoryGetQueryOptions(
+    invId,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve aggregated expense data including totals by category, period, card, currency, and recent expenses.
+ * @summary Get expense summary
+ */
+export const getSummaryDashboardSummaryGet = (
+  params?: GetSummaryDashboardSummaryGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/summary`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGetSummaryDashboardSummaryGetQueryKey = (
+  params?: GetSummaryDashboardSummaryGetParams,
+) => {
+  return [`/dashboard/summary`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetSummaryDashboardSummaryGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetSummaryDashboardSummaryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSummaryDashboardSummaryGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>> = ({
+    signal,
+  }) => getSummaryDashboardSummaryGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetSummaryDashboardSummaryGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>
+>;
+export type GetSummaryDashboardSummaryGetQueryError = ErrorType<unknown>;
+
+export function useGetSummaryDashboardSummaryGet<
+  TData = Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetSummaryDashboardSummaryGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>,
+          TError,
+          Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetSummaryDashboardSummaryGet<
+  TData = Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetSummaryDashboardSummaryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>,
+          TError,
+          Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetSummaryDashboardSummaryGet<
+  TData = Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetSummaryDashboardSummaryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get expense summary
+ */
+
+export function useGetSummaryDashboardSummaryGet<
+  TData = Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetSummaryDashboardSummaryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSummaryDashboardSummaryGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetSummaryDashboardSummaryGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Generate a monthly analysis report with income vs expenses, savings rate, top categories, MoM comparison, and LLM-powered insights.
+ * @summary Get monthly financial report
+ */
+export const getMonthlyReportDashboardMonthlyReportGet = (
+  params?: GetMonthlyReportDashboardMonthlyReportGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/monthly-report`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGetMonthlyReportDashboardMonthlyReportGetQueryKey = (
+  params?: GetMonthlyReportDashboardMonthlyReportGetParams,
+) => {
+  return [`/dashboard/monthly-report`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetMonthlyReportDashboardMonthlyReportGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetMonthlyReportDashboardMonthlyReportGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetMonthlyReportDashboardMonthlyReportGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>
+  > = ({ signal }) => getMonthlyReportDashboardMonthlyReportGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetMonthlyReportDashboardMonthlyReportGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>
+>;
+export type GetMonthlyReportDashboardMonthlyReportGetQueryError = ErrorType<unknown>;
+
+export function useGetMonthlyReportDashboardMonthlyReportGet<
+  TData = Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetMonthlyReportDashboardMonthlyReportGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+          TError,
+          Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetMonthlyReportDashboardMonthlyReportGet<
+  TData = Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetMonthlyReportDashboardMonthlyReportGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+          TError,
+          Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetMonthlyReportDashboardMonthlyReportGet<
+  TData = Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetMonthlyReportDashboardMonthlyReportGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get monthly financial report
+ */
+
+export function useGetMonthlyReportDashboardMonthlyReportGet<
+  TData = Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetMonthlyReportDashboardMonthlyReportGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMonthlyReportDashboardMonthlyReportGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetMonthlyReportDashboardMonthlyReportGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Download a printable HTML version of the monthly financial report for the specified month.
+ * @summary Download monthly report as HTML
+ */
+export const downloadMonthlyReportDashboardMonthlyReportDownloadGet = (
+  params?: DownloadMonthlyReportDashboardMonthlyReportDownloadGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/monthly-report/download`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getDownloadMonthlyReportDashboardMonthlyReportDownloadGetQueryKey = (
+  params?: DownloadMonthlyReportDashboardMonthlyReportDownloadGetParams,
+) => {
+  return [`/dashboard/monthly-report/download`, ...(params ? [params] : [])] as const;
+};
+
+export const getDownloadMonthlyReportDashboardMonthlyReportDownloadGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: DownloadMonthlyReportDashboardMonthlyReportDownloadGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getDownloadMonthlyReportDashboardMonthlyReportDownloadGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>
+  > = ({ signal }) =>
+    downloadMonthlyReportDashboardMonthlyReportDownloadGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type DownloadMonthlyReportDashboardMonthlyReportDownloadGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>
+>;
+export type DownloadMonthlyReportDashboardMonthlyReportDownloadGetQueryError = ErrorType<unknown>;
+
+export function useDownloadMonthlyReportDashboardMonthlyReportDownloadGet<
+  TData = Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | DownloadMonthlyReportDashboardMonthlyReportDownloadGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+          TError,
+          Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useDownloadMonthlyReportDashboardMonthlyReportDownloadGet<
+  TData = Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: DownloadMonthlyReportDashboardMonthlyReportDownloadGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+          TError,
+          Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useDownloadMonthlyReportDashboardMonthlyReportDownloadGet<
+  TData = Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: DownloadMonthlyReportDashboardMonthlyReportDownloadGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Download monthly report as HTML
+ */
+
+export function useDownloadMonthlyReportDashboardMonthlyReportDownloadGet<
+  TData = Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: DownloadMonthlyReportDashboardMonthlyReportDownloadGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof downloadMonthlyReportDashboardMonthlyReportDownloadGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getDownloadMonthlyReportDashboardMonthlyReportDownloadGetQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * List all generated monthly reports for the current user with their status and generation date.
+ * @summary List monthly reports
+ */
+export const listMonthlyReportsDashboardMonthlyReportsGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/monthly-reports`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getListMonthlyReportsDashboardMonthlyReportsGetQueryKey = () => {
+  return [`/dashboard/monthly-reports`] as const;
+};
+
+export const getListMonthlyReportsDashboardMonthlyReportsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListMonthlyReportsDashboardMonthlyReportsGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>
+  > = ({ signal }) => listMonthlyReportsDashboardMonthlyReportsGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListMonthlyReportsDashboardMonthlyReportsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>
+>;
+export type ListMonthlyReportsDashboardMonthlyReportsGetQueryError = ErrorType<unknown>;
+
+export function useListMonthlyReportsDashboardMonthlyReportsGet<
+  TData = Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMonthlyReportsDashboardMonthlyReportsGet<
+  TData = Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMonthlyReportsDashboardMonthlyReportsGet<
+  TData = Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List monthly reports
+ */
+
+export function useListMonthlyReportsDashboardMonthlyReportsGet<
+  TData = Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listMonthlyReportsDashboardMonthlyReportsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListMonthlyReportsDashboardMonthlyReportsGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Trigger on-demand generation of a monthly report via a background Celery task.
+ * @summary Generate a monthly report
+ */
+export const generateMonthlyReportDashboardMonthlyReportsGeneratePost = (
+  params: GenerateMonthlyReportDashboardMonthlyReportsGeneratePostParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/monthly-reports/generate`, method: "POST", params, signal },
+    options,
+  );
+};
+
+export const getGenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationKey = () =>
+  ["generateMonthlyReportDashboardMonthlyReportsGeneratePost"] as const;
+
+export const getGenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateMonthlyReportDashboardMonthlyReportsGeneratePost>>,
+    TError,
+    GenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateMonthlyReportDashboardMonthlyReportsGeneratePost>>,
+  TError,
+  GenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getGenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateMonthlyReportDashboardMonthlyReportsGeneratePost>>,
+    GenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationVariables
+  > = (props) => {
+    const { params } = props ?? {};
+
+    return generateMonthlyReportDashboardMonthlyReportsGeneratePost(params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateMonthlyReportDashboardMonthlyReportsGeneratePost>>
+>;
+
+export type GenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationError =
+  ErrorType<unknown>;
+export type GenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationVariables = {
+  params: GenerateMonthlyReportDashboardMonthlyReportsGeneratePostParams;
+};
+
+/**
+ * @summary Generate a monthly report
+ */
+export const useGenerateMonthlyReportDashboardMonthlyReportsGeneratePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof generateMonthlyReportDashboardMonthlyReportsGeneratePost>>,
+      TError,
+      GenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof generateMonthlyReportDashboardMonthlyReportsGeneratePost>>,
+  TError,
+  GenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getGenerateMonthlyReportDashboardMonthlyReportsGeneratePostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Download a previously generated monthly report as a PNG image (or PDF for legacy reports).
+ * @summary Download monthly report as image
+ */
+export const downloadReportImageDashboardMonthlyReportsMonthDownloadGet = (
+  month: string,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/monthly-reports/${month}/download`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getDownloadReportImageDashboardMonthlyReportsMonthDownloadGetQueryKey = (
+  month: string,
+) => {
+  return [`/dashboard/monthly-reports/${month}/download`] as const;
+};
+
+export const getDownloadReportImageDashboardMonthlyReportsMonthDownloadGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  month: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getDownloadReportImageDashboardMonthlyReportsMonthDownloadGetQueryKey(month);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>
+  > = ({ signal }) =>
+    downloadReportImageDashboardMonthlyReportsMonthDownloadGet(month, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: month !== null && month !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type DownloadReportImageDashboardMonthlyReportsMonthDownloadGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>
+>;
+export type DownloadReportImageDashboardMonthlyReportsMonthDownloadGetQueryError =
+  ErrorType<unknown>;
+
+export function useDownloadReportImageDashboardMonthlyReportsMonthDownloadGet<
+  TData = Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  month: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+          TError,
+          Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useDownloadReportImageDashboardMonthlyReportsMonthDownloadGet<
+  TData = Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  month: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+          TError,
+          Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useDownloadReportImageDashboardMonthlyReportsMonthDownloadGet<
+  TData = Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  month: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Download monthly report as image
+ */
+
+export function useDownloadReportImageDashboardMonthlyReportsMonthDownloadGet<
+  TData = Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  month: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof downloadReportImageDashboardMonthlyReportsMonthDownloadGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getDownloadReportImageDashboardMonthlyReportsMonthDownloadGetQueryOptions(
+    month,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve expenses excluding credit card transactions, showing only debit, bank transfer, and cash spending.
+ * @summary Get account-based expenses
+ */
+export const getAccountExpensesDashboardAccountExpensesGet = (
+  params?: GetAccountExpensesDashboardAccountExpensesGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/account-expenses`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGetAccountExpensesDashboardAccountExpensesGetQueryKey = (
+  params?: GetAccountExpensesDashboardAccountExpensesGetParams,
+) => {
+  return [`/dashboard/account-expenses`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAccountExpensesDashboardAccountExpensesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAccountExpensesDashboardAccountExpensesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAccountExpensesDashboardAccountExpensesGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>
+  > = ({ signal }) => getAccountExpensesDashboardAccountExpensesGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetAccountExpensesDashboardAccountExpensesGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>
+>;
+export type GetAccountExpensesDashboardAccountExpensesGetQueryError = ErrorType<unknown>;
+
+export function useGetAccountExpensesDashboardAccountExpensesGet<
+  TData = Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetAccountExpensesDashboardAccountExpensesGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetAccountExpensesDashboardAccountExpensesGet<
+  TData = Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAccountExpensesDashboardAccountExpensesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetAccountExpensesDashboardAccountExpensesGet<
+  TData = Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAccountExpensesDashboardAccountExpensesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get account-based expenses
+ */
+
+export function useGetAccountExpensesDashboardAccountExpensesGet<
+  TData = Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAccountExpensesDashboardAccountExpensesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getAccountExpensesDashboardAccountExpensesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetAccountExpensesDashboardAccountExpensesGetQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve all installment groups showing paid and remaining installments with next payment dates.
+ * @summary Get installments overview
+ */
+export const getInstallmentsDashboardDashboardInstallmentsGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/dashboard/installments`, method: "GET", signal }, options);
+};
+
+export const getGetInstallmentsDashboardDashboardInstallmentsGetQueryKey = () => {
+  return [`/dashboard/installments`] as const;
+};
+
+export const getGetInstallmentsDashboardDashboardInstallmentsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetInstallmentsDashboardDashboardInstallmentsGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>
+  > = ({ signal }) => getInstallmentsDashboardDashboardInstallmentsGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetInstallmentsDashboardDashboardInstallmentsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>
+>;
+export type GetInstallmentsDashboardDashboardInstallmentsGetQueryError = ErrorType<unknown>;
+
+export function useGetInstallmentsDashboardDashboardInstallmentsGet<
+  TData = Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetInstallmentsDashboardDashboardInstallmentsGet<
+  TData = Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetInstallmentsDashboardDashboardInstallmentsGet<
+  TData = Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get installments overview
+ */
+
+export function useGetInstallmentsDashboardDashboardInstallmentsGet<
+  TData = Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInstallmentsDashboardDashboardInstallmentsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetInstallmentsDashboardDashboardInstallmentsGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Show a 7-month window of installment payment load (3 past, current, 3 future) including projected amounts.
+ * @summary Get installments monthly load
+ */
+export const getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/installments/monthly-load`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getGetInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGetQueryKey = () => {
+  return [`/dashboard/installments/monthly-load`] as const;
+};
+
+export const getGetInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>
+  > = ({ signal }) =>
+    getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>
+>;
+export type GetInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGetQueryError =
+  ErrorType<unknown>;
+
+export function useGetInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet<
+  TData = Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+          TError,
+          Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet<
+  TData = Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+          TError,
+          Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet<
+  TData = Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get installments monthly load
+ */
+
+export function useGetInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet<
+  TData = Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions =
+    getGetInstallmentsMonthlyLoadDashboardInstallmentsMonthlyLoadGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve pending scheduled installments and manual scheduled expenses for the next 3 months.
+ * @summary Get scheduled expenses summary
+ */
+export const getScheduledSummaryDashboardScheduledSummaryGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/scheduled-summary`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getGetScheduledSummaryDashboardScheduledSummaryGetQueryKey = () => {
+  return [`/dashboard/scheduled-summary`] as const;
+};
+
+export const getGetScheduledSummaryDashboardScheduledSummaryGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetScheduledSummaryDashboardScheduledSummaryGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>
+  > = ({ signal }) => getScheduledSummaryDashboardScheduledSummaryGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetScheduledSummaryDashboardScheduledSummaryGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>
+>;
+export type GetScheduledSummaryDashboardScheduledSummaryGetQueryError = ErrorType<unknown>;
+
+export function useGetScheduledSummaryDashboardScheduledSummaryGet<
+  TData = Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+          TError,
+          Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetScheduledSummaryDashboardScheduledSummaryGet<
+  TData = Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+          TError,
+          Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetScheduledSummaryDashboardScheduledSummaryGet<
+  TData = Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get scheduled expenses summary
+ */
+
+export function useGetScheduledSummaryDashboardScheduledSummaryGet<
+  TData = Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getScheduledSummaryDashboardScheduledSummaryGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetScheduledSummaryDashboardScheduledSummaryGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Calculate total pending credit card liabilities from scheduled expenses and future installment projections.
+ * @summary Get credit card liabilities
+ */
+export const getCreditCardPasivosDashboardCreditCardPasivosGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/credit-card-pasivos`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getGetCreditCardPasivosDashboardCreditCardPasivosGetQueryKey = () => {
+  return [`/dashboard/credit-card-pasivos`] as const;
+};
+
+export const getGetCreditCardPasivosDashboardCreditCardPasivosGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCreditCardPasivosDashboardCreditCardPasivosGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>
+  > = ({ signal }) => getCreditCardPasivosDashboardCreditCardPasivosGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetCreditCardPasivosDashboardCreditCardPasivosGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>
+>;
+export type GetCreditCardPasivosDashboardCreditCardPasivosGetQueryError = ErrorType<unknown>;
+
+export function useGetCreditCardPasivosDashboardCreditCardPasivosGet<
+  TData = Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCreditCardPasivosDashboardCreditCardPasivosGet<
+  TData = Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCreditCardPasivosDashboardCreditCardPasivosGet<
+  TData = Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get credit card liabilities
+ */
+
+export function useGetCreditCardPasivosDashboardCreditCardPasivosGet<
+  TData = Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCreditCardPasivosDashboardCreditCardPasivosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetCreditCardPasivosDashboardCreditCardPasivosGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve the top merchants by total spending, with optional month, person, and bank filters.
+ * @summary Get top merchants
+ */
+export const getTopMerchantsDashboardTopMerchantsGet = (
+  params?: GetTopMerchantsDashboardTopMerchantsGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/top-merchants`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGetTopMerchantsDashboardTopMerchantsGetQueryKey = (
+  params?: GetTopMerchantsDashboardTopMerchantsGetParams,
+) => {
+  return [`/dashboard/top-merchants`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetTopMerchantsDashboardTopMerchantsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTopMerchantsDashboardTopMerchantsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetTopMerchantsDashboardTopMerchantsGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>
+  > = ({ signal }) => getTopMerchantsDashboardTopMerchantsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetTopMerchantsDashboardTopMerchantsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>
+>;
+export type GetTopMerchantsDashboardTopMerchantsGetQueryError = ErrorType<unknown>;
+
+export function useGetTopMerchantsDashboardTopMerchantsGet<
+  TData = Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetTopMerchantsDashboardTopMerchantsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTopMerchantsDashboardTopMerchantsGet<
+  TData = Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTopMerchantsDashboardTopMerchantsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTopMerchantsDashboardTopMerchantsGet<
+  TData = Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTopMerchantsDashboardTopMerchantsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get top merchants
+ */
+
+export function useGetTopMerchantsDashboardTopMerchantsGet<
+  TData = Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTopMerchantsDashboardTopMerchantsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTopMerchantsDashboardTopMerchantsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetTopMerchantsDashboardTopMerchantsGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve spending summary per card and account for the last 12 months, including monthly breakdowns.
+ * @summary Get card spending summary
+ */
+export const getCardSummaryDashboardCardSummaryGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/dashboard/card-summary`, method: "GET", signal }, options);
+};
+
+export const getGetCardSummaryDashboardCardSummaryGetQueryKey = () => {
+  return [`/dashboard/card-summary`] as const;
+};
+
+export const getGetCardSummaryDashboardCardSummaryGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCardSummaryDashboardCardSummaryGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>
+  > = ({ signal }) => getCardSummaryDashboardCardSummaryGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetCardSummaryDashboardCardSummaryGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>
+>;
+export type GetCardSummaryDashboardCardSummaryGetQueryError = ErrorType<unknown>;
+
+export function useGetCardSummaryDashboardCardSummaryGet<
+  TData = Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCardSummaryDashboardCardSummaryGet<
+  TData = Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCardSummaryDashboardCardSummaryGet<
+  TData = Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get card spending summary
+ */
+
+export function useGetCardSummaryDashboardCardSummaryGet<
+  TData = Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCardSummaryDashboardCardSummaryGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetCardSummaryDashboardCardSummaryGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve spending summary per tag for the last 12 months, including monthly breakdowns. Optional groups filter.
+ * @summary Get tag spending summary
+ */
+export const getTagSummaryDashboardTagSummaryGet = (
+  params?: GetTagSummaryDashboardTagSummaryGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/tag-summary`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGetTagSummaryDashboardTagSummaryGetQueryKey = (
+  params?: GetTagSummaryDashboardTagSummaryGetParams,
+) => {
+  return [`/dashboard/tag-summary`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetTagSummaryDashboardTagSummaryGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTagSummaryDashboardTagSummaryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTagSummaryDashboardTagSummaryGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>> = ({
+    signal,
+  }) => getTagSummaryDashboardTagSummaryGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetTagSummaryDashboardTagSummaryGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>
+>;
+export type GetTagSummaryDashboardTagSummaryGetQueryError = ErrorType<unknown>;
+
+export function useGetTagSummaryDashboardTagSummaryGet<
+  TData = Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetTagSummaryDashboardTagSummaryGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+          TError,
+          Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTagSummaryDashboardTagSummaryGet<
+  TData = Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTagSummaryDashboardTagSummaryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+          TError,
+          Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTagSummaryDashboardTagSummaryGet<
+  TData = Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTagSummaryDashboardTagSummaryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get tag spending summary
+ */
+
+export function useGetTagSummaryDashboardTagSummaryGet<
+  TData = Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTagSummaryDashboardTagSummaryGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getTagSummaryDashboardTagSummaryGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetTagSummaryDashboardTagSummaryGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve a matrix of spending by card and category, useful for stacked bar charts.
+ * @summary Get card-category breakdown
+ */
+export const getCardCategoryBreakdownDashboardCardCategoryBreakdownGet = (
+  params?: GetCardCategoryBreakdownDashboardCardCategoryBreakdownGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/card-category-breakdown`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGetCardCategoryBreakdownDashboardCardCategoryBreakdownGetQueryKey = (
+  params?: GetCardCategoryBreakdownDashboardCardCategoryBreakdownGetParams,
+) => {
+  return [`/dashboard/card-category-breakdown`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetCardCategoryBreakdownDashboardCardCategoryBreakdownGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCardCategoryBreakdownDashboardCardCategoryBreakdownGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetCardCategoryBreakdownDashboardCardCategoryBreakdownGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>
+  > = ({ signal }) =>
+    getCardCategoryBreakdownDashboardCardCategoryBreakdownGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetCardCategoryBreakdownDashboardCardCategoryBreakdownGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>
+>;
+export type GetCardCategoryBreakdownDashboardCardCategoryBreakdownGetQueryError =
+  ErrorType<unknown>;
+
+export function useGetCardCategoryBreakdownDashboardCardCategoryBreakdownGet<
+  TData = Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetCardCategoryBreakdownDashboardCardCategoryBreakdownGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCardCategoryBreakdownDashboardCardCategoryBreakdownGet<
+  TData = Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCardCategoryBreakdownDashboardCardCategoryBreakdownGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCardCategoryBreakdownDashboardCardCategoryBreakdownGet<
+  TData = Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCardCategoryBreakdownDashboardCardCategoryBreakdownGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get card-category breakdown
+ */
+
+export function useGetCardCategoryBreakdownDashboardCardCategoryBreakdownGet<
+  TData = Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCardCategoryBreakdownDashboardCardCategoryBreakdownGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCardCategoryBreakdownDashboardCardCategoryBreakdownGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetCardCategoryBreakdownDashboardCardCategoryBreakdownGetQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve monthly spending trend per category over a configurable number of months.
+ * @summary Get category spending trend
+ */
+export const getCategoryTrendDashboardCategoryTrendGet = (
+  params?: GetCategoryTrendDashboardCategoryTrendGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/category-trend`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGetCategoryTrendDashboardCategoryTrendGetQueryKey = (
+  params?: GetCategoryTrendDashboardCategoryTrendGetParams,
+) => {
+  return [`/dashboard/category-trend`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetCategoryTrendDashboardCategoryTrendGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCategoryTrendDashboardCategoryTrendGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCategoryTrendDashboardCategoryTrendGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>
+  > = ({ signal }) => getCategoryTrendDashboardCategoryTrendGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetCategoryTrendDashboardCategoryTrendGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>
+>;
+export type GetCategoryTrendDashboardCategoryTrendGetQueryError = ErrorType<unknown>;
+
+export function useGetCategoryTrendDashboardCategoryTrendGet<
+  TData = Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetCategoryTrendDashboardCategoryTrendGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCategoryTrendDashboardCategoryTrendGet<
+  TData = Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCategoryTrendDashboardCategoryTrendGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+          TError,
+          Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCategoryTrendDashboardCategoryTrendGet<
+  TData = Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCategoryTrendDashboardCategoryTrendGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get category spending trend
+ */
+
+export function useGetCategoryTrendDashboardCategoryTrendGet<
+  TData = Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCategoryTrendDashboardCategoryTrendGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCategoryTrendDashboardCategoryTrendGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetCategoryTrendDashboardCategoryTrendGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Retrieve an LLM-powered analysis of spending trends with projections and actionable insights.
+ * @summary Get AI spending trends analysis
+ */
+export const getAiTrendsDashboardAiTrendsGet = (
+  params?: GetAiTrendsDashboardAiTrendsGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/dashboard/ai-trends`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGetAiTrendsDashboardAiTrendsGetQueryKey = (
+  params?: GetAiTrendsDashboardAiTrendsGetParams,
+) => {
+  return [`/dashboard/ai-trends`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAiTrendsDashboardAiTrendsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAiTrendsDashboardAiTrendsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAiTrendsDashboardAiTrendsGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>> = ({
+    signal,
+  }) => getAiTrendsDashboardAiTrendsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetAiTrendsDashboardAiTrendsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>
+>;
+export type GetAiTrendsDashboardAiTrendsGetQueryError = ErrorType<unknown>;
+
+export function useGetAiTrendsDashboardAiTrendsGet<
+  TData = Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetAiTrendsDashboardAiTrendsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetAiTrendsDashboardAiTrendsGet<
+  TData = Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAiTrendsDashboardAiTrendsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetAiTrendsDashboardAiTrendsGet<
+  TData = Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAiTrendsDashboardAiTrendsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get AI spending trends analysis
+ */
+
+export function useGetAiTrendsDashboardAiTrendsGet<
+  TData = Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAiTrendsDashboardAiTrendsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAiTrendsDashboardAiTrendsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetAiTrendsDashboardAiTrendsGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * SSE streaming endpoint that generates a concise summary of a chat conversation for session resume.
+ * @summary Summarize chat conversation
+ */
+export const summarizeChatAnalysisSummarizePost = (
+  summarizeChatAnalysisSummarizePostBody: BodyType<SummarizeChatAnalysisSummarizePostBody>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/analysis/summarize`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: summarizeChatAnalysisSummarizePostBody,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getSummarizeChatAnalysisSummarizePostMutationKey = () =>
+  ["summarizeChatAnalysisSummarizePost"] as const;
+
+export const getSummarizeChatAnalysisSummarizePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof summarizeChatAnalysisSummarizePost>>,
+    TError,
+    SummarizeChatAnalysisSummarizePostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof summarizeChatAnalysisSummarizePost>>,
+  TError,
+  SummarizeChatAnalysisSummarizePostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSummarizeChatAnalysisSummarizePostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof summarizeChatAnalysisSummarizePost>>,
+    SummarizeChatAnalysisSummarizePostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return summarizeChatAnalysisSummarizePost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SummarizeChatAnalysisSummarizePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof summarizeChatAnalysisSummarizePost>>
+>;
+export type SummarizeChatAnalysisSummarizePostMutationBody =
+  BodyType<SummarizeChatAnalysisSummarizePostBody>;
+export type SummarizeChatAnalysisSummarizePostMutationError = ErrorType<unknown>;
+export type SummarizeChatAnalysisSummarizePostMutationVariables = {
+  data: BodyType<SummarizeChatAnalysisSummarizePostBody>;
+};
+
+/**
+ * @summary Summarize chat conversation
+ */
+export const useSummarizeChatAnalysisSummarizePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof summarizeChatAnalysisSummarizePost>>,
+      TError,
+      SummarizeChatAnalysisSummarizePostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof summarizeChatAnalysisSummarizePost>>,
+  TError,
+  SummarizeChatAnalysisSummarizePostMutationVariables,
+  TContext
+> => {
+  return useMutation(getSummarizeChatAnalysisSummarizePostMutationOptions(options), queryClient);
+};
+
+/**
+ * Retrieve the family group the current user belongs to, including all members and their statuses.
+ * @summary Get current user's family group
+ */
+export const getMyGroupGroupsMeGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/groups/me`, method: "GET", signal }, options);
+};
+
+export const getGetMyGroupGroupsMeGetQueryKey = () => {
+  return [`/groups/me`] as const;
+};
+
+export const getGetMyGroupGroupsMeGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyGroupGroupsMeGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>> = ({ signal }) =>
+    getMyGroupGroupsMeGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetMyGroupGroupsMeGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>
+>;
+export type GetMyGroupGroupsMeGetQueryError = ErrorType<unknown>;
+
+export function useGetMyGroupGroupsMeGet<
+  TData = Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>,
+          TError,
+          Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetMyGroupGroupsMeGet<
+  TData = Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>,
+          TError,
+          Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetMyGroupGroupsMeGet<
+  TData = Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get current user's family group
+ */
+
+export function useGetMyGroupGroupsMeGet<
+  TData = Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getMyGroupGroupsMeGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetMyGroupGroupsMeGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Send a family group invitation to a user by their invite code. Creates the group if it doesn't exist.
+ * @summary Invite a user to family group
+ */
+export const inviteUserGroupsInvitePost = (
+  inviteRequest: BodyType<InviteRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/groups/invite`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: inviteRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getInviteUserGroupsInvitePostMutationKey = () =>
+  ["inviteUserGroupsInvitePost"] as const;
+
+export const getInviteUserGroupsInvitePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof inviteUserGroupsInvitePost>>,
+    TError,
+    InviteUserGroupsInvitePostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof inviteUserGroupsInvitePost>>,
+  TError,
+  InviteUserGroupsInvitePostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getInviteUserGroupsInvitePostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof inviteUserGroupsInvitePost>>,
+    InviteUserGroupsInvitePostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return inviteUserGroupsInvitePost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type InviteUserGroupsInvitePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof inviteUserGroupsInvitePost>>
+>;
+export type InviteUserGroupsInvitePostMutationBody = BodyType<InviteRequest>;
+export type InviteUserGroupsInvitePostMutationError = ErrorType<unknown>;
+export type InviteUserGroupsInvitePostMutationVariables = { data: BodyType<InviteRequest> };
+
+/**
+ * @summary Invite a user to family group
+ */
+export const useInviteUserGroupsInvitePost = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof inviteUserGroupsInvitePost>>,
+      TError,
+      InviteUserGroupsInvitePostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof inviteUserGroupsInvitePost>>,
+  TError,
+  InviteUserGroupsInvitePostMutationVariables,
+  TContext
+> => {
+  return useMutation(getInviteUserGroupsInvitePostMutationOptions(options), queryClient);
+};
+
+/**
+ * Remove the current user from their family group. Deletes the group if no members remain.
+ * @summary Leave family group
+ */
+export const leaveGroupGroupsLeaveDelete = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/groups/leave`, method: "DELETE", signal }, options);
+};
+
+export const getLeaveGroupGroupsLeaveDeleteMutationKey = () =>
+  ["leaveGroupGroupsLeaveDelete"] as const;
+
+export const getLeaveGroupGroupsLeaveDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof leaveGroupGroupsLeaveDelete>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof leaveGroupGroupsLeaveDelete>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getLeaveGroupGroupsLeaveDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof leaveGroupGroupsLeaveDelete>>,
+    void
+  > = () => {
+    return leaveGroupGroupsLeaveDelete(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LeaveGroupGroupsLeaveDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof leaveGroupGroupsLeaveDelete>>
+>;
+
+export type LeaveGroupGroupsLeaveDeleteMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Leave family group
+ */
+export const useLeaveGroupGroupsLeaveDelete = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof leaveGroupGroupsLeaveDelete>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof leaveGroupGroupsLeaveDelete>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getLeaveGroupGroupsLeaveDeleteMutationOptions(options), queryClient);
+};
+
+/**
+ * Retrieve or generate the current user's unique invite code for family group invitations.
+ * @summary Get user invite code
+ */
+export const getMyInviteCodeGroupsMyInviteCodeGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/groups/my-invite-code`, method: "GET", signal }, options);
+};
+
+export const getGetMyInviteCodeGroupsMyInviteCodeGetQueryKey = () => {
+  return [`/groups/my-invite-code`] as const;
+};
+
+export const getGetMyInviteCodeGroupsMyInviteCodeGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyInviteCodeGroupsMyInviteCodeGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>
+  > = ({ signal }) => getMyInviteCodeGroupsMyInviteCodeGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetMyInviteCodeGroupsMyInviteCodeGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>
+>;
+export type GetMyInviteCodeGroupsMyInviteCodeGetQueryError = ErrorType<unknown>;
+
+export function useGetMyInviteCodeGroupsMyInviteCodeGet<
+  TData = Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+          TError,
+          Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetMyInviteCodeGroupsMyInviteCodeGet<
+  TData = Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+          TError,
+          Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetMyInviteCodeGroupsMyInviteCodeGet<
+  TData = Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get user invite code
+ */
+
+export function useGetMyInviteCodeGroupsMyInviteCodeGet<
+  TData = Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMyInviteCodeGroupsMyInviteCodeGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetMyInviteCodeGroupsMyInviteCodeGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Generate a new random invite code for the current user, replacing the previous one.
+ * @summary Regenerate invite code
+ */
+export const generateInviteCodeGroupsGenerateInviteCodePost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/groups/generate-invite-code`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getGenerateInviteCodeGroupsGenerateInviteCodePostMutationKey = () =>
+  ["generateInviteCodeGroupsGenerateInviteCodePost"] as const;
+
+export const getGenerateInviteCodeGroupsGenerateInviteCodePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateInviteCodeGroupsGenerateInviteCodePost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateInviteCodeGroupsGenerateInviteCodePost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getGenerateInviteCodeGroupsGenerateInviteCodePostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateInviteCodeGroupsGenerateInviteCodePost>>,
+    void
+  > = () => {
+    return generateInviteCodeGroupsGenerateInviteCodePost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateInviteCodeGroupsGenerateInviteCodePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateInviteCodeGroupsGenerateInviteCodePost>>
+>;
+
+export type GenerateInviteCodeGroupsGenerateInviteCodePostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Regenerate invite code
+ */
+export const useGenerateInviteCodeGroupsGenerateInviteCodePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof generateInviteCodeGroupsGenerateInviteCodePost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof generateInviteCodeGroupsGenerateInviteCodePost>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(
+    getGenerateInviteCodeGroupsGenerateInviteCodePostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Return the count of unread notifications for the current user.
+ * @summary Get unread notification count
+ */
+export const unreadCountNotificationsUnreadCountGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/notifications/unread-count`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getUnreadCountNotificationsUnreadCountGetQueryKey = () => {
+  return [`/notifications/unread-count`] as const;
+};
+
+export const getUnreadCountNotificationsUnreadCountGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getUnreadCountNotificationsUnreadCountGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>
+  > = ({ signal }) => unreadCountNotificationsUnreadCountGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type UnreadCountNotificationsUnreadCountGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>
+>;
+export type UnreadCountNotificationsUnreadCountGetQueryError = ErrorType<unknown>;
+
+export function useUnreadCountNotificationsUnreadCountGet<
+  TData = Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+          TError,
+          Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useUnreadCountNotificationsUnreadCountGet<
+  TData = Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+          TError,
+          Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useUnreadCountNotificationsUnreadCountGet<
+  TData = Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get unread notification count
+ */
+
+export function useUnreadCountNotificationsUnreadCountGet<
+  TData = Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof unreadCountNotificationsUnreadCountGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getUnreadCountNotificationsUnreadCountGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Mark a single notification as read by its ID.
+ * @summary Mark notification as read
+ */
+export const markReadNotificationsNotifIdReadPut = (
+  notifId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/notifications/${notifId}/read`, method: "PUT", signal },
+    options,
+  );
+};
+
+export const getMarkReadNotificationsNotifIdReadPutMutationKey = () =>
+  ["markReadNotificationsNotifIdReadPut"] as const;
+
+export const getMarkReadNotificationsNotifIdReadPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markReadNotificationsNotifIdReadPut>>,
+    TError,
+    MarkReadNotificationsNotifIdReadPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof markReadNotificationsNotifIdReadPut>>,
+  TError,
+  MarkReadNotificationsNotifIdReadPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getMarkReadNotificationsNotifIdReadPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markReadNotificationsNotifIdReadPut>>,
+    MarkReadNotificationsNotifIdReadPutMutationVariables
+  > = (props) => {
+    const { notifId } = props ?? {};
+
+    return markReadNotificationsNotifIdReadPut(notifId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MarkReadNotificationsNotifIdReadPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markReadNotificationsNotifIdReadPut>>
+>;
+
+export type MarkReadNotificationsNotifIdReadPutMutationError = ErrorType<unknown>;
+export type MarkReadNotificationsNotifIdReadPutMutationVariables = { notifId: number };
+
+/**
+ * @summary Mark notification as read
+ */
+export const useMarkReadNotificationsNotifIdReadPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof markReadNotificationsNotifIdReadPut>>,
+      TError,
+      MarkReadNotificationsNotifIdReadPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof markReadNotificationsNotifIdReadPut>>,
+  TError,
+  MarkReadNotificationsNotifIdReadPutMutationVariables,
+  TContext
+> => {
+  return useMutation(getMarkReadNotificationsNotifIdReadPutMutationOptions(options), queryClient);
+};
+
+/**
+ * Mark all unread notifications for the current user as read.
+ * @summary Mark all notifications as read
+ */
+export const markAllReadNotificationsReadAllPut = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/notifications/read-all`, method: "PUT", signal }, options);
+};
+
+export const getMarkAllReadNotificationsReadAllPutMutationKey = () =>
+  ["markAllReadNotificationsReadAllPut"] as const;
+
+export const getMarkAllReadNotificationsReadAllPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markAllReadNotificationsReadAllPut>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof markAllReadNotificationsReadAllPut>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getMarkAllReadNotificationsReadAllPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markAllReadNotificationsReadAllPut>>,
+    void
+  > = () => {
+    return markAllReadNotificationsReadAllPut(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MarkAllReadNotificationsReadAllPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markAllReadNotificationsReadAllPut>>
+>;
+
+export type MarkAllReadNotificationsReadAllPutMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark all notifications as read
+ */
+export const useMarkAllReadNotificationsReadAllPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof markAllReadNotificationsReadAllPut>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof markAllReadNotificationsReadAllPut>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getMarkAllReadNotificationsReadAllPutMutationOptions(options), queryClient);
+};
+
+/**
+ * Permanently delete all notifications that have been marked as read.
+ * @summary Delete all read notifications
+ */
+export const deleteAllReadNotificationsReadAllDelete = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/notifications/read-all`, method: "DELETE", signal },
+    options,
+  );
+};
+
+export const getDeleteAllReadNotificationsReadAllDeleteMutationKey = () =>
+  ["deleteAllReadNotificationsReadAllDelete"] as const;
+
+export const getDeleteAllReadNotificationsReadAllDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAllReadNotificationsReadAllDelete>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAllReadNotificationsReadAllDelete>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getDeleteAllReadNotificationsReadAllDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAllReadNotificationsReadAllDelete>>,
+    void
+  > = () => {
+    return deleteAllReadNotificationsReadAllDelete(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAllReadNotificationsReadAllDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAllReadNotificationsReadAllDelete>>
+>;
+
+export type DeleteAllReadNotificationsReadAllDeleteMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete all read notifications
+ */
+export const useDeleteAllReadNotificationsReadAllDelete = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteAllReadNotificationsReadAllDelete>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAllReadNotificationsReadAllDelete>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(
+    getDeleteAllReadNotificationsReadAllDeleteMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Accept a group invitation or impersonation request from a notification.
+ * @summary Accept a notification action
+ */
+export const acceptInvitationNotificationsNotifIdAcceptPost = (
+  notifId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/notifications/${notifId}/accept`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getAcceptInvitationNotificationsNotifIdAcceptPostMutationKey = () =>
+  ["acceptInvitationNotificationsNotifIdAcceptPost"] as const;
+
+export const getAcceptInvitationNotificationsNotifIdAcceptPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptInvitationNotificationsNotifIdAcceptPost>>,
+    TError,
+    AcceptInvitationNotificationsNotifIdAcceptPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof acceptInvitationNotificationsNotifIdAcceptPost>>,
+  TError,
+  AcceptInvitationNotificationsNotifIdAcceptPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAcceptInvitationNotificationsNotifIdAcceptPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof acceptInvitationNotificationsNotifIdAcceptPost>>,
+    AcceptInvitationNotificationsNotifIdAcceptPostMutationVariables
+  > = (props) => {
+    const { notifId } = props ?? {};
+
+    return acceptInvitationNotificationsNotifIdAcceptPost(notifId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AcceptInvitationNotificationsNotifIdAcceptPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof acceptInvitationNotificationsNotifIdAcceptPost>>
+>;
+
+export type AcceptInvitationNotificationsNotifIdAcceptPostMutationError = ErrorType<unknown>;
+export type AcceptInvitationNotificationsNotifIdAcceptPostMutationVariables = { notifId: number };
+
+/**
+ * @summary Accept a notification action
+ */
+export const useAcceptInvitationNotificationsNotifIdAcceptPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof acceptInvitationNotificationsNotifIdAcceptPost>>,
+      TError,
+      AcceptInvitationNotificationsNotifIdAcceptPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof acceptInvitationNotificationsNotifIdAcceptPost>>,
+  TError,
+  AcceptInvitationNotificationsNotifIdAcceptPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getAcceptInvitationNotificationsNotifIdAcceptPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Reject a group invitation or impersonation request from a notification.
+ * @summary Reject a notification action
+ */
+export const rejectInvitationNotificationsNotifIdRejectPost = (
+  notifId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/notifications/${notifId}/reject`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getRejectInvitationNotificationsNotifIdRejectPostMutationKey = () =>
+  ["rejectInvitationNotificationsNotifIdRejectPost"] as const;
+
+export const getRejectInvitationNotificationsNotifIdRejectPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectInvitationNotificationsNotifIdRejectPost>>,
+    TError,
+    RejectInvitationNotificationsNotifIdRejectPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rejectInvitationNotificationsNotifIdRejectPost>>,
+  TError,
+  RejectInvitationNotificationsNotifIdRejectPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getRejectInvitationNotificationsNotifIdRejectPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rejectInvitationNotificationsNotifIdRejectPost>>,
+    RejectInvitationNotificationsNotifIdRejectPostMutationVariables
+  > = (props) => {
+    const { notifId } = props ?? {};
+
+    return rejectInvitationNotificationsNotifIdRejectPost(notifId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RejectInvitationNotificationsNotifIdRejectPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rejectInvitationNotificationsNotifIdRejectPost>>
+>;
+
+export type RejectInvitationNotificationsNotifIdRejectPostMutationError = ErrorType<unknown>;
+export type RejectInvitationNotificationsNotifIdRejectPostMutationVariables = { notifId: number };
+
+/**
+ * @summary Reject a notification action
+ */
+export const useRejectInvitationNotificationsNotifIdRejectPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof rejectInvitationNotificationsNotifIdRejectPost>>,
+      TError,
+      RejectInvitationNotificationsNotifIdRejectPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof rejectInvitationNotificationsNotifIdRejectPost>>,
+  TError,
+  RejectInvitationNotificationsNotifIdRejectPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getRejectInvitationNotificationsNotifIdRejectPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Permanently delete a notification. Only the owner can delete their notifications.
+ * @summary Delete a notification
+ */
+export const deleteNotificationNotificationsNotificationIdDelete = (
+  notificationId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/notifications/${notificationId}`, method: "DELETE", signal },
+    options,
+  );
+};
+
+export const getDeleteNotificationNotificationsNotificationIdDeleteMutationKey = () =>
+  ["deleteNotificationNotificationsNotificationIdDelete"] as const;
+
+export const getDeleteNotificationNotificationsNotificationIdDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteNotificationNotificationsNotificationIdDelete>>,
+    TError,
+    DeleteNotificationNotificationsNotificationIdDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteNotificationNotificationsNotificationIdDelete>>,
+  TError,
+  DeleteNotificationNotificationsNotificationIdDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeleteNotificationNotificationsNotificationIdDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteNotificationNotificationsNotificationIdDelete>>,
+    DeleteNotificationNotificationsNotificationIdDeleteMutationVariables
+  > = (props) => {
+    const { notificationId } = props ?? {};
+
+    return deleteNotificationNotificationsNotificationIdDelete(notificationId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteNotificationNotificationsNotificationIdDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteNotificationNotificationsNotificationIdDelete>>
+>;
+
+export type DeleteNotificationNotificationsNotificationIdDeleteMutationError = ErrorType<unknown>;
+export type DeleteNotificationNotificationsNotificationIdDeleteMutationVariables = {
+  notificationId: number;
+};
+
+/**
+ * @summary Delete a notification
+ */
+export const useDeleteNotificationNotificationsNotificationIdDelete = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteNotificationNotificationsNotificationIdDelete>>,
+      TError,
+      DeleteNotificationNotificationsNotificationIdDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteNotificationNotificationsNotificationIdDelete>>,
+  TError,
+  DeleteNotificationNotificationsNotificationIdDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getDeleteNotificationNotificationsNotificationIdDeleteMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * SSE endpoint that streams new notifications in real-time via long-polling with keepalive pings.
+ * @summary Real-time notification stream
+ */
+export const notificationsStreamNotificationsStreamGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/notifications/stream`, method: "GET", signal }, options);
+};
+
+export const getNotificationsStreamNotificationsStreamGetQueryKey = () => {
+  return [`/notifications/stream`] as const;
+};
+
+export const getNotificationsStreamNotificationsStreamGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getNotificationsStreamNotificationsStreamGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>
+  > = ({ signal }) => notificationsStreamNotificationsStreamGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type NotificationsStreamNotificationsStreamGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>
+>;
+export type NotificationsStreamNotificationsStreamGetQueryError = ErrorType<unknown>;
+
+export function useNotificationsStreamNotificationsStreamGet<
+  TData = Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+          TError,
+          Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useNotificationsStreamNotificationsStreamGet<
+  TData = Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+          TError,
+          Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useNotificationsStreamNotificationsStreamGet<
+  TData = Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Real-time notification stream
+ */
+
+export function useNotificationsStreamNotificationsStreamGet<
+  TData = Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof notificationsStreamNotificationsStreamGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getNotificationsStreamNotificationsStreamGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Apply the suggested category to the expense and track the merchant preference.
+ * @summary Approve a suggestion
+ */
+export const approveSuggestionSuggestionsSuggestionIdApprovePost = (
+  suggestionId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/suggestions/${suggestionId}/approve`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getApproveSuggestionSuggestionsSuggestionIdApprovePostMutationKey = () =>
+  ["approveSuggestionSuggestionsSuggestionIdApprovePost"] as const;
+
+export const getApproveSuggestionSuggestionsSuggestionIdApprovePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveSuggestionSuggestionsSuggestionIdApprovePost>>,
+    TError,
+    ApproveSuggestionSuggestionsSuggestionIdApprovePostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveSuggestionSuggestionsSuggestionIdApprovePost>>,
+  TError,
+  ApproveSuggestionSuggestionsSuggestionIdApprovePostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getApproveSuggestionSuggestionsSuggestionIdApprovePostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveSuggestionSuggestionsSuggestionIdApprovePost>>,
+    ApproveSuggestionSuggestionsSuggestionIdApprovePostMutationVariables
+  > = (props) => {
+    const { suggestionId } = props ?? {};
+
+    return approveSuggestionSuggestionsSuggestionIdApprovePost(suggestionId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveSuggestionSuggestionsSuggestionIdApprovePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveSuggestionSuggestionsSuggestionIdApprovePost>>
+>;
+
+export type ApproveSuggestionSuggestionsSuggestionIdApprovePostMutationError = ErrorType<unknown>;
+export type ApproveSuggestionSuggestionsSuggestionIdApprovePostMutationVariables = {
+  suggestionId: number;
+};
+
+/**
+ * @summary Approve a suggestion
+ */
+export const useApproveSuggestionSuggestionsSuggestionIdApprovePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof approveSuggestionSuggestionsSuggestionIdApprovePost>>,
+      TError,
+      ApproveSuggestionSuggestionsSuggestionIdApprovePostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof approveSuggestionSuggestionsSuggestionIdApprovePost>>,
+  TError,
+  ApproveSuggestionSuggestionsSuggestionIdApprovePostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getApproveSuggestionSuggestionsSuggestionIdApprovePostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Mark a single category suggestion as rejected without applying it.
+ * @summary Reject a suggestion
+ */
+export const rejectSuggestionSuggestionsSuggestionIdRejectPost = (
+  suggestionId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/suggestions/${suggestionId}/reject`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getRejectSuggestionSuggestionsSuggestionIdRejectPostMutationKey = () =>
+  ["rejectSuggestionSuggestionsSuggestionIdRejectPost"] as const;
+
+export const getRejectSuggestionSuggestionsSuggestionIdRejectPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectSuggestionSuggestionsSuggestionIdRejectPost>>,
+    TError,
+    RejectSuggestionSuggestionsSuggestionIdRejectPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rejectSuggestionSuggestionsSuggestionIdRejectPost>>,
+  TError,
+  RejectSuggestionSuggestionsSuggestionIdRejectPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getRejectSuggestionSuggestionsSuggestionIdRejectPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rejectSuggestionSuggestionsSuggestionIdRejectPost>>,
+    RejectSuggestionSuggestionsSuggestionIdRejectPostMutationVariables
+  > = (props) => {
+    const { suggestionId } = props ?? {};
+
+    return rejectSuggestionSuggestionsSuggestionIdRejectPost(suggestionId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RejectSuggestionSuggestionsSuggestionIdRejectPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rejectSuggestionSuggestionsSuggestionIdRejectPost>>
+>;
+
+export type RejectSuggestionSuggestionsSuggestionIdRejectPostMutationError = ErrorType<unknown>;
+export type RejectSuggestionSuggestionsSuggestionIdRejectPostMutationVariables = {
+  suggestionId: number;
+};
+
+/**
+ * @summary Reject a suggestion
+ */
+export const useRejectSuggestionSuggestionsSuggestionIdRejectPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof rejectSuggestionSuggestionsSuggestionIdRejectPost>>,
+      TError,
+      RejectSuggestionSuggestionsSuggestionIdRejectPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof rejectSuggestionSuggestionsSuggestionIdRejectPost>>,
+  TError,
+  RejectSuggestionSuggestionsSuggestionIdRejectPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getRejectSuggestionSuggestionsSuggestionIdRejectPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Bulk-approve all pending suggestions with confidence at or above the given threshold.
+ * @summary Approve all high-confidence suggestions
+ */
+export const approveAllSuggestionsSuggestionsApproveAllPost = (
+  params?: ApproveAllSuggestionsSuggestionsApproveAllPostParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/suggestions/approve-all`, method: "POST", params, signal },
+    options,
+  );
+};
+
+export const getApproveAllSuggestionsSuggestionsApproveAllPostMutationKey = () =>
+  ["approveAllSuggestionsSuggestionsApproveAllPost"] as const;
+
+export const getApproveAllSuggestionsSuggestionsApproveAllPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveAllSuggestionsSuggestionsApproveAllPost>>,
+    TError,
+    ApproveAllSuggestionsSuggestionsApproveAllPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveAllSuggestionsSuggestionsApproveAllPost>>,
+  TError,
+  ApproveAllSuggestionsSuggestionsApproveAllPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getApproveAllSuggestionsSuggestionsApproveAllPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveAllSuggestionsSuggestionsApproveAllPost>>,
+    ApproveAllSuggestionsSuggestionsApproveAllPostMutationVariables
+  > = (props) => {
+    const { params } = props ?? {};
+
+    return approveAllSuggestionsSuggestionsApproveAllPost(params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveAllSuggestionsSuggestionsApproveAllPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveAllSuggestionsSuggestionsApproveAllPost>>
+>;
+
+export type ApproveAllSuggestionsSuggestionsApproveAllPostMutationError = ErrorType<unknown>;
+export type ApproveAllSuggestionsSuggestionsApproveAllPostMutationVariables = {
+  params?: ApproveAllSuggestionsSuggestionsApproveAllPostParams;
+};
+
+/**
+ * @summary Approve all high-confidence suggestions
+ */
+export const useApproveAllSuggestionsSuggestionsApproveAllPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof approveAllSuggestionsSuggestionsApproveAllPost>>,
+      TError,
+      ApproveAllSuggestionsSuggestionsApproveAllPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof approveAllSuggestionsSuggestionsApproveAllPost>>,
+  TError,
+  ApproveAllSuggestionsSuggestionsApproveAllPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getApproveAllSuggestionsSuggestionsApproveAllPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Reject all pending category suggestions for the current user.
+ * @summary Discard all pending suggestions
+ */
+export const discardAllSuggestionsSuggestionsDiscardAllPost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/suggestions/discard-all`, method: "POST", signal }, options);
+};
+
+export const getDiscardAllSuggestionsSuggestionsDiscardAllPostMutationKey = () =>
+  ["discardAllSuggestionsSuggestionsDiscardAllPost"] as const;
+
+export const getDiscardAllSuggestionsSuggestionsDiscardAllPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof discardAllSuggestionsSuggestionsDiscardAllPost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof discardAllSuggestionsSuggestionsDiscardAllPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getDiscardAllSuggestionsSuggestionsDiscardAllPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof discardAllSuggestionsSuggestionsDiscardAllPost>>,
+    void
+  > = () => {
+    return discardAllSuggestionsSuggestionsDiscardAllPost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DiscardAllSuggestionsSuggestionsDiscardAllPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof discardAllSuggestionsSuggestionsDiscardAllPost>>
+>;
+
+export type DiscardAllSuggestionsSuggestionsDiscardAllPostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Discard all pending suggestions
+ */
+export const useDiscardAllSuggestionsSuggestionsDiscardAllPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof discardAllSuggestionsSuggestionsDiscardAllPost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof discardAllSuggestionsSuggestionsDiscardAllPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(
+    getDiscardAllSuggestionsSuggestionsDiscardAllPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Return recurring expenses that were automatically detected from spending patterns.
+ * @summary List auto-detected recurring expenses
+ */
+export const listAutoDetectedRecurringAutoDetectedGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/recurring/auto-detected`, method: "GET", signal }, options);
+};
+
+export const getListAutoDetectedRecurringAutoDetectedGetQueryKey = () => {
+  return [`/recurring/auto-detected`] as const;
+};
+
+export const getListAutoDetectedRecurringAutoDetectedGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAutoDetectedRecurringAutoDetectedGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>
+  > = ({ signal }) => listAutoDetectedRecurringAutoDetectedGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListAutoDetectedRecurringAutoDetectedGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>
+>;
+export type ListAutoDetectedRecurringAutoDetectedGetQueryError = ErrorType<unknown>;
+
+export function useListAutoDetectedRecurringAutoDetectedGet<
+  TData = Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+          TError,
+          Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListAutoDetectedRecurringAutoDetectedGet<
+  TData = Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+          TError,
+          Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListAutoDetectedRecurringAutoDetectedGet<
+  TData = Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List auto-detected recurring expenses
+ */
+
+export function useListAutoDetectedRecurringAutoDetectedGet<
+  TData = Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listAutoDetectedRecurringAutoDetectedGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListAutoDetectedRecurringAutoDetectedGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Update amount, frequency, next charge date, alert settings, or category of a recurring expense.
+ * @summary Update a recurring expense
+ */
+export const updateRecurringRecurringRecurringIdPut = (
+  recurringId: number,
+  recurringUpdate: BodyType<RecurringUpdate>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/recurring/${recurringId}`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: recurringUpdate,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getUpdateRecurringRecurringRecurringIdPutMutationKey = () =>
+  ["updateRecurringRecurringRecurringIdPut"] as const;
+
+export const getUpdateRecurringRecurringRecurringIdPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRecurringRecurringRecurringIdPut>>,
+    TError,
+    UpdateRecurringRecurringRecurringIdPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRecurringRecurringRecurringIdPut>>,
+  TError,
+  UpdateRecurringRecurringRecurringIdPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdateRecurringRecurringRecurringIdPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRecurringRecurringRecurringIdPut>>,
+    UpdateRecurringRecurringRecurringIdPutMutationVariables
+  > = (props) => {
+    const { recurringId, data } = props ?? {};
+
+    return updateRecurringRecurringRecurringIdPut(recurringId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRecurringRecurringRecurringIdPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateRecurringRecurringRecurringIdPut>>
+>;
+export type UpdateRecurringRecurringRecurringIdPutMutationBody = BodyType<RecurringUpdate>;
+export type UpdateRecurringRecurringRecurringIdPutMutationError = ErrorType<unknown>;
+export type UpdateRecurringRecurringRecurringIdPutMutationVariables = {
+  recurringId: number;
+  data: BodyType<RecurringUpdate>;
+};
+
+/**
+ * @summary Update a recurring expense
+ */
+export const useUpdateRecurringRecurringRecurringIdPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateRecurringRecurringRecurringIdPut>>,
+      TError,
+      UpdateRecurringRecurringRecurringIdPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateRecurringRecurringRecurringIdPut>>,
+  TError,
+  UpdateRecurringRecurringRecurringIdPutMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getUpdateRecurringRecurringRecurringIdPutMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Permanently remove a recurring expense by its ID.
+ * @summary Delete a recurring expense
+ */
+export const deleteRecurringRecurringRecurringIdDelete = (
+  recurringId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/recurring/${recurringId}`, method: "DELETE", signal },
+    options,
+  );
+};
+
+export const getDeleteRecurringRecurringRecurringIdDeleteMutationKey = () =>
+  ["deleteRecurringRecurringRecurringIdDelete"] as const;
+
+export const getDeleteRecurringRecurringRecurringIdDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRecurringRecurringRecurringIdDelete>>,
+    TError,
+    DeleteRecurringRecurringRecurringIdDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteRecurringRecurringRecurringIdDelete>>,
+  TError,
+  DeleteRecurringRecurringRecurringIdDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeleteRecurringRecurringRecurringIdDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteRecurringRecurringRecurringIdDelete>>,
+    DeleteRecurringRecurringRecurringIdDeleteMutationVariables
+  > = (props) => {
+    const { recurringId } = props ?? {};
+
+    return deleteRecurringRecurringRecurringIdDelete(recurringId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteRecurringRecurringRecurringIdDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteRecurringRecurringRecurringIdDelete>>
+>;
+
+export type DeleteRecurringRecurringRecurringIdDeleteMutationError = ErrorType<unknown>;
+export type DeleteRecurringRecurringRecurringIdDeleteMutationVariables = { recurringId: number };
+
+/**
+ * @summary Delete a recurring expense
+ */
+export const useDeleteRecurringRecurringRecurringIdDelete = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteRecurringRecurringRecurringIdDelete>>,
+      TError,
+      DeleteRecurringRecurringRecurringIdDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteRecurringRecurringRecurringIdDelete>>,
+  TError,
+  DeleteRecurringRecurringRecurringIdDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getDeleteRecurringRecurringRecurringIdDeleteMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Confirm an auto-detected recurring expense, changing its source to manual.
+ * @summary Confirm auto-detected recurring expense
+ */
+export const confirmRecurringRecurringRecurringIdConfirmPost = (
+  recurringId: number,
+  recurringUpdateNull?: BodyType<RecurringUpdate | null>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/recurring/${recurringId}/confirm`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: recurringUpdateNull,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getConfirmRecurringRecurringRecurringIdConfirmPostMutationKey = () =>
+  ["confirmRecurringRecurringRecurringIdConfirmPost"] as const;
+
+export const getConfirmRecurringRecurringRecurringIdConfirmPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof confirmRecurringRecurringRecurringIdConfirmPost>>,
+    TError,
+    ConfirmRecurringRecurringRecurringIdConfirmPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof confirmRecurringRecurringRecurringIdConfirmPost>>,
+  TError,
+  ConfirmRecurringRecurringRecurringIdConfirmPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getConfirmRecurringRecurringRecurringIdConfirmPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof confirmRecurringRecurringRecurringIdConfirmPost>>,
+    ConfirmRecurringRecurringRecurringIdConfirmPostMutationVariables
+  > = (props) => {
+    const { recurringId, data } = props ?? {};
+
+    return confirmRecurringRecurringRecurringIdConfirmPost(recurringId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ConfirmRecurringRecurringRecurringIdConfirmPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof confirmRecurringRecurringRecurringIdConfirmPost>>
+>;
+export type ConfirmRecurringRecurringRecurringIdConfirmPostMutationBody =
+  BodyType<RecurringUpdate | null> | undefined;
+export type ConfirmRecurringRecurringRecurringIdConfirmPostMutationError = ErrorType<unknown>;
+export type ConfirmRecurringRecurringRecurringIdConfirmPostMutationVariables = {
+  recurringId: number;
+  data?: BodyType<RecurringUpdate | null>;
+};
+
+/**
+ * @summary Confirm auto-detected recurring expense
+ */
+export const useConfirmRecurringRecurringRecurringIdConfirmPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof confirmRecurringRecurringRecurringIdConfirmPost>>,
+      TError,
+      ConfirmRecurringRecurringRecurringIdConfirmPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof confirmRecurringRecurringRecurringIdConfirmPost>>,
+  TError,
+  ConfirmRecurringRecurringRecurringIdConfirmPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getConfirmRecurringRecurringRecurringIdConfirmPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Toggle the active state of a recurring expense between paused and active.
+ * @summary Toggle pause/resume recurring expense
+ */
+export const pauseRecurringRecurringRecurringIdPausePost = (
+  recurringId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/recurring/${recurringId}/pause`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getPauseRecurringRecurringRecurringIdPausePostMutationKey = () =>
+  ["pauseRecurringRecurringRecurringIdPausePost"] as const;
+
+export const getPauseRecurringRecurringRecurringIdPausePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof pauseRecurringRecurringRecurringIdPausePost>>,
+    TError,
+    PauseRecurringRecurringRecurringIdPausePostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof pauseRecurringRecurringRecurringIdPausePost>>,
+  TError,
+  PauseRecurringRecurringRecurringIdPausePostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getPauseRecurringRecurringRecurringIdPausePostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof pauseRecurringRecurringRecurringIdPausePost>>,
+    PauseRecurringRecurringRecurringIdPausePostMutationVariables
+  > = (props) => {
+    const { recurringId } = props ?? {};
+
+    return pauseRecurringRecurringRecurringIdPausePost(recurringId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PauseRecurringRecurringRecurringIdPausePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof pauseRecurringRecurringRecurringIdPausePost>>
+>;
+
+export type PauseRecurringRecurringRecurringIdPausePostMutationError = ErrorType<unknown>;
+export type PauseRecurringRecurringRecurringIdPausePostMutationVariables = { recurringId: number };
+
+/**
+ * @summary Toggle pause/resume recurring expense
+ */
+export const usePauseRecurringRecurringRecurringIdPausePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof pauseRecurringRecurringRecurringIdPausePost>>,
+      TError,
+      PauseRecurringRecurringRecurringIdPausePostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof pauseRecurringRecurringRecurringIdPausePost>>,
+  TError,
+  PauseRecurringRecurringRecurringIdPausePostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getPauseRecurringRecurringRecurringIdPausePostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Dismiss the banner and permanently suppress all current auto-detected recurring expenses.
+ * @summary Dismiss auto-detected banner
+ */
+export const dismissAutoDetectedBannerRecurringDismissBannerPut = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/recurring/dismiss-banner`, method: "PUT", signal }, options);
+};
+
+export const getDismissAutoDetectedBannerRecurringDismissBannerPutMutationKey = () =>
+  ["dismissAutoDetectedBannerRecurringDismissBannerPut"] as const;
+
+export const getDismissAutoDetectedBannerRecurringDismissBannerPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissAutoDetectedBannerRecurringDismissBannerPut>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof dismissAutoDetectedBannerRecurringDismissBannerPut>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getDismissAutoDetectedBannerRecurringDismissBannerPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof dismissAutoDetectedBannerRecurringDismissBannerPut>>,
+    void
+  > = () => {
+    return dismissAutoDetectedBannerRecurringDismissBannerPut(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DismissAutoDetectedBannerRecurringDismissBannerPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof dismissAutoDetectedBannerRecurringDismissBannerPut>>
+>;
+
+export type DismissAutoDetectedBannerRecurringDismissBannerPutMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Dismiss auto-detected banner
+ */
+export const useDismissAutoDetectedBannerRecurringDismissBannerPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof dismissAutoDetectedBannerRecurringDismissBannerPut>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof dismissAutoDetectedBannerRecurringDismissBannerPut>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(
+    getDismissAutoDetectedBannerRecurringDismissBannerPutMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Returns all tags for the user's family group with expense counts.
+ * @summary List user tags
+ */
+export const getTagsTagsGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/tags`, method: "GET", signal }, options);
+};
+
+export const getGetTagsTagsGetQueryKey = () => {
+  return [`/tags`] as const;
+};
+
+export const getGetTagsTagsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTagsTagsGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTagsTagsGet>>, TError, TData>>;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTagsTagsGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTagsTagsGet>>> = ({ signal }) =>
+    getTagsTagsGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTagsTagsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetTagsTagsGetQueryResult = NonNullable<Awaited<ReturnType<typeof getTagsTagsGet>>>;
+export type GetTagsTagsGetQueryError = ErrorType<unknown>;
+
+export function useGetTagsTagsGet<
+  TData = Awaited<ReturnType<typeof getTagsTagsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTagsTagsGet>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTagsTagsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getTagsTagsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTagsTagsGet<
+  TData = Awaited<ReturnType<typeof getTagsTagsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTagsTagsGet>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTagsTagsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getTagsTagsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTagsTagsGet<
+  TData = Awaited<ReturnType<typeof getTagsTagsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTagsTagsGet>>, TError, TData>>;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List user tags
+ */
+
+export function useGetTagsTagsGet<
+  TData = Awaited<ReturnType<typeof getTagsTagsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTagsTagsGet>>, TError, TData>>;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetTagsTagsGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Creates a new tag. Group 'categoria' is system-managed and cannot be created manually.
+ * @summary Create a tag
+ */
+export const createTagTagsPost = (
+  tagCreate: BodyType<TagCreate>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/tags`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: tagCreate,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCreateTagTagsPostMutationKey = () => ["createTagTagsPost"] as const;
+
+export const getCreateTagTagsPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTagTagsPost>>,
+    TError,
+    CreateTagTagsPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createTagTagsPost>>,
+  TError,
+  CreateTagTagsPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateTagTagsPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createTagTagsPost>>,
+    CreateTagTagsPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createTagTagsPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateTagTagsPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createTagTagsPost>>
+>;
+export type CreateTagTagsPostMutationBody = BodyType<TagCreate>;
+export type CreateTagTagsPostMutationError = ErrorType<unknown>;
+export type CreateTagTagsPostMutationVariables = { data: BodyType<TagCreate> };
+
+/**
+ * @summary Create a tag
+ */
+export const useCreateTagTagsPost = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createTagTagsPost>>,
+      TError,
+      CreateTagTagsPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createTagTagsPost>>,
+  TError,
+  CreateTagTagsPostMutationVariables,
+  TContext
+> => {
+  return useMutation(getCreateTagTagsPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Updates a tag's name, color, group, or linked card/account. Cannot change to 'categoria' group.
+ * @summary Update a tag
+ */
+export const updateTagTagsTagIdPut = (
+  tagId: number,
+  tagUpdate: BodyType<TagUpdate>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/tags/${tagId}`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: tagUpdate,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getUpdateTagTagsTagIdPutMutationKey = () => ["updateTagTagsTagIdPut"] as const;
+
+export const getUpdateTagTagsTagIdPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTagTagsTagIdPut>>,
+    TError,
+    UpdateTagTagsTagIdPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateTagTagsTagIdPut>>,
+  TError,
+  UpdateTagTagsTagIdPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdateTagTagsTagIdPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateTagTagsTagIdPut>>,
+    UpdateTagTagsTagIdPutMutationVariables
+  > = (props) => {
+    const { tagId, data } = props ?? {};
+
+    return updateTagTagsTagIdPut(tagId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateTagTagsTagIdPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateTagTagsTagIdPut>>
+>;
+export type UpdateTagTagsTagIdPutMutationBody = BodyType<TagUpdate>;
+export type UpdateTagTagsTagIdPutMutationError = ErrorType<unknown>;
+export type UpdateTagTagsTagIdPutMutationVariables = { tagId: number; data: BodyType<TagUpdate> };
+
+/**
+ * @summary Update a tag
+ */
+export const useUpdateTagTagsTagIdPut = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateTagTagsTagIdPut>>,
+      TError,
+      UpdateTagTagsTagIdPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateTagTagsTagIdPut>>,
+  TError,
+  UpdateTagTagsTagIdPutMutationVariables,
+  TContext
+> => {
+  return useMutation(getUpdateTagTagsTagIdPutMutationOptions(options), queryClient);
+};
+
+/**
+ * Deletes a tag and removes all expense-tag associations.
+ * @summary Delete a tag
+ */
+export const deleteTagTagsTagIdDelete = (
+  tagId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/tags/${tagId}`, method: "DELETE", signal }, options);
+};
+
+export const getDeleteTagTagsTagIdDeleteMutationKey = () => ["deleteTagTagsTagIdDelete"] as const;
+
+export const getDeleteTagTagsTagIdDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTagTagsTagIdDelete>>,
+    TError,
+    DeleteTagTagsTagIdDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTagTagsTagIdDelete>>,
+  TError,
+  DeleteTagTagsTagIdDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeleteTagTagsTagIdDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteTagTagsTagIdDelete>>,
+    DeleteTagTagsTagIdDeleteMutationVariables
+  > = (props) => {
+    const { tagId } = props ?? {};
+
+    return deleteTagTagsTagIdDelete(tagId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTagTagsTagIdDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteTagTagsTagIdDelete>>
+>;
+
+export type DeleteTagTagsTagIdDeleteMutationError = ErrorType<unknown>;
+export type DeleteTagTagsTagIdDeleteMutationVariables = { tagId: number };
+
+/**
+ * @summary Delete a tag
+ */
+export const useDeleteTagTagsTagIdDelete = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteTagTagsTagIdDelete>>,
+      TError,
+      DeleteTagTagsTagIdDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTagTagsTagIdDelete>>,
+  TError,
+  DeleteTagTagsTagIdDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(getDeleteTagTagsTagIdDeleteMutationOptions(options), queryClient);
+};
+
+/**
+ * Return the unique slug URL for accessing the admin panel.
+ * @summary Get admin panel slug
+ */
+export const getSlugAdminSlugGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/slug`, method: "GET", signal }, options);
+};
+
+export const getGetSlugAdminSlugGetQueryKey = () => {
+  return [`/admin/slug`] as const;
+};
+
+export const getGetSlugAdminSlugGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSlugAdminSlugGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getSlugAdminSlugGet>>, TError, TData>>;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSlugAdminSlugGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSlugAdminSlugGet>>> = ({ signal }) =>
+    getSlugAdminSlugGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSlugAdminSlugGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetSlugAdminSlugGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSlugAdminSlugGet>>
+>;
+export type GetSlugAdminSlugGetQueryError = ErrorType<unknown>;
+
+export function useGetSlugAdminSlugGet<
+  TData = Awaited<ReturnType<typeof getSlugAdminSlugGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSlugAdminSlugGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSlugAdminSlugGet>>,
+          TError,
+          Awaited<ReturnType<typeof getSlugAdminSlugGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetSlugAdminSlugGet<
+  TData = Awaited<ReturnType<typeof getSlugAdminSlugGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSlugAdminSlugGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSlugAdminSlugGet>>,
+          TError,
+          Awaited<ReturnType<typeof getSlugAdminSlugGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetSlugAdminSlugGet<
+  TData = Awaited<ReturnType<typeof getSlugAdminSlugGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSlugAdminSlugGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get admin panel slug
+ */
+
+export function useGetSlugAdminSlugGet<
+  TData = Awaited<ReturnType<typeof getSlugAdminSlugGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSlugAdminSlugGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetSlugAdminSlugGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Return a paginated list of users with stats, optionally filtered by search query.
+ * @summary List all users
+ */
+export const listUsersAdminUsersGet = (
+  params?: ListUsersAdminUsersGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/users`, method: "GET", params, signal }, options);
+};
+
+export const getListUsersAdminUsersGetQueryKey = (params?: ListUsersAdminUsersGetParams) => {
+  return [`/admin/users`, ...(params ? [params] : [])] as const;
+};
+
+export const getListUsersAdminUsersGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listUsersAdminUsersGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListUsersAdminUsersGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listUsersAdminUsersGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListUsersAdminUsersGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listUsersAdminUsersGet>>> = ({ signal }) =>
+    listUsersAdminUsersGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listUsersAdminUsersGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListUsersAdminUsersGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listUsersAdminUsersGet>>
+>;
+export type ListUsersAdminUsersGetQueryError = ErrorType<unknown>;
+
+export function useListUsersAdminUsersGet<
+  TData = Awaited<ReturnType<typeof listUsersAdminUsersGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | ListUsersAdminUsersGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listUsersAdminUsersGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listUsersAdminUsersGet>>,
+          TError,
+          Awaited<ReturnType<typeof listUsersAdminUsersGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListUsersAdminUsersGet<
+  TData = Awaited<ReturnType<typeof listUsersAdminUsersGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListUsersAdminUsersGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listUsersAdminUsersGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listUsersAdminUsersGet>>,
+          TError,
+          Awaited<ReturnType<typeof listUsersAdminUsersGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListUsersAdminUsersGet<
+  TData = Awaited<ReturnType<typeof listUsersAdminUsersGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListUsersAdminUsersGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listUsersAdminUsersGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List all users
+ */
+
+export function useListUsersAdminUsersGet<
+  TData = Awaited<ReturnType<typeof listUsersAdminUsersGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListUsersAdminUsersGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listUsersAdminUsersGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListUsersAdminUsersGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Return full user details including stats, security info, and recent audit logs.
+ * @summary Get user details
+ */
+export const getUserAdminUsersUserIdGet = (
+  userId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/users/${userId}`, method: "GET", signal }, options);
+};
+
+export const getGetUserAdminUsersUserIdGetQueryKey = (userId: number) => {
+  return [`/admin/users/${userId}`] as const;
+};
+
+export const getGetUserAdminUsersUserIdGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetUserAdminUsersUserIdGetQueryKey(userId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>> = ({
+    signal,
+  }) => getUserAdminUsersUserIdGet(userId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: userId !== null && userId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetUserAdminUsersUserIdGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>
+>;
+export type GetUserAdminUsersUserIdGetQueryError = ErrorType<unknown>;
+
+export function useGetUserAdminUsersUserIdGet<
+  TData = Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetUserAdminUsersUserIdGet<
+  TData = Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetUserAdminUsersUserIdGet<
+  TData = Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get user details
+ */
+
+export function useGetUserAdminUsersUserIdGet<
+  TData = Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getUserAdminUsersUserIdGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetUserAdminUsersUserIdGetQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Block a user account with an optional reason. Cannot block yourself.
+ * @summary Block a user
+ */
+export const blockUserAdminUsersUserIdBlockPut = (
+  userId: number,
+  blockRequest: BodyType<BlockRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/admin/users/${userId}/block`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: blockRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getBlockUserAdminUsersUserIdBlockPutMutationKey = () =>
+  ["blockUserAdminUsersUserIdBlockPut"] as const;
+
+export const getBlockUserAdminUsersUserIdBlockPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof blockUserAdminUsersUserIdBlockPut>>,
+    TError,
+    BlockUserAdminUsersUserIdBlockPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof blockUserAdminUsersUserIdBlockPut>>,
+  TError,
+  BlockUserAdminUsersUserIdBlockPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getBlockUserAdminUsersUserIdBlockPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof blockUserAdminUsersUserIdBlockPut>>,
+    BlockUserAdminUsersUserIdBlockPutMutationVariables
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return blockUserAdminUsersUserIdBlockPut(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BlockUserAdminUsersUserIdBlockPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof blockUserAdminUsersUserIdBlockPut>>
+>;
+export type BlockUserAdminUsersUserIdBlockPutMutationBody = BodyType<BlockRequest>;
+export type BlockUserAdminUsersUserIdBlockPutMutationError = ErrorType<unknown>;
+export type BlockUserAdminUsersUserIdBlockPutMutationVariables = {
+  userId: number;
+  data: BodyType<BlockRequest>;
+};
+
+/**
+ * @summary Block a user
+ */
+export const useBlockUserAdminUsersUserIdBlockPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof blockUserAdminUsersUserIdBlockPut>>,
+      TError,
+      BlockUserAdminUsersUserIdBlockPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof blockUserAdminUsersUserIdBlockPut>>,
+  TError,
+  BlockUserAdminUsersUserIdBlockPutMutationVariables,
+  TContext
+> => {
+  return useMutation(getBlockUserAdminUsersUserIdBlockPutMutationOptions(options), queryClient);
+};
+
+/**
+ * Remove the block from a user account, restoring access.
+ * @summary Unblock a user
+ */
+export const unblockUserAdminUsersUserIdUnblockPut = (
+  userId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/users/${userId}/unblock`, method: "PUT", signal },
+    options,
+  );
+};
+
+export const getUnblockUserAdminUsersUserIdUnblockPutMutationKey = () =>
+  ["unblockUserAdminUsersUserIdUnblockPut"] as const;
+
+export const getUnblockUserAdminUsersUserIdUnblockPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unblockUserAdminUsersUserIdUnblockPut>>,
+    TError,
+    UnblockUserAdminUsersUserIdUnblockPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unblockUserAdminUsersUserIdUnblockPut>>,
+  TError,
+  UnblockUserAdminUsersUserIdUnblockPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUnblockUserAdminUsersUserIdUnblockPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unblockUserAdminUsersUserIdUnblockPut>>,
+    UnblockUserAdminUsersUserIdUnblockPutMutationVariables
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return unblockUserAdminUsersUserIdUnblockPut(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnblockUserAdminUsersUserIdUnblockPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unblockUserAdminUsersUserIdUnblockPut>>
+>;
+
+export type UnblockUserAdminUsersUserIdUnblockPutMutationError = ErrorType<unknown>;
+export type UnblockUserAdminUsersUserIdUnblockPutMutationVariables = { userId: number };
+
+/**
+ * @summary Unblock a user
+ */
+export const useUnblockUserAdminUsersUserIdUnblockPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof unblockUserAdminUsersUserIdUnblockPut>>,
+      TError,
+      UnblockUserAdminUsersUserIdUnblockPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof unblockUserAdminUsersUserIdUnblockPut>>,
+  TError,
+  UnblockUserAdminUsersUserIdUnblockPutMutationVariables,
+  TContext
+> => {
+  return useMutation(getUnblockUserAdminUsersUserIdUnblockPutMutationOptions(options), queryClient);
+};
+
+/**
+ * Toggle the admin flag on or off for a given user.
+ * @summary Toggle admin status
+ */
+export const toggleAdminAdminUsersUserIdAdminPut = (
+  userId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/users/${userId}/admin`, method: "PUT", signal },
+    options,
+  );
+};
+
+export const getToggleAdminAdminUsersUserIdAdminPutMutationKey = () =>
+  ["toggleAdminAdminUsersUserIdAdminPut"] as const;
+
+export const getToggleAdminAdminUsersUserIdAdminPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleAdminAdminUsersUserIdAdminPut>>,
+    TError,
+    ToggleAdminAdminUsersUserIdAdminPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof toggleAdminAdminUsersUserIdAdminPut>>,
+  TError,
+  ToggleAdminAdminUsersUserIdAdminPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getToggleAdminAdminUsersUserIdAdminPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof toggleAdminAdminUsersUserIdAdminPut>>,
+    ToggleAdminAdminUsersUserIdAdminPutMutationVariables
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return toggleAdminAdminUsersUserIdAdminPut(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ToggleAdminAdminUsersUserIdAdminPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof toggleAdminAdminUsersUserIdAdminPut>>
+>;
+
+export type ToggleAdminAdminUsersUserIdAdminPutMutationError = ErrorType<unknown>;
+export type ToggleAdminAdminUsersUserIdAdminPutMutationVariables = { userId: number };
+
+/**
+ * @summary Toggle admin status
+ */
+export const useToggleAdminAdminUsersUserIdAdminPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof toggleAdminAdminUsersUserIdAdminPut>>,
+      TError,
+      ToggleAdminAdminUsersUserIdAdminPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof toggleAdminAdminUsersUserIdAdminPut>>,
+  TError,
+  ToggleAdminAdminUsersUserIdAdminPutMutationVariables,
+  TContext
+> => {
+  return useMutation(getToggleAdminAdminUsersUserIdAdminPutMutationOptions(options), queryClient);
+};
+
+/**
+ * Reconcile Grafana against the `is_admin` flag: admins are provisioned with the Admin role, everyone else is removed. Use for initial setup or after bulk changes.
+ * @summary Sync admin users to Grafana
+ */
+export const syncGrafanaUsersAdminGrafanaSyncPost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/grafana/sync`, method: "POST", signal }, options);
+};
+
+export const getSyncGrafanaUsersAdminGrafanaSyncPostMutationKey = () =>
+  ["syncGrafanaUsersAdminGrafanaSyncPost"] as const;
+
+export const getSyncGrafanaUsersAdminGrafanaSyncPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncGrafanaUsersAdminGrafanaSyncPost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncGrafanaUsersAdminGrafanaSyncPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getSyncGrafanaUsersAdminGrafanaSyncPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncGrafanaUsersAdminGrafanaSyncPost>>,
+    void
+  > = () => {
+    return syncGrafanaUsersAdminGrafanaSyncPost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncGrafanaUsersAdminGrafanaSyncPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncGrafanaUsersAdminGrafanaSyncPost>>
+>;
+
+export type SyncGrafanaUsersAdminGrafanaSyncPostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Sync admin users to Grafana
+ */
+export const useSyncGrafanaUsersAdminGrafanaSyncPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof syncGrafanaUsersAdminGrafanaSyncPost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof syncGrafanaUsersAdminGrafanaSyncPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncGrafanaUsersAdminGrafanaSyncPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Clear the Redis-based rate-limit lockout for a user.
+ * @summary Unlock a user account
+ */
+export const unlockUserAdminUsersUserIdUnlockPost = (
+  userId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/users/${userId}/unlock`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getUnlockUserAdminUsersUserIdUnlockPostMutationKey = () =>
+  ["unlockUserAdminUsersUserIdUnlockPost"] as const;
+
+export const getUnlockUserAdminUsersUserIdUnlockPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unlockUserAdminUsersUserIdUnlockPost>>,
+    TError,
+    UnlockUserAdminUsersUserIdUnlockPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unlockUserAdminUsersUserIdUnlockPost>>,
+  TError,
+  UnlockUserAdminUsersUserIdUnlockPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUnlockUserAdminUsersUserIdUnlockPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unlockUserAdminUsersUserIdUnlockPost>>,
+    UnlockUserAdminUsersUserIdUnlockPostMutationVariables
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return unlockUserAdminUsersUserIdUnlockPost(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnlockUserAdminUsersUserIdUnlockPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unlockUserAdminUsersUserIdUnlockPost>>
+>;
+
+export type UnlockUserAdminUsersUserIdUnlockPostMutationError = ErrorType<unknown>;
+export type UnlockUserAdminUsersUserIdUnlockPostMutationVariables = { userId: number };
+
+/**
+ * @summary Unlock a user account
+ */
+export const useUnlockUserAdminUsersUserIdUnlockPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof unlockUserAdminUsersUserIdUnlockPost>>,
+      TError,
+      UnlockUserAdminUsersUserIdUnlockPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof unlockUserAdminUsersUserIdUnlockPost>>,
+  TError,
+  UnlockUserAdminUsersUserIdUnlockPostMutationVariables,
+  TContext
+> => {
+  return useMutation(getUnlockUserAdminUsersUserIdUnlockPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Return the most recent notifications for a specific user.
+ * @summary Get user notifications
+ */
+export const getUserNotificationsAdminUsersUserIdNotificationsGet = (
+  userId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/users/${userId}/notifications`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getGetUserNotificationsAdminUsersUserIdNotificationsGetQueryKey = (userId: number) => {
+  return [`/admin/users/${userId}/notifications`] as const;
+};
+
+export const getGetUserNotificationsAdminUsersUserIdNotificationsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetUserNotificationsAdminUsersUserIdNotificationsGetQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>
+  > = ({ signal }) =>
+    getUserNotificationsAdminUsersUserIdNotificationsGet(userId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: userId !== null && userId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetUserNotificationsAdminUsersUserIdNotificationsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>
+>;
+export type GetUserNotificationsAdminUsersUserIdNotificationsGetQueryError = ErrorType<unknown>;
+
+export function useGetUserNotificationsAdminUsersUserIdNotificationsGet<
+  TData = Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetUserNotificationsAdminUsersUserIdNotificationsGet<
+  TData = Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetUserNotificationsAdminUsersUserIdNotificationsGet<
+  TData = Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get user notifications
+ */
+
+export function useGetUserNotificationsAdminUsersUserIdNotificationsGet<
+  TData = Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getUserNotificationsAdminUsersUserIdNotificationsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetUserNotificationsAdminUsersUserIdNotificationsGetQueryOptions(
+    userId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Send an admin notification message to a specific user.
+ * @summary Send notification to user
+ */
+export const sendNotificationToUserAdminUsersUserIdSendNotificationPost = (
+  userId: number,
+  sendNotificationRequest: BodyType<SendNotificationRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/admin/users/${userId}/send-notification`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: sendNotificationRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getSendNotificationToUserAdminUsersUserIdSendNotificationPostMutationKey = () =>
+  ["sendNotificationToUserAdminUsersUserIdSendNotificationPost"] as const;
+
+export const getSendNotificationToUserAdminUsersUserIdSendNotificationPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendNotificationToUserAdminUsersUserIdSendNotificationPost>>,
+    TError,
+    SendNotificationToUserAdminUsersUserIdSendNotificationPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendNotificationToUserAdminUsersUserIdSendNotificationPost>>,
+  TError,
+  SendNotificationToUserAdminUsersUserIdSendNotificationPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSendNotificationToUserAdminUsersUserIdSendNotificationPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendNotificationToUserAdminUsersUserIdSendNotificationPost>>,
+    SendNotificationToUserAdminUsersUserIdSendNotificationPostMutationVariables
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return sendNotificationToUserAdminUsersUserIdSendNotificationPost(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendNotificationToUserAdminUsersUserIdSendNotificationPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendNotificationToUserAdminUsersUserIdSendNotificationPost>>
+>;
+export type SendNotificationToUserAdminUsersUserIdSendNotificationPostMutationBody =
+  BodyType<SendNotificationRequest>;
+export type SendNotificationToUserAdminUsersUserIdSendNotificationPostMutationError =
+  ErrorType<unknown>;
+export type SendNotificationToUserAdminUsersUserIdSendNotificationPostMutationVariables = {
+  userId: number;
+  data: BodyType<SendNotificationRequest>;
+};
+
+/**
+ * @summary Send notification to user
+ */
+export const useSendNotificationToUserAdminUsersUserIdSendNotificationPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof sendNotificationToUserAdminUsersUserIdSendNotificationPost>>,
+      TError,
+      SendNotificationToUserAdminUsersUserIdSendNotificationPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof sendNotificationToUserAdminUsersUserIdSendNotificationPost>>,
+  TError,
+  SendNotificationToUserAdminUsersUserIdSendNotificationPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getSendNotificationToUserAdminUsersUserIdSendNotificationPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Return paginated audit logs, optionally filtered by user ID and action type.
+ * @summary Get audit logs
+ */
+export const getAuditLogsAdminAuditLogsGet = (
+  params?: GetAuditLogsAdminAuditLogsGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/audit-logs`, method: "GET", params, signal }, options);
+};
+
+export const getGetAuditLogsAdminAuditLogsGetQueryKey = (
+  params?: GetAuditLogsAdminAuditLogsGetParams,
+) => {
+  return [`/admin/audit-logs`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAuditLogsAdminAuditLogsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAuditLogsAdminAuditLogsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAuditLogsAdminAuditLogsGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>> = ({
+    signal,
+  }) => getAuditLogsAdminAuditLogsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetAuditLogsAdminAuditLogsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>
+>;
+export type GetAuditLogsAdminAuditLogsGetQueryError = ErrorType<unknown>;
+
+export function useGetAuditLogsAdminAuditLogsGet<
+  TData = Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetAuditLogsAdminAuditLogsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetAuditLogsAdminAuditLogsGet<
+  TData = Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAuditLogsAdminAuditLogsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetAuditLogsAdminAuditLogsGet<
+  TData = Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAuditLogsAdminAuditLogsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get audit logs
+ */
+
+export function useGetAuditLogsAdminAuditLogsGet<
+  TData = Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAuditLogsAdminAuditLogsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getAuditLogsAdminAuditLogsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetAuditLogsAdminAuditLogsGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Return failed login stats grouped by user and IP, plus blocked accounts and Redis lockouts.
+ * @summary Get login error statistics
+ */
+export const getLoginErrorsAdminLoginErrorsGet = (
+  params?: GetLoginErrorsAdminLoginErrorsGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/login-errors`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGetLoginErrorsAdminLoginErrorsGetQueryKey = (
+  params?: GetLoginErrorsAdminLoginErrorsGetParams,
+) => {
+  return [`/admin/login-errors`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetLoginErrorsAdminLoginErrorsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetLoginErrorsAdminLoginErrorsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLoginErrorsAdminLoginErrorsGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>> = ({
+    signal,
+  }) => getLoginErrorsAdminLoginErrorsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetLoginErrorsAdminLoginErrorsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>
+>;
+export type GetLoginErrorsAdminLoginErrorsGetQueryError = ErrorType<unknown>;
+
+export function useGetLoginErrorsAdminLoginErrorsGet<
+  TData = Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetLoginErrorsAdminLoginErrorsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetLoginErrorsAdminLoginErrorsGet<
+  TData = Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetLoginErrorsAdminLoginErrorsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetLoginErrorsAdminLoginErrorsGet<
+  TData = Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetLoginErrorsAdminLoginErrorsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get login error statistics
+ */
+
+export function useGetLoginErrorsAdminLoginErrorsGet<
+  TData = Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetLoginErrorsAdminLoginErrorsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getLoginErrorsAdminLoginErrorsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetLoginErrorsAdminLoginErrorsGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Return monthly reports filtered by user, month, or status.
+ * @summary List monthly reports
+ */
+export const getReportsAdminReportsGet = (
+  params?: GetReportsAdminReportsGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/reports`, method: "GET", params, signal }, options);
+};
+
+export const getGetReportsAdminReportsGetQueryKey = (params?: GetReportsAdminReportsGetParams) => {
+  return [`/admin/reports`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetReportsAdminReportsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReportsAdminReportsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetReportsAdminReportsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReportsAdminReportsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetReportsAdminReportsGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getReportsAdminReportsGet>>> = ({
+    signal,
+  }) => getReportsAdminReportsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getReportsAdminReportsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetReportsAdminReportsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReportsAdminReportsGet>>
+>;
+export type GetReportsAdminReportsGetQueryError = ErrorType<unknown>;
+
+export function useGetReportsAdminReportsGet<
+  TData = Awaited<ReturnType<typeof getReportsAdminReportsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetReportsAdminReportsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReportsAdminReportsGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReportsAdminReportsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getReportsAdminReportsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetReportsAdminReportsGet<
+  TData = Awaited<ReturnType<typeof getReportsAdminReportsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetReportsAdminReportsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReportsAdminReportsGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReportsAdminReportsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getReportsAdminReportsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetReportsAdminReportsGet<
+  TData = Awaited<ReturnType<typeof getReportsAdminReportsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetReportsAdminReportsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReportsAdminReportsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List monthly reports
+ */
+
+export function useGetReportsAdminReportsGet<
+  TData = Awaited<ReturnType<typeof getReportsAdminReportsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetReportsAdminReportsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReportsAdminReportsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetReportsAdminReportsGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Permanently delete a monthly report by its ID.
+ * @summary Delete a report
+ */
+export const deleteReportAdminReportsReportIdDelete = (
+  reportId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/reports/${reportId}`, method: "DELETE", signal },
+    options,
+  );
+};
+
+export const getDeleteReportAdminReportsReportIdDeleteMutationKey = () =>
+  ["deleteReportAdminReportsReportIdDelete"] as const;
+
+export const getDeleteReportAdminReportsReportIdDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteReportAdminReportsReportIdDelete>>,
+    TError,
+    DeleteReportAdminReportsReportIdDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteReportAdminReportsReportIdDelete>>,
+  TError,
+  DeleteReportAdminReportsReportIdDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeleteReportAdminReportsReportIdDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteReportAdminReportsReportIdDelete>>,
+    DeleteReportAdminReportsReportIdDeleteMutationVariables
+  > = (props) => {
+    const { reportId } = props ?? {};
+
+    return deleteReportAdminReportsReportIdDelete(reportId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteReportAdminReportsReportIdDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteReportAdminReportsReportIdDelete>>
+>;
+
+export type DeleteReportAdminReportsReportIdDeleteMutationError = ErrorType<unknown>;
+export type DeleteReportAdminReportsReportIdDeleteMutationVariables = { reportId: number };
+
+/**
+ * @summary Delete a report
+ */
+export const useDeleteReportAdminReportsReportIdDelete = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteReportAdminReportsReportIdDelete>>,
+      TError,
+      DeleteReportAdminReportsReportIdDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteReportAdminReportsReportIdDelete>>,
+  TError,
+  DeleteReportAdminReportsReportIdDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getDeleteReportAdminReportsReportIdDeleteMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Delete a specific user's monthly report for a given month.
+ * @summary Delete report by user and month
+ */
+export const deleteReportByUserMonthAdminReportsUserUserIdMonthMonthDelete = (
+  userId: number,
+  month: string,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/reports/user/${userId}/month/${month}`, method: "DELETE", signal },
+    options,
+  );
+};
+
+export const getDeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationKey = () =>
+  ["deleteReportByUserMonthAdminReportsUserUserIdMonthMonthDelete"] as const;
+
+export const getDeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteReportByUserMonthAdminReportsUserUserIdMonthMonthDelete>>,
+    TError,
+    DeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteReportByUserMonthAdminReportsUserUserIdMonthMonthDelete>>,
+  TError,
+  DeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationVariables,
+  TContext
+> => {
+  const mutationKey = getDeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteReportByUserMonthAdminReportsUserUserIdMonthMonthDelete>>,
+    DeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationVariables
+  > = (props) => {
+    const { userId, month } = props ?? {};
+
+    return deleteReportByUserMonthAdminReportsUserUserIdMonthMonthDelete(
+      userId,
+      month,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof deleteReportByUserMonthAdminReportsUserUserIdMonthMonthDelete>>
+  >;
+
+export type DeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationError =
+  ErrorType<unknown>;
+export type DeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationVariables = {
+  userId: number;
+  month: string;
+};
+
+/**
+ * @summary Delete report by user and month
+ */
+export const useDeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDelete = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteReportByUserMonthAdminReportsUserUserIdMonthMonthDelete>>,
+      TError,
+      DeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteReportByUserMonthAdminReportsUserUserIdMonthMonthDelete>>,
+  TError,
+  DeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getDeleteReportByUserMonthAdminReportsUserUserIdMonthMonthDeleteMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Generate a monthly report for a specific user and month, or regenerate if it failed.
+ * @summary Generate a monthly report
+ */
+export const generateReportAdminReportsGeneratePost = (
+  generateReportRequest: BodyType<GenerateReportRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/admin/reports/generate`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: generateReportRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getGenerateReportAdminReportsGeneratePostMutationKey = () =>
+  ["generateReportAdminReportsGeneratePost"] as const;
+
+export const getGenerateReportAdminReportsGeneratePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateReportAdminReportsGeneratePost>>,
+    TError,
+    GenerateReportAdminReportsGeneratePostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateReportAdminReportsGeneratePost>>,
+  TError,
+  GenerateReportAdminReportsGeneratePostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getGenerateReportAdminReportsGeneratePostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateReportAdminReportsGeneratePost>>,
+    GenerateReportAdminReportsGeneratePostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateReportAdminReportsGeneratePost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateReportAdminReportsGeneratePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateReportAdminReportsGeneratePost>>
+>;
+export type GenerateReportAdminReportsGeneratePostMutationBody = BodyType<GenerateReportRequest>;
+export type GenerateReportAdminReportsGeneratePostMutationError = ErrorType<unknown>;
+export type GenerateReportAdminReportsGeneratePostMutationVariables = {
+  data: BodyType<GenerateReportRequest>;
+};
+
+/**
+ * @summary Generate a monthly report
+ */
+export const useGenerateReportAdminReportsGeneratePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof generateReportAdminReportsGeneratePost>>,
+      TError,
+      GenerateReportAdminReportsGeneratePostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof generateReportAdminReportsGeneratePost>>,
+  TError,
+  GenerateReportAdminReportsGeneratePostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getGenerateReportAdminReportsGeneratePostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Enqueue monthly report generation for every active user for a given month.
+ * @summary Generate reports for all users
+ */
+export const generateAllReportsAdminReportsGenerateAllPost = (
+  params: GenerateAllReportsAdminReportsGenerateAllPostParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/reports/generate-all`, method: "POST", params, signal },
+    options,
+  );
+};
+
+export const getGenerateAllReportsAdminReportsGenerateAllPostMutationKey = () =>
+  ["generateAllReportsAdminReportsGenerateAllPost"] as const;
+
+export const getGenerateAllReportsAdminReportsGenerateAllPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateAllReportsAdminReportsGenerateAllPost>>,
+    TError,
+    GenerateAllReportsAdminReportsGenerateAllPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateAllReportsAdminReportsGenerateAllPost>>,
+  TError,
+  GenerateAllReportsAdminReportsGenerateAllPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getGenerateAllReportsAdminReportsGenerateAllPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateAllReportsAdminReportsGenerateAllPost>>,
+    GenerateAllReportsAdminReportsGenerateAllPostMutationVariables
+  > = (props) => {
+    const { params } = props ?? {};
+
+    return generateAllReportsAdminReportsGenerateAllPost(params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateAllReportsAdminReportsGenerateAllPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateAllReportsAdminReportsGenerateAllPost>>
+>;
+
+export type GenerateAllReportsAdminReportsGenerateAllPostMutationError = ErrorType<unknown>;
+export type GenerateAllReportsAdminReportsGenerateAllPostMutationVariables = {
+  params: GenerateAllReportsAdminReportsGenerateAllPostParams;
+};
+
+/**
+ * @summary Generate reports for all users
+ */
+export const useGenerateAllReportsAdminReportsGenerateAllPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof generateAllReportsAdminReportsGenerateAllPost>>,
+      TError,
+      GenerateAllReportsAdminReportsGenerateAllPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof generateAllReportsAdminReportsGenerateAllPost>>,
+  TError,
+  GenerateAllReportsAdminReportsGenerateAllPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getGenerateAllReportsAdminReportsGenerateAllPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Check connectivity and status of Redis, PostgreSQL, Celery, Telegram bot, and app metrics.
+ * @summary System health check
+ */
+export const systemHealthAdminSystemHealthGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/system/health`, method: "GET", signal }, options);
+};
+
+export const getSystemHealthAdminSystemHealthGetQueryKey = () => {
+  return [`/admin/system/health`] as const;
+};
+
+export const getSystemHealthAdminSystemHealthGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSystemHealthAdminSystemHealthGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>> = ({
+    signal,
+  }) => systemHealthAdminSystemHealthGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type SystemHealthAdminSystemHealthGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>
+>;
+export type SystemHealthAdminSystemHealthGetQueryError = ErrorType<unknown>;
+
+export function useSystemHealthAdminSystemHealthGet<
+  TData = Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>,
+          TError,
+          Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSystemHealthAdminSystemHealthGet<
+  TData = Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>,
+          TError,
+          Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSystemHealthAdminSystemHealthGet<
+  TData = Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary System health check
+ */
+
+export function useSystemHealthAdminSystemHealthGet<
+  TData = Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof systemHealthAdminSystemHealthGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getSystemHealthAdminSystemHealthGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Aggregated request/error metrics from the in-memory ring buffer. No user data.
+ * @summary Usage stats (first-party, server-side)
+ */
+export const metricsUsageAdminMetricsUsageGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/metrics/usage`, method: "GET", signal }, options);
+};
+
+export const getMetricsUsageAdminMetricsUsageGetQueryKey = () => {
+  return [`/admin/metrics/usage`] as const;
+};
+
+export const getMetricsUsageAdminMetricsUsageGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMetricsUsageAdminMetricsUsageGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>> = ({
+    signal,
+  }) => metricsUsageAdminMetricsUsageGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type MetricsUsageAdminMetricsUsageGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>
+>;
+export type MetricsUsageAdminMetricsUsageGetQueryError = ErrorType<unknown>;
+
+export function useMetricsUsageAdminMetricsUsageGet<
+  TData = Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>,
+          TError,
+          Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMetricsUsageAdminMetricsUsageGet<
+  TData = Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>,
+          TError,
+          Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMetricsUsageAdminMetricsUsageGet<
+  TData = Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Usage stats (first-party, server-side)
+ */
+
+export function useMetricsUsageAdminMetricsUsageGet<
+  TData = Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof metricsUsageAdminMetricsUsageGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getMetricsUsageAdminMetricsUsageGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Extended health with request rates, latencies, DB pool, and Celery queue depth.
+ * @summary System metrics (extended health)
+ */
+export const metricsSystemAdminMetricsSystemGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/metrics/system`, method: "GET", signal }, options);
+};
+
+export const getMetricsSystemAdminMetricsSystemGetQueryKey = () => {
+  return [`/admin/metrics/system`] as const;
+};
+
+export const getMetricsSystemAdminMetricsSystemGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMetricsSystemAdminMetricsSystemGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>> = ({
+    signal,
+  }) => metricsSystemAdminMetricsSystemGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type MetricsSystemAdminMetricsSystemGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>
+>;
+export type MetricsSystemAdminMetricsSystemGetQueryError = ErrorType<unknown>;
+
+export function useMetricsSystemAdminMetricsSystemGet<
+  TData = Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>,
+          TError,
+          Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMetricsSystemAdminMetricsSystemGet<
+  TData = Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>,
+          TError,
+          Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useMetricsSystemAdminMetricsSystemGet<
+  TData = Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary System metrics (extended health)
+ */
+
+export function useMetricsSystemAdminMetricsSystemGet<
+  TData = Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof metricsSystemAdminMetricsSystemGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getMetricsSystemAdminMetricsSystemGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Return the last run time and status for each scheduled background task.
+ * @summary List scheduled tasks
+ */
+export const systemTasksAdminSystemTasksGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/system/tasks`, method: "GET", signal }, options);
+};
+
+export const getSystemTasksAdminSystemTasksGetQueryKey = () => {
+  return [`/admin/system/tasks`] as const;
+};
+
+export const getSystemTasksAdminSystemTasksGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSystemTasksAdminSystemTasksGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>> = ({
+    signal,
+  }) => systemTasksAdminSystemTasksGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type SystemTasksAdminSystemTasksGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>
+>;
+export type SystemTasksAdminSystemTasksGetQueryError = ErrorType<unknown>;
+
+export function useSystemTasksAdminSystemTasksGet<
+  TData = Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>,
+          TError,
+          Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSystemTasksAdminSystemTasksGet<
+  TData = Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>,
+          TError,
+          Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSystemTasksAdminSystemTasksGet<
+  TData = Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List scheduled tasks
+ */
+
+export function useSystemTasksAdminSystemTasksGet<
+  TData = Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof systemTasksAdminSystemTasksGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getSystemTasksAdminSystemTasksGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Return all key-value settings from the database.
+ * @summary Get all settings
+ */
+export const getSettingsAdminSystemSettingsGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/system/settings`, method: "GET", signal }, options);
+};
+
+export const getGetSettingsAdminSystemSettingsGetQueryKey = () => {
+  return [`/admin/system/settings`] as const;
+};
+
+export const getGetSettingsAdminSystemSettingsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSettingsAdminSystemSettingsGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>> = ({
+    signal,
+  }) => getSettingsAdminSystemSettingsGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetSettingsAdminSystemSettingsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>
+>;
+export type GetSettingsAdminSystemSettingsGetQueryError = ErrorType<unknown>;
+
+export function useGetSettingsAdminSystemSettingsGet<
+  TData = Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetSettingsAdminSystemSettingsGet<
+  TData = Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetSettingsAdminSystemSettingsGet<
+  TData = Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get all settings
+ */
+
+export function useGetSettingsAdminSystemSettingsGet<
+  TData = Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSettingsAdminSystemSettingsGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetSettingsAdminSystemSettingsGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Create or update a key-value setting in the database.
+ * @summary Update a setting
+ */
+export const updateSettingAdminSystemSettingsPut = (
+  settingUpdate: BodyType<SettingUpdate>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/admin/system/settings`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: settingUpdate,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getUpdateSettingAdminSystemSettingsPutMutationKey = () =>
+  ["updateSettingAdminSystemSettingsPut"] as const;
+
+export const getUpdateSettingAdminSystemSettingsPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSettingAdminSystemSettingsPut>>,
+    TError,
+    UpdateSettingAdminSystemSettingsPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateSettingAdminSystemSettingsPut>>,
+  TError,
+  UpdateSettingAdminSystemSettingsPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdateSettingAdminSystemSettingsPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateSettingAdminSystemSettingsPut>>,
+    UpdateSettingAdminSystemSettingsPutMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateSettingAdminSystemSettingsPut(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateSettingAdminSystemSettingsPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateSettingAdminSystemSettingsPut>>
+>;
+export type UpdateSettingAdminSystemSettingsPutMutationBody = BodyType<SettingUpdate>;
+export type UpdateSettingAdminSystemSettingsPutMutationError = ErrorType<unknown>;
+export type UpdateSettingAdminSystemSettingsPutMutationVariables = {
+  data: BodyType<SettingUpdate>;
+};
+
+/**
+ * @summary Update a setting
+ */
+export const useUpdateSettingAdminSystemSettingsPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateSettingAdminSystemSettingsPut>>,
+      TError,
+      UpdateSettingAdminSystemSettingsPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateSettingAdminSystemSettingsPut>>,
+  TError,
+  UpdateSettingAdminSystemSettingsPutMutationVariables,
+  TContext
+> => {
+  return useMutation(getUpdateSettingAdminSystemSettingsPutMutationOptions(options), queryClient);
+};
+
+/**
+ * Return all feature flags with their global override values.
+ * @summary List feature flags
+ */
+export const getFeatureFlagsAdminFeatureFlagsGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/admin/feature-flags`, method: "GET", signal }, options);
+};
+
+export const getGetFeatureFlagsAdminFeatureFlagsGetQueryKey = () => {
+  return [`/admin/feature-flags`] as const;
+};
+
+export const getGetFeatureFlagsAdminFeatureFlagsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetFeatureFlagsAdminFeatureFlagsGetQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>> = ({
+    signal,
+  }) => getFeatureFlagsAdminFeatureFlagsGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetFeatureFlagsAdminFeatureFlagsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>
+>;
+export type GetFeatureFlagsAdminFeatureFlagsGetQueryError = ErrorType<unknown>;
+
+export function useGetFeatureFlagsAdminFeatureFlagsGet<
+  TData = Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetFeatureFlagsAdminFeatureFlagsGet<
+  TData = Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetFeatureFlagsAdminFeatureFlagsGet<
+  TData = Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List feature flags
+ */
+
+export function useGetFeatureFlagsAdminFeatureFlagsGet<
+  TData = Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getFeatureFlagsAdminFeatureFlagsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetFeatureFlagsAdminFeatureFlagsGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Set the global override value for a feature flag (on, off, or empty for per-user).
+ * @summary Update a feature flag
+ */
+export const updateFeatureFlagAdminFeatureFlagsFlagKeyPut = (
+  flagKey: string,
+  featureFlagUpdate: BodyType<FeatureFlagUpdate>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/admin/feature-flags/${flagKey}`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: featureFlagUpdate,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getUpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationKey = () =>
+  ["updateFeatureFlagAdminFeatureFlagsFlagKeyPut"] as const;
+
+export const getUpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateFeatureFlagAdminFeatureFlagsFlagKeyPut>>,
+    TError,
+    UpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateFeatureFlagAdminFeatureFlagsFlagKeyPut>>,
+  TError,
+  UpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationVariables,
+  TContext
+> => {
+  const mutationKey = getUpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateFeatureFlagAdminFeatureFlagsFlagKeyPut>>,
+    UpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationVariables
+  > = (props) => {
+    const { flagKey, data } = props ?? {};
+
+    return updateFeatureFlagAdminFeatureFlagsFlagKeyPut(flagKey, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateFeatureFlagAdminFeatureFlagsFlagKeyPut>>
+>;
+export type UpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationBody = BodyType<FeatureFlagUpdate>;
+export type UpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationError = ErrorType<unknown>;
+export type UpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationVariables = {
+  flagKey: string;
+  data: BodyType<FeatureFlagUpdate>;
+};
+
+/**
+ * @summary Update a feature flag
+ */
+export const useUpdateFeatureFlagAdminFeatureFlagsFlagKeyPut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateFeatureFlagAdminFeatureFlagsFlagKeyPut>>,
+      TError,
+      UpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateFeatureFlagAdminFeatureFlagsFlagKeyPut>>,
+  TError,
+  UpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getUpdateFeatureFlagAdminFeatureFlagsFlagKeyPutMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Return paginated platform logs filtered by level, module, or search term.
+ * @summary Get platform logs
+ */
+export const getPlatformLogsAdminPlatformLogsGet = (
+  params?: GetPlatformLogsAdminPlatformLogsGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/platform-logs`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getGetPlatformLogsAdminPlatformLogsGetQueryKey = (
+  params?: GetPlatformLogsAdminPlatformLogsGetParams,
+) => {
+  return [`/admin/platform-logs`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetPlatformLogsAdminPlatformLogsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetPlatformLogsAdminPlatformLogsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPlatformLogsAdminPlatformLogsGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>> = ({
+    signal,
+  }) => getPlatformLogsAdminPlatformLogsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetPlatformLogsAdminPlatformLogsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>
+>;
+export type GetPlatformLogsAdminPlatformLogsGetQueryError = ErrorType<unknown>;
+
+export function useGetPlatformLogsAdminPlatformLogsGet<
+  TData = Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | GetPlatformLogsAdminPlatformLogsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetPlatformLogsAdminPlatformLogsGet<
+  TData = Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetPlatformLogsAdminPlatformLogsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+          TError,
+          Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetPlatformLogsAdminPlatformLogsGet<
+  TData = Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetPlatformLogsAdminPlatformLogsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get platform logs
+ */
+
+export function useGetPlatformLogsAdminPlatformLogsGet<
+  TData = Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetPlatformLogsAdminPlatformLogsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getPlatformLogsAdminPlatformLogsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetPlatformLogsAdminPlatformLogsGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Manually trigger a scheduled Celery task by its name.
+ * @summary Run a scheduled task
+ */
+export const runTaskAdminSystemTasksTaskNameRunPost = (
+  taskName: string,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/system/tasks/${taskName}/run`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getRunTaskAdminSystemTasksTaskNameRunPostMutationKey = () =>
+  ["runTaskAdminSystemTasksTaskNameRunPost"] as const;
+
+export const getRunTaskAdminSystemTasksTaskNameRunPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runTaskAdminSystemTasksTaskNameRunPost>>,
+    TError,
+    RunTaskAdminSystemTasksTaskNameRunPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof runTaskAdminSystemTasksTaskNameRunPost>>,
+  TError,
+  RunTaskAdminSystemTasksTaskNameRunPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getRunTaskAdminSystemTasksTaskNameRunPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof runTaskAdminSystemTasksTaskNameRunPost>>,
+    RunTaskAdminSystemTasksTaskNameRunPostMutationVariables
+  > = (props) => {
+    const { taskName } = props ?? {};
+
+    return runTaskAdminSystemTasksTaskNameRunPost(taskName, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RunTaskAdminSystemTasksTaskNameRunPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof runTaskAdminSystemTasksTaskNameRunPost>>
+>;
+
+export type RunTaskAdminSystemTasksTaskNameRunPostMutationError = ErrorType<unknown>;
+export type RunTaskAdminSystemTasksTaskNameRunPostMutationVariables = { taskName: string };
+
+/**
+ * @summary Run a scheduled task
+ */
+export const useRunTaskAdminSystemTasksTaskNameRunPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof runTaskAdminSystemTasksTaskNameRunPost>>,
+      TError,
+      RunTaskAdminSystemTasksTaskNameRunPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof runTaskAdminSystemTasksTaskNameRunPost>>,
+  TError,
+  RunTaskAdminSystemTasksTaskNameRunPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getRunTaskAdminSystemTasksTaskNameRunPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Send a notification to multiple users at once (max 500).
+ * @summary Send bulk notifications
+ */
+export const bulkNotifyAdminBulkNotifyPost = (
+  bulkNotifyRequest: BodyType<BulkNotifyRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/admin/bulk/notify`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: bulkNotifyRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getBulkNotifyAdminBulkNotifyPostMutationKey = () =>
+  ["bulkNotifyAdminBulkNotifyPost"] as const;
+
+export const getBulkNotifyAdminBulkNotifyPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkNotifyAdminBulkNotifyPost>>,
+    TError,
+    BulkNotifyAdminBulkNotifyPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkNotifyAdminBulkNotifyPost>>,
+  TError,
+  BulkNotifyAdminBulkNotifyPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getBulkNotifyAdminBulkNotifyPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkNotifyAdminBulkNotifyPost>>,
+    BulkNotifyAdminBulkNotifyPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkNotifyAdminBulkNotifyPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkNotifyAdminBulkNotifyPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkNotifyAdminBulkNotifyPost>>
+>;
+export type BulkNotifyAdminBulkNotifyPostMutationBody = BodyType<BulkNotifyRequest>;
+export type BulkNotifyAdminBulkNotifyPostMutationError = ErrorType<unknown>;
+export type BulkNotifyAdminBulkNotifyPostMutationVariables = { data: BodyType<BulkNotifyRequest> };
+
+/**
+ * @summary Send bulk notifications
+ */
+export const useBulkNotifyAdminBulkNotifyPost = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof bulkNotifyAdminBulkNotifyPost>>,
+      TError,
+      BulkNotifyAdminBulkNotifyPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof bulkNotifyAdminBulkNotifyPost>>,
+  TError,
+  BulkNotifyAdminBulkNotifyPostMutationVariables,
+  TContext
+> => {
+  return useMutation(getBulkNotifyAdminBulkNotifyPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Delete audit logs older than 90 days and impersonation messages older than 45 days.
+ * @summary Cleanup old audit logs
+ */
+export const cleanupAuditLogsAdminCleanupAuditLogsPost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/cleanup/audit-logs`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getCleanupAuditLogsAdminCleanupAuditLogsPostMutationKey = () =>
+  ["cleanupAuditLogsAdminCleanupAuditLogsPost"] as const;
+
+export const getCleanupAuditLogsAdminCleanupAuditLogsPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cleanupAuditLogsAdminCleanupAuditLogsPost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cleanupAuditLogsAdminCleanupAuditLogsPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getCleanupAuditLogsAdminCleanupAuditLogsPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cleanupAuditLogsAdminCleanupAuditLogsPost>>,
+    void
+  > = () => {
+    return cleanupAuditLogsAdminCleanupAuditLogsPost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CleanupAuditLogsAdminCleanupAuditLogsPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cleanupAuditLogsAdminCleanupAuditLogsPost>>
+>;
+
+export type CleanupAuditLogsAdminCleanupAuditLogsPostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Cleanup old audit logs
+ */
+export const useCleanupAuditLogsAdminCleanupAuditLogsPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof cleanupAuditLogsAdminCleanupAuditLogsPost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof cleanupAuditLogsAdminCleanupAuditLogsPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(
+    getCleanupAuditLogsAdminCleanupAuditLogsPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Request access to a user's account for support. Sends a notification for user approval.
+ * @summary Request impersonation session
+ */
+export const requestImpersonationAdminImpersonateRequestUserIdPost = (
+  userId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/impersonate/request/${userId}`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getRequestImpersonationAdminImpersonateRequestUserIdPostMutationKey = () =>
+  ["requestImpersonationAdminImpersonateRequestUserIdPost"] as const;
+
+export const getRequestImpersonationAdminImpersonateRequestUserIdPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestImpersonationAdminImpersonateRequestUserIdPost>>,
+    TError,
+    RequestImpersonationAdminImpersonateRequestUserIdPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestImpersonationAdminImpersonateRequestUserIdPost>>,
+  TError,
+  RequestImpersonationAdminImpersonateRequestUserIdPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getRequestImpersonationAdminImpersonateRequestUserIdPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestImpersonationAdminImpersonateRequestUserIdPost>>,
+    RequestImpersonationAdminImpersonateRequestUserIdPostMutationVariables
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return requestImpersonationAdminImpersonateRequestUserIdPost(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestImpersonationAdminImpersonateRequestUserIdPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestImpersonationAdminImpersonateRequestUserIdPost>>
+>;
+
+export type RequestImpersonationAdminImpersonateRequestUserIdPostMutationError = ErrorType<unknown>;
+export type RequestImpersonationAdminImpersonateRequestUserIdPostMutationVariables = {
+  userId: number;
+};
+
+/**
+ * @summary Request impersonation session
+ */
+export const useRequestImpersonationAdminImpersonateRequestUserIdPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof requestImpersonationAdminImpersonateRequestUserIdPost>>,
+      TError,
+      RequestImpersonationAdminImpersonateRequestUserIdPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof requestImpersonationAdminImpersonateRequestUserIdPost>>,
+  TError,
+  RequestImpersonationAdminImpersonateRequestUserIdPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getRequestImpersonationAdminImpersonateRequestUserIdPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Return all chat messages for an impersonation session.
+ * @summary Get impersonation messages
+ */
+export const getMessagesAdminImpersonateSessionIdMessagesGet = (
+  sessionId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/impersonate/${sessionId}/messages`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getGetMessagesAdminImpersonateSessionIdMessagesGetQueryKey = (sessionId: number) => {
+  return [`/admin/impersonate/${sessionId}/messages`] as const;
+};
+
+export const getGetMessagesAdminImpersonateSessionIdMessagesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  sessionId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetMessagesAdminImpersonateSessionIdMessagesGetQueryKey(sessionId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>
+  > = ({ signal }) =>
+    getMessagesAdminImpersonateSessionIdMessagesGet(sessionId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: sessionId !== null && sessionId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetMessagesAdminImpersonateSessionIdMessagesGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>
+>;
+export type GetMessagesAdminImpersonateSessionIdMessagesGetQueryError = ErrorType<unknown>;
+
+export function useGetMessagesAdminImpersonateSessionIdMessagesGet<
+  TData = Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  sessionId: number,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+          TError,
+          Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetMessagesAdminImpersonateSessionIdMessagesGet<
+  TData = Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  sessionId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+          TError,
+          Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetMessagesAdminImpersonateSessionIdMessagesGet<
+  TData = Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  sessionId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get impersonation messages
+ */
+
+export function useGetMessagesAdminImpersonateSessionIdMessagesGet<
+  TData = Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+  TError = ErrorType<unknown>,
+>(
+  sessionId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getMessagesAdminImpersonateSessionIdMessagesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetMessagesAdminImpersonateSessionIdMessagesGetQueryOptions(
+    sessionId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Send a chat message in an active impersonation session and notify the target user.
+ * @summary Send impersonation message
+ */
+export const sendMessageAdminImpersonateSessionIdMessagesPost = (
+  sessionId: number,
+  messageRequest: BodyType<MessageRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/admin/impersonate/${sessionId}/messages`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: messageRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getSendMessageAdminImpersonateSessionIdMessagesPostMutationKey = () =>
+  ["sendMessageAdminImpersonateSessionIdMessagesPost"] as const;
+
+export const getSendMessageAdminImpersonateSessionIdMessagesPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendMessageAdminImpersonateSessionIdMessagesPost>>,
+    TError,
+    SendMessageAdminImpersonateSessionIdMessagesPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendMessageAdminImpersonateSessionIdMessagesPost>>,
+  TError,
+  SendMessageAdminImpersonateSessionIdMessagesPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSendMessageAdminImpersonateSessionIdMessagesPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendMessageAdminImpersonateSessionIdMessagesPost>>,
+    SendMessageAdminImpersonateSessionIdMessagesPostMutationVariables
+  > = (props) => {
+    const { sessionId, data } = props ?? {};
+
+    return sendMessageAdminImpersonateSessionIdMessagesPost(sessionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendMessageAdminImpersonateSessionIdMessagesPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendMessageAdminImpersonateSessionIdMessagesPost>>
+>;
+export type SendMessageAdminImpersonateSessionIdMessagesPostMutationBody = BodyType<MessageRequest>;
+export type SendMessageAdminImpersonateSessionIdMessagesPostMutationError = ErrorType<unknown>;
+export type SendMessageAdminImpersonateSessionIdMessagesPostMutationVariables = {
+  sessionId: number;
+  data: BodyType<MessageRequest>;
+};
+
+/**
+ * @summary Send impersonation message
+ */
+export const useSendMessageAdminImpersonateSessionIdMessagesPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof sendMessageAdminImpersonateSessionIdMessagesPost>>,
+      TError,
+      SendMessageAdminImpersonateSessionIdMessagesPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof sendMessageAdminImpersonateSessionIdMessagesPost>>,
+  TError,
+  SendMessageAdminImpersonateSessionIdMessagesPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getSendMessageAdminImpersonateSessionIdMessagesPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * End an impersonation session, send a transcript email, and notify the target user.
+ * @summary End impersonation session
+ */
+export const endImpersonationAdminImpersonateEndSessionIdPost = (
+  sessionId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/impersonate/end/${sessionId}`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getEndImpersonationAdminImpersonateEndSessionIdPostMutationKey = () =>
+  ["endImpersonationAdminImpersonateEndSessionIdPost"] as const;
+
+export const getEndImpersonationAdminImpersonateEndSessionIdPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof endImpersonationAdminImpersonateEndSessionIdPost>>,
+    TError,
+    EndImpersonationAdminImpersonateEndSessionIdPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof endImpersonationAdminImpersonateEndSessionIdPost>>,
+  TError,
+  EndImpersonationAdminImpersonateEndSessionIdPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getEndImpersonationAdminImpersonateEndSessionIdPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof endImpersonationAdminImpersonateEndSessionIdPost>>,
+    EndImpersonationAdminImpersonateEndSessionIdPostMutationVariables
+  > = (props) => {
+    const { sessionId } = props ?? {};
+
+    return endImpersonationAdminImpersonateEndSessionIdPost(sessionId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EndImpersonationAdminImpersonateEndSessionIdPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof endImpersonationAdminImpersonateEndSessionIdPost>>
+>;
+
+export type EndImpersonationAdminImpersonateEndSessionIdPostMutationError = ErrorType<unknown>;
+export type EndImpersonationAdminImpersonateEndSessionIdPostMutationVariables = {
+  sessionId: number;
+};
+
+/**
+ * @summary End impersonation session
+ */
+export const useEndImpersonationAdminImpersonateEndSessionIdPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof endImpersonationAdminImpersonateEndSessionIdPost>>,
+      TError,
+      EndImpersonationAdminImpersonateEndSessionIdPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof endImpersonationAdminImpersonateEndSessionIdPost>>,
+  TError,
+  EndImpersonationAdminImpersonateEndSessionIdPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getEndImpersonationAdminImpersonateEndSessionIdPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Return the internal reviews generated by the miscategorization detector, with the observed precision of the detector so far.
+ * @summary List miscategorization reviews
+ */
+export const listReviewsAdminCategorizationReviewsGet = (
+  params?: ListReviewsAdminCategorizationReviewsGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/categorization-reviews`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getListReviewsAdminCategorizationReviewsGetQueryKey = (
+  params?: ListReviewsAdminCategorizationReviewsGetParams,
+) => {
+  return [`/admin/categorization-reviews`, ...(params ? [params] : [])] as const;
+};
+
+export const getListReviewsAdminCategorizationReviewsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListReviewsAdminCategorizationReviewsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListReviewsAdminCategorizationReviewsGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>
+  > = ({ signal }) => listReviewsAdminCategorizationReviewsGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListReviewsAdminCategorizationReviewsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>
+>;
+export type ListReviewsAdminCategorizationReviewsGetQueryError = ErrorType<unknown>;
+
+export function useListReviewsAdminCategorizationReviewsGet<
+  TData = Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | ListReviewsAdminCategorizationReviewsGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListReviewsAdminCategorizationReviewsGet<
+  TData = Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListReviewsAdminCategorizationReviewsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+          TError,
+          Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListReviewsAdminCategorizationReviewsGet<
+  TData = Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListReviewsAdminCategorizationReviewsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List miscategorization reviews
+ */
+
+export function useListReviewsAdminCategorizationReviewsGet<
+  TData = Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListReviewsAdminCategorizationReviewsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listReviewsAdminCategorizationReviewsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListReviewsAdminCategorizationReviewsGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Return the review plus the signals and LLM verdict behind the score.
+ * @summary Get one review with its evidence
+ */
+export const getReviewDetailAdminCategorizationReviewsReviewIdGet = (
+  reviewId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/categorization-reviews/${reviewId}`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getGetReviewDetailAdminCategorizationReviewsReviewIdGetQueryKey = (
+  reviewId: number,
+) => {
+  return [`/admin/categorization-reviews/${reviewId}`] as const;
+};
+
+export const getGetReviewDetailAdminCategorizationReviewsReviewIdGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+  TError = ErrorType<unknown>,
+>(
+  reviewId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetReviewDetailAdminCategorizationReviewsReviewIdGetQueryKey(reviewId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>
+  > = ({ signal }) =>
+    getReviewDetailAdminCategorizationReviewsReviewIdGet(reviewId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: reviewId !== null && reviewId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetReviewDetailAdminCategorizationReviewsReviewIdGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>
+>;
+export type GetReviewDetailAdminCategorizationReviewsReviewIdGetQueryError = ErrorType<unknown>;
+
+export function useGetReviewDetailAdminCategorizationReviewsReviewIdGet<
+  TData = Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+  TError = ErrorType<unknown>,
+>(
+  reviewId: number,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetReviewDetailAdminCategorizationReviewsReviewIdGet<
+  TData = Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+  TError = ErrorType<unknown>,
+>(
+  reviewId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+          TError,
+          Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetReviewDetailAdminCategorizationReviewsReviewIdGet<
+  TData = Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+  TError = ErrorType<unknown>,
+>(
+  reviewId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get one review with its evidence
+ */
+
+export function useGetReviewDetailAdminCategorizationReviewsReviewIdGet<
+  TData = Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+  TError = ErrorType<unknown>,
+>(
+  reviewId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getReviewDetailAdminCategorizationReviewsReviewIdGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetReviewDetailAdminCategorizationReviewsReviewIdGetQueryOptions(
+    reviewId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Apply the suggested category (or an explicit one) to the expense, teach the merchant preference and mark the review as accepted.
+ * @summary Accept a review and apply the category
+ */
+export const acceptAdminCategorizationReviewsReviewIdAcceptPost = (
+  reviewId: number,
+  acceptBodyNull?: BodyType<AcceptBody | null>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/admin/categorization-reviews/${reviewId}/accept`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: acceptBodyNull,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAcceptAdminCategorizationReviewsReviewIdAcceptPostMutationKey = () =>
+  ["acceptAdminCategorizationReviewsReviewIdAcceptPost"] as const;
+
+export const getAcceptAdminCategorizationReviewsReviewIdAcceptPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptAdminCategorizationReviewsReviewIdAcceptPost>>,
+    TError,
+    AcceptAdminCategorizationReviewsReviewIdAcceptPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof acceptAdminCategorizationReviewsReviewIdAcceptPost>>,
+  TError,
+  AcceptAdminCategorizationReviewsReviewIdAcceptPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAcceptAdminCategorizationReviewsReviewIdAcceptPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof acceptAdminCategorizationReviewsReviewIdAcceptPost>>,
+    AcceptAdminCategorizationReviewsReviewIdAcceptPostMutationVariables
+  > = (props) => {
+    const { reviewId, data } = props ?? {};
+
+    return acceptAdminCategorizationReviewsReviewIdAcceptPost(reviewId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AcceptAdminCategorizationReviewsReviewIdAcceptPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof acceptAdminCategorizationReviewsReviewIdAcceptPost>>
+>;
+export type AcceptAdminCategorizationReviewsReviewIdAcceptPostMutationBody =
+  BodyType<AcceptBody | null> | undefined;
+export type AcceptAdminCategorizationReviewsReviewIdAcceptPostMutationError = ErrorType<unknown>;
+export type AcceptAdminCategorizationReviewsReviewIdAcceptPostMutationVariables = {
+  reviewId: number;
+  data?: BodyType<AcceptBody | null>;
+};
+
+/**
+ * @summary Accept a review and apply the category
+ */
+export const useAcceptAdminCategorizationReviewsReviewIdAcceptPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof acceptAdminCategorizationReviewsReviewIdAcceptPost>>,
+      TError,
+      AcceptAdminCategorizationReviewsReviewIdAcceptPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof acceptAdminCategorizationReviewsReviewIdAcceptPost>>,
+  TError,
+  AcceptAdminCategorizationReviewsReviewIdAcceptPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getAcceptAdminCategorizationReviewsReviewIdAcceptPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Mark the review as a false positive; the expense keeps its category.
+ * @summary Reject a review
+ */
+export const rejectAdminCategorizationReviewsReviewIdRejectPost = (
+  reviewId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/categorization-reviews/${reviewId}/reject`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getRejectAdminCategorizationReviewsReviewIdRejectPostMutationKey = () =>
+  ["rejectAdminCategorizationReviewsReviewIdRejectPost"] as const;
+
+export const getRejectAdminCategorizationReviewsReviewIdRejectPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectAdminCategorizationReviewsReviewIdRejectPost>>,
+    TError,
+    RejectAdminCategorizationReviewsReviewIdRejectPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rejectAdminCategorizationReviewsReviewIdRejectPost>>,
+  TError,
+  RejectAdminCategorizationReviewsReviewIdRejectPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getRejectAdminCategorizationReviewsReviewIdRejectPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rejectAdminCategorizationReviewsReviewIdRejectPost>>,
+    RejectAdminCategorizationReviewsReviewIdRejectPostMutationVariables
+  > = (props) => {
+    const { reviewId } = props ?? {};
+
+    return rejectAdminCategorizationReviewsReviewIdRejectPost(reviewId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RejectAdminCategorizationReviewsReviewIdRejectPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rejectAdminCategorizationReviewsReviewIdRejectPost>>
+>;
+
+export type RejectAdminCategorizationReviewsReviewIdRejectPostMutationError = ErrorType<unknown>;
+export type RejectAdminCategorizationReviewsReviewIdRejectPostMutationVariables = {
+  reviewId: number;
+};
+
+/**
+ * @summary Reject a review
+ */
+export const useRejectAdminCategorizationReviewsReviewIdRejectPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof rejectAdminCategorizationReviewsReviewIdRejectPost>>,
+      TError,
+      RejectAdminCategorizationReviewsReviewIdRejectPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof rejectAdminCategorizationReviewsReviewIdRejectPost>>,
+  TError,
+  RejectAdminCategorizationReviewsReviewIdRejectPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getRejectAdminCategorizationReviewsReviewIdRejectPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Mark the review as looked at without changing the expense.
+ * @summary Mark a review as investigated
+ */
+export const investigateAdminCategorizationReviewsReviewIdInvestigatePost = (
+  reviewId: number,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/admin/categorization-reviews/${reviewId}/investigate`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getInvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationKey = () =>
+  ["investigateAdminCategorizationReviewsReviewIdInvestigatePost"] as const;
+
+export const getInvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof investigateAdminCategorizationReviewsReviewIdInvestigatePost>>,
+    TError,
+    InvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof investigateAdminCategorizationReviewsReviewIdInvestigatePost>>,
+  TError,
+  InvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getInvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof investigateAdminCategorizationReviewsReviewIdInvestigatePost>>,
+    InvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationVariables
+  > = (props) => {
+    const { reviewId } = props ?? {};
+
+    return investigateAdminCategorizationReviewsReviewIdInvestigatePost(reviewId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type InvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof investigateAdminCategorizationReviewsReviewIdInvestigatePost>>
+  >;
+
+export type InvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationError =
+  ErrorType<unknown>;
+export type InvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationVariables = {
+  reviewId: number;
+};
+
+/**
+ * @summary Mark a review as investigated
+ */
+export const useInvestigateAdminCategorizationReviewsReviewIdInvestigatePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof investigateAdminCategorizationReviewsReviewIdInvestigatePost>>,
+      TError,
+      InvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof investigateAdminCategorizationReviewsReviewIdInvestigatePost>>,
+  TError,
+  InvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getInvestigateAdminCategorizationReviewsReviewIdInvestigatePostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Review the expenses created since the given date (forward-only; defaults to the last 7 days) and persist the findings. Same code path as the daily job.
+ * @summary Run the detector now
+ */
+export const scanAdminCategorizationReviewsScanPost = (
+  scanBodyNull?: BodyType<ScanBody | null>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/admin/categorization-reviews/scan`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: scanBodyNull,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getScanAdminCategorizationReviewsScanPostMutationKey = () =>
+  ["scanAdminCategorizationReviewsScanPost"] as const;
+
+export const getScanAdminCategorizationReviewsScanPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof scanAdminCategorizationReviewsScanPost>>,
+    TError,
+    ScanAdminCategorizationReviewsScanPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof scanAdminCategorizationReviewsScanPost>>,
+  TError,
+  ScanAdminCategorizationReviewsScanPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getScanAdminCategorizationReviewsScanPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof scanAdminCategorizationReviewsScanPost>>,
+    ScanAdminCategorizationReviewsScanPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return scanAdminCategorizationReviewsScanPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ScanAdminCategorizationReviewsScanPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof scanAdminCategorizationReviewsScanPost>>
+>;
+export type ScanAdminCategorizationReviewsScanPostMutationBody =
+  BodyType<ScanBody | null> | undefined;
+export type ScanAdminCategorizationReviewsScanPostMutationError = ErrorType<unknown>;
+export type ScanAdminCategorizationReviewsScanPostMutationVariables = {
+  data?: BodyType<ScanBody | null>;
+};
+
+/**
+ * @summary Run the detector now
+ */
+export const useScanAdminCategorizationReviewsScanPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof scanAdminCategorizationReviewsScanPost>>,
+      TError,
+      ScanAdminCategorizationReviewsScanPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof scanAdminCategorizationReviewsScanPost>>,
+  TError,
+  ScanAdminCategorizationReviewsScanPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getScanAdminCategorizationReviewsScanPostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
+ * Handle Meta's webhook verification challenge by validating the token and echoing the challenge.
+ * @summary Verify WhatsApp webhook
+ */
+export const verifyWebhookWebhookWhatsappGet = (
+  params: VerifyWebhookWebhookWhatsappGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/webhook/whatsapp`, method: "GET", params, signal }, options);
+};
+
+export const getVerifyWebhookWebhookWhatsappGetQueryKey = (
+  params?: VerifyWebhookWebhookWhatsappGetParams,
+) => {
+  return [`/webhook/whatsapp`, ...(params ? [params] : [])] as const;
+};
+
+export const getVerifyWebhookWebhookWhatsappGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: VerifyWebhookWebhookWhatsappGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getVerifyWebhookWebhookWhatsappGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>> = ({
+    signal,
+  }) => verifyWebhookWebhookWhatsappGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type VerifyWebhookWebhookWhatsappGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>
+>;
+export type VerifyWebhookWebhookWhatsappGetQueryError = ErrorType<unknown>;
+
+export function useVerifyWebhookWebhookWhatsappGet<
+  TData = Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: VerifyWebhookWebhookWhatsappGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>,
+          TError,
+          Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useVerifyWebhookWebhookWhatsappGet<
+  TData = Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: VerifyWebhookWebhookWhatsappGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>,
+          TError,
+          Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useVerifyWebhookWebhookWhatsappGet<
+  TData = Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: VerifyWebhookWebhookWhatsappGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Verify WhatsApp webhook
+ */
+
+export function useVerifyWebhookWebhookWhatsappGet<
+  TData = Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: VerifyWebhookWebhookWhatsappGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof verifyWebhookWebhookWhatsappGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getVerifyWebhookWebhookWhatsappGetQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Accept incoming WhatsApp message payloads from Meta and process them asynchronously.
+ * @summary Receive WhatsApp messages
+ */
+export const receiveWebhookWebhookWhatsappPost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/webhook/whatsapp`, method: "POST", signal }, options);
+};
+
+export const getReceiveWebhookWebhookWhatsappPostMutationKey = () =>
+  ["receiveWebhookWebhookWhatsappPost"] as const;
+
+export const getReceiveWebhookWebhookWhatsappPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof receiveWebhookWebhookWhatsappPost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof receiveWebhookWebhookWhatsappPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getReceiveWebhookWebhookWhatsappPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof receiveWebhookWebhookWhatsappPost>>,
+    void
+  > = () => {
+    return receiveWebhookWebhookWhatsappPost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReceiveWebhookWebhookWhatsappPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof receiveWebhookWebhookWhatsappPost>>
+>;
+
+export type ReceiveWebhookWebhookWhatsappPostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Receive WhatsApp messages
+ */
+export const useReceiveWebhookWebhookWhatsappPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof receiveWebhookWebhookWhatsappPost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof receiveWebhookWebhookWhatsappPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getReceiveWebhookWebhookWhatsappPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Handles Meta's data deletion callback for WhatsApp users. Verifies the signed_request, deletes the user's account and all data, and returns a confirmation URL and code.
+ * @summary Meta data deletion callback
+ */
+export const deleteUserCallbackWebhookWhatsappDeleteUserPost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    { url: `/webhook/whatsapp/delete-user`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getDeleteUserCallbackWebhookWhatsappDeleteUserPostMutationKey = () =>
+  ["deleteUserCallbackWebhookWhatsappDeleteUserPost"] as const;
+
+export const getDeleteUserCallbackWebhookWhatsappDeleteUserPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteUserCallbackWebhookWhatsappDeleteUserPost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteUserCallbackWebhookWhatsappDeleteUserPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getDeleteUserCallbackWebhookWhatsappDeleteUserPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteUserCallbackWebhookWhatsappDeleteUserPost>>,
+    void
+  > = () => {
+    return deleteUserCallbackWebhookWhatsappDeleteUserPost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteUserCallbackWebhookWhatsappDeleteUserPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteUserCallbackWebhookWhatsappDeleteUserPost>>
+>;
+
+export type DeleteUserCallbackWebhookWhatsappDeleteUserPostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Meta data deletion callback
+ */
+export const useDeleteUserCallbackWebhookWhatsappDeleteUserPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteUserCallbackWebhookWhatsappDeleteUserPost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteUserCallbackWebhookWhatsappDeleteUserPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(
+    getDeleteUserCallbackWebhookWhatsappDeleteUserPostMutationOptions(options),
+    queryClient,
+  );
+};

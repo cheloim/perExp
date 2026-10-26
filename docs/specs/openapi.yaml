@@ -452,6 +452,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccountResponse'
+      parameters:
+        - name: account_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Account Id
     delete:
       tags: [accounts]
       summary: Delete an account
@@ -463,6 +470,13 @@ paths:
   # ─────────────────────────────────────────────────────────────
   # CARDS
   # ─────────────────────────────────────────────────────────────
+      parameters:
+        - name: account_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Account Id
   /cards:
     get:
       tags: [cards]
@@ -539,6 +553,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CardResponse'
+      parameters:
+        - name: card_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Card Id
     delete:
       tags: [cards]
       summary: Delete a card
@@ -552,6 +573,13 @@ paths:
   # ─────────────────────────────────────────────────────────────
   # CATEGORIES
   # ─────────────────────────────────────────────────────────────
+      parameters:
+        - name: card_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Card Id
   /categories:
     get:
       tags: [categories]
@@ -633,6 +661,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CategoryResponse'
+      parameters:
+        - name: cat_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Cat Id
     delete:
       tags: [categories]
       summary: Delete a category
@@ -644,6 +679,13 @@ paths:
   # ─────────────────────────────────────────────────────────────
   # CARD CLOSINGS
   # ─────────────────────────────────────────────────────────────
+      parameters:
+        - name: cat_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Cat Id
   /card-closings:
     get:
       tags: [card-closings]
@@ -678,6 +720,39 @@ paths:
         '409':
           description: Closing already exists for this card
 
+      parameters:
+        - name: card
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Card
+        - name: bank
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Bank
+        - name: closing_date
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Closing Date
+        - name: next_closing_date
+          in: query
+          required: false
+          schema:
+            title: Next Closing Date
+            type: string
+            nullable: true
+        - name: due_date
+          in: query
+          required: false
+          schema:
+            title: Due Date
+            type: string
+            nullable: true
   /expenses:
     get:
       tags: [expenses]
@@ -1241,6 +1316,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExpenseResponse'
+      parameters:
+        - name: exp_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Exp Id
     delete:
       tags: [expenses]
       summary: Delete an expense
@@ -1252,6 +1334,13 @@ paths:
   # ─────────────────────────────────────────────────────────────
   # INVESTMENTS
   # ─────────────────────────────────────────────────────────────
+      parameters:
+        - name: exp_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Exp Id
   /investments:
     get:
       tags: [investments]
@@ -1264,6 +1353,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InvestmentListResponse'
+      parameters:
+        - name: broker
+          in: query
+          required: false
+          schema:
+            title: Broker
+            type: string
+            nullable: true
     post:
       tags: [investments]
       summary: Add a new investment
@@ -1350,6 +1447,13 @@ paths:
                 $ref: '#/components/schemas/ImportJobResponse'
         '410':
           description: Job expired
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Job Id
     delete:
       tags: [import-jobs]
       summary: Delete import job
@@ -1358,6 +1462,13 @@ paths:
         '204':
           description: Import job deleted
 
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Job Id
   /import-jobs/{job_id}/preview:
     put:
       tags: [import-jobs]
@@ -1480,6 +1591,13 @@ paths:
   # ─────────────────────────────────────────────────────────────
   # GROUPS
   # ─────────────────────────────────────────────────────────────
+      parameters:
+        - name: hist_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Hist Id
   /notifications:
     get:
       tags: [notifications]
@@ -1507,6 +1625,21 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ScheduledExpenseResponse'
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            default: PENDING
+            title: Status
+        - name: installment_group_id
+          in: query
+          required: false
+          schema:
+            title: Installment Group Id
+            type: string
+            nullable: true
   /scheduled-expenses/{id}:
     parameters:
       - name: id
@@ -1531,6 +1664,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ScheduledExpenseResponse'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Id
     delete:
       tags: [scheduled-expenses]
       summary: Delete a scheduled expense
@@ -1539,6 +1679,13 @@ paths:
         '204':
           description: Scheduled expense deleted
 
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Id
   /scheduled-expenses/{id}/execute:
     post:
       tags: [scheduled-expenses]
@@ -1609,6 +1756,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/BudgetSummaryResponse'
 
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            title: Month
+            type: string
+            nullable: true
   /budgets/suggest:
     get:
       tags: [budgets]
@@ -1651,6 +1806,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BudgetResponse'
+      parameters:
+        - name: budget_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Budget Id
     delete:
       tags: [budgets]
       summary: Delete budget
@@ -1659,6 +1821,13 @@ paths:
         '200':
           description: Budget deleted
 
+      parameters:
+        - name: budget_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Budget Id
   /budgets/groups:
     get:
       tags: [budgets]
@@ -1700,6 +1869,13 @@ paths:
         '200':
           description: Groups initialized
 
+      parameters:
+        - name: monthly_income
+          in: query
+          required: true
+          schema:
+            type: number
+            title: Monthly Income
   /budgets/groups/{group_id}:
     parameters:
       - name: group_id
@@ -1725,6 +1901,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/BudgetGroupResponse'
 
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Group Id
   /budgets/events:
     get:
       tags: [budgets]
@@ -1781,6 +1964,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BudgetEventResponse'
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Event Id
     delete:
       tags: [budgets]
       summary: Delete budget event
@@ -1789,6 +1979,13 @@ paths:
         '200':
           description: Budget event deleted
 
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Event Id
   /budgets/events/{event_id}/link-expenses:
     post:
       tags: [budgets]
@@ -1830,6 +2027,12 @@ paths:
           required: true
           schema:
             type: integer
+        - name: group_name
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Group Name
       requestBody:
         required: true
         content:
@@ -1896,6 +2099,13 @@ paths:
           schema:
             type: string
             enum: [auto, manual]
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            default: active
+            title: Status
       responses:
         '200':
           description: Recurring expense list
@@ -1906,6 +2116,2173 @@ paths:
                 items:
                   $ref: '#/components/schemas/RecurringExpenseResponse'
 
+    post:
+      tags:
+        - recurring
+      summary: Create a recurring expense
+      description: Create a new manually-defined recurring expense with frequency and alert settings.
+      operationId: create_recurring_recurring_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecurringCreate'
+      responses:
+        '200':
+          description: Create a recurring expense
+  /health:
+    get:
+      tags:
+        - health
+      summary: Liveness check
+      description: "Liveness probe — always returns 200 if the process is running.\n\nUse for: container orchestrator liveness probe, uptime monitoring.\nDoes NOT check dependencies (DB, Redis, etc)."
+      operationId: health_check_health_get
+      responses:
+        '200':
+          description: Liveness check
+  /health/ready:
+    get:
+      tags:
+        - health
+      summary: Readiness check
+      description: "Readiness probe — checks if the service can handle requests.\n\nReturns 200 if all critical services are healthy or degraded.\nReturns 503 if critical services (DB, Redis, Celery) are down.\n\nUse for: load balancer readiness, blackbox exporter."
+      operationId: health_ready_health_ready_get
+      responses:
+        '200':
+          description: Readiness check
+  /auth/oauth/callback:
+    post:
+      tags:
+        - auth
+      summary: Handle OAuth authorization code callback
+      description: Exchanges a Google authorization code for user data, then authenticates or creates the user account.
+      operationId: oauth_callback_auth_oauth_callback_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthRequest'
+        required: true
+      responses:
+        '200':
+          description: Handle OAuth authorization code callback
+  /auth/telegram/webapp:
+    post:
+      tags:
+        - auth
+      summary: Login via Telegram Mini App initData
+      description: Validates Telegram WebApp initData HMAC and returns a JWT for a previously linked user.
+      operationId: telegram_webapp_login_auth_telegram_webapp_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramWebAppRequest'
+        required: true
+      responses:
+        '200':
+          description: Login via Telegram Mini App initData
+  /auth/telegram/link-webapp:
+    post:
+      tags:
+        - auth
+      summary: Link Telegram account via MiniApp initData
+      description: Links the authenticated user's Telegram account using initData from the MiniApp context.
+      operationId: telegram_webapp_link_auth_telegram_link_webapp_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramWebAppRequest'
+        required: true
+      responses:
+        '200':
+          description: Link Telegram account via MiniApp initData
+  /auth/telegram/login-widget:
+    post:
+      tags:
+        - auth
+      summary: Login via Telegram Login Widget
+      description: Validates Telegram Login Widget callback data and returns a JWT for a previously linked user.
+      operationId: telegram_widget_login_auth_telegram_login_widget_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramLoginWidgetRequest'
+        required: true
+      responses:
+        '200':
+          description: Login via Telegram Login Widget
+  /auth/telegram/oidc:
+    post:
+      tags:
+        - auth
+      summary: Login via Telegram OpenID Connect
+      description: Exchanges an OIDC authorization code for a Telegram id_token, verifies it, and returns a JWT.
+      operationId: telegram_oidc_login_auth_telegram_oidc_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramOidcRequest'
+        required: true
+      responses:
+        '200':
+          description: Login via Telegram OpenID Connect
+  /auth/telegram/callback:
+    get:
+      tags:
+        - auth
+      summary: Telegram OIDC callback
+      description: Handles the redirect from Telegram's OIDC authorization endpoint. Exchanges code for token and redirects to frontend.
+      operationId: telegram_oidc_callback_auth_telegram_callback_get
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ''
+            title: Code
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ''
+            title: State
+      responses:
+        '200':
+          description: Telegram OIDC callback
+  /auth/telegram/link:
+    post:
+      tags:
+        - auth
+      summary: Link Telegram account via OIDC
+      description: Links the authenticated user's Telegram account using an OIDC authorization code.
+      operationId: telegram_oidc_link_auth_telegram_link_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramOidcLinkRequest'
+        required: true
+      responses:
+        '200':
+          description: Link Telegram account via OIDC
+  /auth/force-change-password:
+    post:
+      tags:
+        - auth
+      summary: Force password change with token
+      description: Changes the password using a short-lived token issued when a forced password change is required. No current password needed.
+      operationId: force_change_password_auth_force_change_password_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForceChangePasswordRequest'
+        required: true
+      responses:
+        '200':
+          description: Force password change with token
+  /auth/me/telegram-deep-link:
+    get:
+      tags:
+        - auth
+      summary: Get Telegram deep link for auto-linking
+      description: Returns a t.me deep link that opens the bot with the linking code pre-filled. Code expires in 2 minutes.
+      operationId: get_telegram_deep_link_auth_me_telegram_deep_link_get
+      responses:
+        '200':
+          description: Get Telegram deep link for auto-linking
+  /auth/logout:
+    post:
+      tags:
+        - auth
+      summary: Logout
+      description: Clears the auth cookie.
+      operationId: logout_auth_logout_post
+      responses:
+        '200':
+          description: Logout
+  /auth/me/whats-new-dismiss:
+    put:
+      tags:
+        - auth
+      summary: Dismiss What's New popup for a version
+      description: Records that the user has dismissed the What's New popup for a specific version. This preference syncs across all devices.
+      operationId: dismiss_whats_new_auth_me_whats_new_dismiss_put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WhatsNewDismissRequest'
+        required: true
+      responses:
+        '200':
+          description: Dismiss What's New popup for a version
+  /mfa/status:
+    get:
+      tags:
+        - mfa
+      summary: Get MFA status
+      description: Returns whether multi-factor authentication is currently enabled for the user.
+      operationId: mfa_status_mfa_status_get
+      responses:
+        '200':
+          description: Get MFA status
+  /mfa/verify:
+    post:
+      tags:
+        - mfa
+      summary: Verify and enable MFA
+      description: Verifies a TOTP code against the user's MFA secret and enables MFA if the code is valid.
+      operationId: mfa_verify_mfa_verify_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFAVerifyRequest'
+        required: true
+      responses:
+        '200':
+          description: Verify and enable MFA
+  /expenses/all:
+    delete:
+      tags:
+        - expenses
+      summary: Delete all user expenses
+      description: Deletes all expenses for the current user. Requires a confirmation payload with 'DELETE_ALL'.
+      operationId: delete_all_expenses_expenses_all_delete
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Delete all user expenses
+  /expenses/bulk-update:
+    patch:
+      tags:
+        - expenses
+      summary: Bulk update expense fields
+      description: Updates category, card, or account for multiple expenses at once by their IDs.
+      operationId: bulk_update_expenses_expenses_bulk_update_patch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Bulk update expense fields
+  /expenses/bulk-tags:
+    post:
+      tags:
+        - expenses
+      summary: Bulk assign tags
+      description: Assigns or removes tags for multiple expenses at once. Supports 'add', 'remove', or 'replace' mode.
+      operationId: bulk_update_tags_expenses_bulk_tags_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Bulk assign tags
+  /settings:
+    get:
+      tags:
+        - investments
+      summary: Get user investment settings
+      description: Retrieve all investment-related settings for the current user or a family group member, including broker credentials configuration status.
+      operationId: get_settings_settings_get
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            title: User Id
+            type: integer
+            nullable: true
+      responses:
+        '200':
+          description: Get user investment settings
+  /settings/{key}:
+    put:
+      tags:
+        - investments
+      summary: Update a setting
+      description: Create or update a single investment setting by key for the current user or a family group member.
+      operationId: put_setting_settings__key__put
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Key
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            title: User Id
+            type: integer
+            nullable: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Update a setting
+    delete:
+      tags:
+        - investments
+      summary: Delete a setting
+      description: Delete a single investment setting by key for the current user or a family group member.
+      operationId: delete_setting_settings__key__delete
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Key
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            title: User Id
+            type: integer
+            nullable: true
+      responses:
+        '200':
+          description: Delete a setting
+  /settings/broker/{broker}:
+    delete:
+      tags:
+        - investments
+      summary: Delete all broker settings and investments
+      description: Remove all settings and investment records for a given broker (iol or ppi) for the current user.
+      operationId: delete_broker_settings_settings_broker__broker__delete
+      parameters:
+        - name: broker
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Broker
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            title: User Id
+            type: integer
+            nullable: true
+      responses:
+        '200':
+          description: Delete all broker settings and investments
+  /investments/{inv_id}:
+    put:
+      tags:
+        - investments
+      summary: Update an investment
+      description: Update all fields of an existing investment. Refreshes the current price from Yahoo Finance.
+      operationId: update_investment_investments__inv_id__put
+      parameters:
+        - name: inv_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Inv Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestmentCreate'
+      responses:
+        '200':
+          description: Update an investment
+    delete:
+      tags:
+        - investments
+      summary: Delete an investment
+      description: Permanently delete an investment record by ID.
+      operationId: delete_investment_investments__inv_id__delete
+      parameters:
+        - name: inv_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Inv Id
+      responses:
+        '200':
+          description: Delete an investment
+  /investments/{inv_id}/price:
+    patch:
+      tags:
+        - investments
+      summary: Update investment price
+      description: Manually update only the current price of an investment.
+      operationId: update_investment_price_investments__inv_id__price_patch
+      parameters:
+        - name: inv_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Inv Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Payload
+      responses:
+        '200':
+          description: Update investment price
+  /investments/deduplicate:
+    post:
+      tags:
+        - investments
+      summary: Deduplicate investments
+      description: Remove duplicate investment entries with the same ticker and broker, keeping the one with the best data.
+      operationId: deduplicate_investments_investments_deduplicate_post
+      responses:
+        '200':
+          description: Deduplicate investments
+  /investments/sync/iol:
+    post:
+      tags:
+        - investments
+      summary: Sync investments from IOL
+      description: Fetch and synchronize investment portfolio from InvertirOnline (IOL) broker into the local database.
+      operationId: sync_iol_investments_sync_iol_post
+      responses:
+        '200':
+          description: Sync investments from IOL
+  /investments/sync/ppi:
+    post:
+      tags:
+        - investments
+      summary: Sync investments from PPI
+      description: Fetch and synchronize investment portfolio from Portfolio Personal Inversiones (PPI) broker into the local database.
+      operationId: sync_ppi_investments_sync_ppi_post
+      responses:
+        '200':
+          description: Sync investments from PPI
+  /investments/usd-rate:
+    get:
+      tags:
+        - investments
+      summary: Get USD/ARS exchange rate
+      description: Returns the current USD/ARS exchange rate, trying BNA, ADR-implied rate, and BCRA official sources in order.
+      operationId: get_usd_rate_investments_usd_rate_get
+      responses:
+        '200':
+          description: Get USD/ARS exchange rate
+  /investments/cash-balances:
+    get:
+      tags:
+        - investments
+      summary: Get broker cash balances
+      description: Retrieve uninvested cash balances (ARS and USD) from configured IOL and PPI broker accounts.
+      operationId: get_cash_balances_investments_cash_balances_get
+      responses:
+        '200':
+          description: Get broker cash balances
+  /investments/refresh-manual-prices:
+    post:
+      tags:
+        - investments
+      summary: Refresh manual investment prices
+      description: Trigger a background refresh of current prices for investments that were entered manually.
+      operationId: refresh_manual_prices_endpoint_investments_refresh_manual_prices_post
+      responses:
+        '200':
+          description: Refresh manual investment prices
+  /investments/manual-cash-balances:
+    get:
+      tags:
+        - investments
+      summary: Get manual cash balances
+      description: Retrieve manually entered cash balances per broker stored in settings.
+      operationId: get_manual_cash_balances_investments_manual_cash_balances_get
+      responses:
+        '200':
+          description: Get manual cash balances
+  /investments/manual-cash-balances/{broker}:
+    put:
+      tags:
+        - investments
+      summary: Update manual cash balance
+      description: Create or update a manually tracked cash balance (ARS/USD) for a specific broker.
+      operationId: put_manual_cash_balance_investments_manual_cash_balances__broker__put
+      parameters:
+        - name: broker
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Broker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              title: Body
+      responses:
+        '200':
+          description: Update manual cash balance
+    delete:
+      tags:
+        - investments
+      summary: Delete manual cash balance
+      description: Remove the manually tracked cash balance for a specific broker.
+      operationId: delete_manual_cash_balance_investments_manual_cash_balances__broker__delete
+      parameters:
+        - name: broker
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Broker
+      responses:
+        '200':
+          description: Delete manual cash balance
+  /investments/chat/stream:
+    post:
+      tags:
+        - investments
+      summary: Investments chat assistant
+      description: SSE streaming chat endpoint for the investments assistant. Answers questions about portfolios, markets, and financial analysis.
+      operationId: investments_chat_stream_investments_chat_stream_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Body
+        required: true
+      responses:
+        '200':
+          description: Investments chat assistant
+  /investments/lookup:
+    get:
+      tags:
+        - investments
+      summary: Lookup a stock symbol
+      description: Search Yahoo Finance for a single stock symbol and return its name and current price.
+      operationId: lookup_symbol_investments_lookup_get
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Symbol
+      responses:
+        '200':
+          description: Lookup a stock symbol
+  /investments/lookup-batch:
+    get:
+      tags:
+        - investments
+      summary: Lookup multiple stock symbols
+      description: Search Yahoo Finance for multiple comma-separated symbols and return their names and prices.
+      operationId: lookup_symbols_investments_lookup_batch_get
+      parameters:
+        - name: symbols
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Symbols
+      responses:
+        '200':
+          description: Lookup multiple stock symbols
+  /investments/{inv_id}/history:
+    get:
+      tags:
+        - investments
+      summary: Get investment price history
+      description: Retrieve historical price data for an investment from Yahoo Finance with configurable range (1d, 7d, 30d).
+      operationId: get_investment_history_investments__inv_id__history_get
+      parameters:
+        - name: inv_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Inv Id
+        - name: range
+          in: query
+          required: false
+          schema:
+            type: string
+            default: 7d
+            title: Range
+      responses:
+        '200':
+          description: Get investment price history
+  /dashboard/summary:
+    get:
+      tags:
+        - dashboard
+      summary: Get expense summary
+      description: Retrieve aggregated expense data including totals by category, period, card, currency, and recent expenses.
+      operationId: get_summary_dashboard_summary_get
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            title: Month
+            type: string
+            nullable: true
+        - name: group_by
+          in: query
+          required: false
+          schema:
+            type: string
+            default: month
+            title: Group By
+        - name: person
+          in: query
+          required: false
+          schema:
+            title: Person
+            type: string
+            nullable: true
+        - name: category_id
+          in: query
+          required: false
+          schema:
+            title: Category Id
+            type: integer
+            nullable: true
+        - name: bank
+          in: query
+          required: false
+          schema:
+            title: Bank
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Get expense summary
+  /dashboard/monthly-report:
+    get:
+      tags:
+        - dashboard
+      summary: Get monthly financial report
+      description: Generate a monthly analysis report with income vs expenses, savings rate, top categories, MoM comparison, and LLM-powered insights.
+      operationId: get_monthly_report_dashboard_monthly_report_get
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            title: Month
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Get monthly financial report
+  /dashboard/monthly-report/download:
+    get:
+      tags:
+        - dashboard
+      summary: Download monthly report as HTML
+      description: Download a printable HTML version of the monthly financial report for the specified month.
+      operationId: download_monthly_report_dashboard_monthly_report_download_get
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            title: Month
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Download monthly report as HTML
+  /dashboard/monthly-reports:
+    get:
+      tags:
+        - dashboard
+      summary: List monthly reports
+      description: List all generated monthly reports for the current user with their status and generation date.
+      operationId: list_monthly_reports_dashboard_monthly_reports_get
+      responses:
+        '200':
+          description: List monthly reports
+  /dashboard/monthly-reports/generate:
+    post:
+      tags:
+        - dashboard
+      summary: Generate a monthly report
+      description: Trigger on-demand generation of a monthly report via a background Celery task.
+      operationId: generate_monthly_report_dashboard_monthly_reports_generate_post
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Month
+      responses:
+        '200':
+          description: Generate a monthly report
+  /dashboard/monthly-reports/{month}/download:
+    get:
+      tags:
+        - dashboard
+      summary: Download monthly report as image
+      description: Download a previously generated monthly report as a PNG image (or PDF for legacy reports).
+      operationId: download_report_image_dashboard_monthly_reports__month__download_get
+      parameters:
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Month
+      responses:
+        '200':
+          description: Download monthly report as image
+  /dashboard/account-expenses:
+    get:
+      tags:
+        - dashboard
+      summary: Get account-based expenses
+      description: Retrieve expenses excluding credit card transactions, showing only debit, bank transfer, and cash spending.
+      operationId: get_account_expenses_dashboard_account_expenses_get
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            title: Month
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Get account-based expenses
+  /dashboard/installments:
+    get:
+      tags:
+        - dashboard
+      summary: Get installments overview
+      description: Retrieve all installment groups showing paid and remaining installments with next payment dates.
+      operationId: get_installments_dashboard_dashboard_installments_get
+      responses:
+        '200':
+          description: Get installments overview
+  /dashboard/installments/monthly-load:
+    get:
+      tags:
+        - dashboard
+      summary: Get installments monthly load
+      description: Show a 7-month window of installment payment load (3 past, current, 3 future) including projected amounts.
+      operationId: get_installments_monthly_load_dashboard_installments_monthly_load_get
+      responses:
+        '200':
+          description: Get installments monthly load
+  /dashboard/scheduled-summary:
+    get:
+      tags:
+        - dashboard
+      summary: Get scheduled expenses summary
+      description: Retrieve pending scheduled installments and manual scheduled expenses for the next 3 months.
+      operationId: get_scheduled_summary_dashboard_scheduled_summary_get
+      responses:
+        '200':
+          description: Get scheduled expenses summary
+  /dashboard/credit-card-pasivos:
+    get:
+      tags:
+        - dashboard
+      summary: Get credit card liabilities
+      description: Calculate total pending credit card liabilities from scheduled expenses and future installment projections.
+      operationId: get_credit_card_pasivos_dashboard_credit_card_pasivos_get
+      responses:
+        '200':
+          description: Get credit card liabilities
+  /dashboard/top-merchants:
+    get:
+      tags:
+        - dashboard
+      summary: Get top merchants
+      description: Retrieve the top merchants by total spending, with optional month, person, and bank filters.
+      operationId: get_top_merchants_dashboard_top_merchants_get
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            title: Month
+            type: string
+            nullable: true
+        - name: person
+          in: query
+          required: false
+          schema:
+            title: Person
+            type: string
+            nullable: true
+        - name: bank
+          in: query
+          required: false
+          schema:
+            title: Bank
+            type: string
+            nullable: true
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            title: Limit
+      responses:
+        '200':
+          description: Get top merchants
+  /dashboard/card-summary:
+    get:
+      tags:
+        - dashboard
+      summary: Get card spending summary
+      description: Retrieve spending summary per card and account for the last 12 months, including monthly breakdowns.
+      operationId: get_card_summary_dashboard_card_summary_get
+      responses:
+        '200':
+          description: Get card spending summary
+  /dashboard/tag-summary:
+    get:
+      tags:
+        - dashboard
+      summary: Get tag spending summary
+      description: Retrieve spending summary per tag for the last 12 months, including monthly breakdowns. Optional groups filter.
+      operationId: get_tag_summary_dashboard_tag_summary_get
+      parameters:
+        - name: groups
+          in: query
+          required: false
+          schema:
+            title: Groups
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Get tag spending summary
+  /dashboard/card-category-breakdown:
+    get:
+      tags:
+        - dashboard
+      summary: Get card-category breakdown
+      description: Retrieve a matrix of spending by card and category, useful for stacked bar charts.
+      operationId: get_card_category_breakdown_dashboard_card_category_breakdown_get
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            title: Month
+            type: string
+            nullable: true
+        - name: bank
+          in: query
+          required: false
+          schema:
+            title: Bank
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Get card-category breakdown
+  /dashboard/category-trend:
+    get:
+      tags:
+        - dashboard
+      summary: Get category spending trend
+      description: Retrieve monthly spending trend per category over a configurable number of months.
+      operationId: get_category_trend_dashboard_category_trend_get
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 4
+            title: Months
+        - name: anchor_month
+          in: query
+          required: false
+          schema:
+            title: Anchor Month
+            type: string
+            nullable: true
+        - name: person
+          in: query
+          required: false
+          schema:
+            title: Person
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Get category spending trend
+  /dashboard/ai-trends:
+    get:
+      tags:
+        - dashboard
+      summary: Get AI spending trends analysis
+      description: Retrieve an LLM-powered analysis of spending trends with projections and actionable insights.
+      operationId: get_ai_trends_dashboard_ai_trends_get
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            title: Month
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Get AI spending trends analysis
+  /analysis/summarize:
+    post:
+      tags:
+        - analysis
+      summary: Summarize chat conversation
+      description: SSE streaming endpoint that generates a concise summary of a chat conversation for session resume.
+      operationId: summarize_chat_analysis_summarize_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Body
+        required: true
+      responses:
+        '200':
+          description: Summarize chat conversation
+  /groups/me:
+    get:
+      tags:
+        - groups
+      summary: Get current user's family group
+      description: Retrieve the family group the current user belongs to, including all members and their statuses.
+      operationId: get_my_group_groups_me_get
+      responses:
+        '200':
+          description: Get current user's family group
+  /groups/invite:
+    post:
+      tags:
+        - groups
+      summary: Invite a user to family group
+      description: Send a family group invitation to a user by their invite code. Creates the group if it doesn't exist.
+      operationId: invite_user_groups_invite_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteRequest'
+        required: true
+      responses:
+        '200':
+          description: Invite a user to family group
+  /groups/leave:
+    delete:
+      tags:
+        - groups
+      summary: Leave family group
+      description: Remove the current user from their family group. Deletes the group if no members remain.
+      operationId: leave_group_groups_leave_delete
+      responses:
+        '200':
+          description: Leave family group
+  /groups/my-invite-code:
+    get:
+      tags:
+        - groups
+      summary: Get user invite code
+      description: Retrieve or generate the current user's unique invite code for family group invitations.
+      operationId: get_my_invite_code_groups_my_invite_code_get
+      responses:
+        '200':
+          description: Get user invite code
+  /groups/generate-invite-code:
+    post:
+      tags:
+        - groups
+      summary: Regenerate invite code
+      description: Generate a new random invite code for the current user, replacing the previous one.
+      operationId: generate_invite_code_groups_generate_invite_code_post
+      responses:
+        '200':
+          description: Regenerate invite code
+  /notifications/unread-count:
+    get:
+      tags:
+        - notifications
+      summary: Get unread notification count
+      description: Return the count of unread notifications for the current user.
+      operationId: unread_count_notifications_unread_count_get
+      responses:
+        '200':
+          description: Get unread notification count
+  /notifications/{notif_id}/read:
+    put:
+      tags:
+        - notifications
+      summary: Mark notification as read
+      description: Mark a single notification as read by its ID.
+      operationId: mark_read_notifications__notif_id__read_put
+      parameters:
+        - name: notif_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Notif Id
+      responses:
+        '200':
+          description: Mark notification as read
+  /notifications/read-all:
+    put:
+      tags:
+        - notifications
+      summary: Mark all notifications as read
+      description: Mark all unread notifications for the current user as read.
+      operationId: mark_all_read_notifications_read_all_put
+      responses:
+        '200':
+          description: Mark all notifications as read
+    delete:
+      tags:
+        - notifications
+      summary: Delete all read notifications
+      description: Permanently delete all notifications that have been marked as read.
+      operationId: delete_all_read_notifications_read_all_delete
+      responses:
+        '200':
+          description: Delete all read notifications
+  /notifications/{notif_id}/accept:
+    post:
+      tags:
+        - notifications
+      summary: Accept a notification action
+      description: Accept a group invitation or impersonation request from a notification.
+      operationId: accept_invitation_notifications__notif_id__accept_post
+      parameters:
+        - name: notif_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Notif Id
+      responses:
+        '200':
+          description: Accept a notification action
+  /notifications/{notif_id}/reject:
+    post:
+      tags:
+        - notifications
+      summary: Reject a notification action
+      description: Reject a group invitation or impersonation request from a notification.
+      operationId: reject_invitation_notifications__notif_id__reject_post
+      parameters:
+        - name: notif_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Notif Id
+      responses:
+        '200':
+          description: Reject a notification action
+  /notifications/{notification_id}:
+    delete:
+      tags:
+        - notifications
+      summary: Delete a notification
+      description: Permanently delete a notification. Only the owner can delete their notifications.
+      operationId: delete_notification_notifications__notification_id__delete
+      parameters:
+        - name: notification_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Notification Id
+      responses:
+        '200':
+          description: Delete a notification
+  /notifications/stream:
+    get:
+      tags:
+        - notifications
+      summary: Real-time notification stream
+      description: SSE endpoint that streams new notifications in real-time via long-polling with keepalive pings.
+      operationId: notifications_stream_notifications_stream_get
+      responses:
+        '200':
+          description: Real-time notification stream
+  /suggestions/{suggestion_id}/approve:
+    post:
+      tags:
+        - suggestions
+      summary: Approve a suggestion
+      description: Apply the suggested category to the expense and track the merchant preference.
+      operationId: approve_suggestion_suggestions__suggestion_id__approve_post
+      parameters:
+        - name: suggestion_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Suggestion Id
+      responses:
+        '200':
+          description: Approve a suggestion
+  /suggestions/{suggestion_id}/reject:
+    post:
+      tags:
+        - suggestions
+      summary: Reject a suggestion
+      description: Mark a single category suggestion as rejected without applying it.
+      operationId: reject_suggestion_suggestions__suggestion_id__reject_post
+      parameters:
+        - name: suggestion_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Suggestion Id
+      responses:
+        '200':
+          description: Reject a suggestion
+  /suggestions/approve-all:
+    post:
+      tags:
+        - suggestions
+      summary: Approve all high-confidence suggestions
+      description: Bulk-approve all pending suggestions with confidence at or above the given threshold.
+      operationId: approve_all_suggestions_suggestions_approve_all_post
+      parameters:
+        - name: min_confidence
+          in: query
+          required: false
+          schema:
+            type: number
+            default: 0.7
+            title: Min Confidence
+      responses:
+        '200':
+          description: Approve all high-confidence suggestions
+  /suggestions/discard-all:
+    post:
+      tags:
+        - suggestions
+      summary: Discard all pending suggestions
+      description: Reject all pending category suggestions for the current user.
+      operationId: discard_all_suggestions_suggestions_discard_all_post
+      responses:
+        '200':
+          description: Discard all pending suggestions
+  /recurring/auto-detected:
+    get:
+      tags:
+        - recurring
+      summary: List auto-detected recurring expenses
+      description: Return recurring expenses that were automatically detected from spending patterns.
+      operationId: list_auto_detected_recurring_auto_detected_get
+      responses:
+        '200':
+          description: List auto-detected recurring expenses
+  /recurring/{recurring_id}:
+    put:
+      tags:
+        - recurring
+      summary: Update a recurring expense
+      description: Update amount, frequency, next charge date, alert settings, or category of a recurring expense.
+      operationId: update_recurring_recurring__recurring_id__put
+      parameters:
+        - name: recurring_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Recurring Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecurringUpdate'
+      responses:
+        '200':
+          description: Update a recurring expense
+    delete:
+      tags:
+        - recurring
+      summary: Delete a recurring expense
+      description: Permanently remove a recurring expense by its ID.
+      operationId: delete_recurring_recurring__recurring_id__delete
+      parameters:
+        - name: recurring_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Recurring Id
+      responses:
+        '200':
+          description: Delete a recurring expense
+  /recurring/{recurring_id}/confirm:
+    post:
+      tags:
+        - recurring
+      summary: Confirm auto-detected recurring expense
+      description: Confirm an auto-detected recurring expense, changing its source to manual.
+      operationId: confirm_recurring_recurring__recurring_id__confirm_post
+      parameters:
+        - name: recurring_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Recurring Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Data
+              $ref: '#/components/schemas/RecurringUpdate'
+              nullable: true
+      responses:
+        '200':
+          description: Confirm auto-detected recurring expense
+  /recurring/{recurring_id}/pause:
+    post:
+      tags:
+        - recurring
+      summary: Toggle pause/resume recurring expense
+      description: Toggle the active state of a recurring expense between paused and active.
+      operationId: pause_recurring_recurring__recurring_id__pause_post
+      parameters:
+        - name: recurring_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Recurring Id
+      responses:
+        '200':
+          description: Toggle pause/resume recurring expense
+  /recurring/dismiss-banner:
+    put:
+      tags:
+        - recurring
+      summary: Dismiss auto-detected banner
+      description: Dismiss the banner and permanently suppress all current auto-detected recurring expenses.
+      operationId: dismiss_auto_detected_banner_recurring_dismiss_banner_put
+      responses:
+        '200':
+          description: Dismiss auto-detected banner
+  /tags:
+    get:
+      tags:
+        - tags
+      summary: List user tags
+      description: Returns all tags for the user's family group with expense counts.
+      operationId: get_tags_tags_get
+      responses:
+        '200':
+          description: List user tags
+    post:
+      tags:
+        - tags
+      summary: Create a tag
+      description: Creates a new tag. Group 'categoria' is system-managed and cannot be created manually.
+      operationId: create_tag_tags_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TagCreate'
+        required: true
+      responses:
+        '200':
+          description: Create a tag
+  /tags/{tag_id}:
+    put:
+      tags:
+        - tags
+      summary: Update a tag
+      description: Updates a tag's name, color, group, or linked card/account. Cannot change to 'categoria' group.
+      operationId: update_tag_tags__tag_id__put
+      parameters:
+        - name: tag_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Tag Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TagUpdate'
+      responses:
+        '200':
+          description: Update a tag
+    delete:
+      tags:
+        - tags
+      summary: Delete a tag
+      description: Deletes a tag and removes all expense-tag associations.
+      operationId: delete_tag_tags__tag_id__delete
+      parameters:
+        - name: tag_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Tag Id
+      responses:
+        '200':
+          description: Delete a tag
+  /admin/slug:
+    get:
+      tags:
+        - admin
+      summary: Get admin panel slug
+      description: Return the unique slug URL for accessing the admin panel.
+      operationId: get_slug_admin_slug_get
+      responses:
+        '200':
+          description: Get admin panel slug
+  /admin/users:
+    get:
+      tags:
+        - admin
+      summary: List all users
+      description: Return a paginated list of users with stats, optionally filtered by search query.
+      operationId: list_users_admin_users_get
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ''
+            title: Search
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            title: Page
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            title: Per Page
+      responses:
+        '200':
+          description: List all users
+  /admin/users/{user_id}:
+    get:
+      tags:
+        - admin
+      summary: Get user details
+      description: Return full user details including stats, security info, and recent audit logs.
+      operationId: get_user_admin_users__user_id__get
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: User Id
+      responses:
+        '200':
+          description: Get user details
+  /admin/users/{user_id}/block:
+    put:
+      tags:
+        - admin
+      summary: Block a user
+      description: Block a user account with an optional reason. Cannot block yourself.
+      operationId: block_user_admin_users__user_id__block_put
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockRequest'
+      responses:
+        '200':
+          description: Block a user
+  /admin/users/{user_id}/unblock:
+    put:
+      tags:
+        - admin
+      summary: Unblock a user
+      description: Remove the block from a user account, restoring access.
+      operationId: unblock_user_admin_users__user_id__unblock_put
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: User Id
+      responses:
+        '200':
+          description: Unblock a user
+  /admin/users/{user_id}/admin:
+    put:
+      tags:
+        - admin
+      summary: Toggle admin status
+      description: Toggle the admin flag on or off for a given user.
+      operationId: toggle_admin_admin_users__user_id__admin_put
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: User Id
+      responses:
+        '200':
+          description: Toggle admin status
+  /admin/grafana/sync:
+    post:
+      tags:
+        - admin
+      summary: Sync admin users to Grafana
+      description: 'Reconcile Grafana against the `is_admin` flag: admins are provisioned with the Admin role, everyone else is removed. Use for initial setup or after bulk changes.'
+      operationId: sync_grafana_users_admin_grafana_sync_post
+      responses:
+        '200':
+          description: Sync admin users to Grafana
+  /admin/users/{user_id}/unlock:
+    post:
+      tags:
+        - admin
+      summary: Unlock a user account
+      description: Clear the Redis-based rate-limit lockout for a user.
+      operationId: unlock_user_admin_users__user_id__unlock_post
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: User Id
+      responses:
+        '200':
+          description: Unlock a user account
+  /admin/users/{user_id}/notifications:
+    get:
+      tags:
+        - admin
+      summary: Get user notifications
+      description: Return the most recent notifications for a specific user.
+      operationId: get_user_notifications_admin_users__user_id__notifications_get
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: User Id
+      responses:
+        '200':
+          description: Get user notifications
+  /admin/users/{user_id}/send-notification:
+    post:
+      tags:
+        - admin
+      summary: Send notification to user
+      description: Send an admin notification message to a specific user.
+      operationId: send_notification_to_user_admin_users__user_id__send_notification_post
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendNotificationRequest'
+      responses:
+        '200':
+          description: Send notification to user
+  /admin/audit-logs:
+    get:
+      tags:
+        - admin
+      summary: Get audit logs
+      description: Return paginated audit logs, optionally filtered by user ID and action type.
+      operationId: get_audit_logs_admin_audit_logs_get
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            title: User Id
+            type: integer
+            nullable: true
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ''
+            title: Action
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            title: Page
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+            title: Per Page
+      responses:
+        '200':
+          description: Get audit logs
+  /admin/login-errors:
+    get:
+      tags:
+        - admin
+      summary: Get login error statistics
+      description: Return failed login stats grouped by user and IP, plus blocked accounts and Redis lockouts.
+      operationId: get_login_errors_admin_login_errors_get
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 30
+            title: Days
+      responses:
+        '200':
+          description: Get login error statistics
+  /admin/reports:
+    get:
+      tags:
+        - admin
+      summary: List monthly reports
+      description: Return monthly reports filtered by user, month, or status.
+      operationId: get_reports_admin_reports_get
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            title: User Id
+            type: integer
+            nullable: true
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ''
+            title: Month
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ''
+            title: Status
+      responses:
+        '200':
+          description: List monthly reports
+  /admin/reports/{report_id}:
+    delete:
+      tags:
+        - admin
+      summary: Delete a report
+      description: Permanently delete a monthly report by its ID.
+      operationId: delete_report_admin_reports__report_id__delete
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Report Id
+      responses:
+        '200':
+          description: Delete a report
+  /admin/reports/user/{user_id}/month/{month}:
+    delete:
+      tags:
+        - admin
+      summary: Delete report by user and month
+      description: Delete a specific user's monthly report for a given month.
+      operationId: delete_report_by_user_month_admin_reports_user__user_id__month__month__delete
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: User Id
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Month
+      responses:
+        '200':
+          description: Delete report by user and month
+  /admin/reports/generate:
+    post:
+      tags:
+        - admin
+      summary: Generate a monthly report
+      description: Generate a monthly report for a specific user and month, or regenerate if it failed.
+      operationId: generate_report_admin_reports_generate_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateReportRequest'
+        required: true
+      responses:
+        '200':
+          description: Generate a monthly report
+  /admin/reports/generate-all:
+    post:
+      tags:
+        - admin
+      summary: Generate reports for all users
+      description: Enqueue monthly report generation for every active user for a given month.
+      operationId: generate_all_reports_admin_reports_generate_all_post
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Month
+      responses:
+        '200':
+          description: Generate reports for all users
+  /admin/system/health:
+    get:
+      tags:
+        - admin
+      summary: System health check
+      description: Check connectivity and status of Redis, PostgreSQL, Celery, Telegram bot, and app metrics.
+      operationId: system_health_admin_system_health_get
+      responses:
+        '200':
+          description: System health check
+  /admin/metrics/usage:
+    get:
+      tags:
+        - admin
+      summary: Usage stats (first-party, server-side)
+      description: Aggregated request/error metrics from the in-memory ring buffer. No user data.
+      operationId: metrics_usage_admin_metrics_usage_get
+      responses:
+        '200':
+          description: Usage stats (first-party, server-side)
+  /admin/metrics/system:
+    get:
+      tags:
+        - admin
+      summary: System metrics (extended health)
+      description: Extended health with request rates, latencies, DB pool, and Celery queue depth.
+      operationId: metrics_system_admin_metrics_system_get
+      responses:
+        '200':
+          description: System metrics (extended health)
+  /admin/system/tasks:
+    get:
+      tags:
+        - admin
+      summary: List scheduled tasks
+      description: Return the last run time and status for each scheduled background task.
+      operationId: system_tasks_admin_system_tasks_get
+      responses:
+        '200':
+          description: List scheduled tasks
+  /admin/system/settings:
+    get:
+      tags:
+        - admin
+      summary: Get all settings
+      description: Return all key-value settings from the database.
+      operationId: get_settings_admin_system_settings_get
+      responses:
+        '200':
+          description: Get all settings
+    put:
+      tags:
+        - admin
+      summary: Update a setting
+      description: Create or update a key-value setting in the database.
+      operationId: update_setting_admin_system_settings_put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingUpdate'
+        required: true
+      responses:
+        '200':
+          description: Update a setting
+  /admin/feature-flags:
+    get:
+      tags:
+        - admin
+      summary: List feature flags
+      description: Return all feature flags with their global override values.
+      operationId: get_feature_flags_admin_feature_flags_get
+      responses:
+        '200':
+          description: List feature flags
+  /admin/feature-flags/{flag_key}:
+    put:
+      tags:
+        - admin
+      summary: Update a feature flag
+      description: Set the global override value for a feature flag (on, off, or empty for per-user).
+      operationId: update_feature_flag_admin_feature_flags__flag_key__put
+      parameters:
+        - name: flag_key
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Flag Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureFlagUpdate'
+      responses:
+        '200':
+          description: Update a feature flag
+  /admin/platform-logs:
+    get:
+      tags:
+        - admin
+      summary: Get platform logs
+      description: Return paginated platform logs filtered by level, module, or search term.
+      operationId: get_platform_logs_admin_platform_logs_get
+      parameters:
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ''
+            title: Level
+        - name: module
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ''
+            title: Module
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            default: ''
+            title: Search
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            title: Page
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+            title: Per Page
+      responses:
+        '200':
+          description: Get platform logs
+  /admin/system/tasks/{task_name}/run:
+    post:
+      tags:
+        - admin
+      summary: Run a scheduled task
+      description: Manually trigger a scheduled Celery task by its name.
+      operationId: run_task_admin_system_tasks__task_name__run_post
+      parameters:
+        - name: task_name
+          in: path
+          required: true
+          schema:
+            type: string
+            title: Task Name
+      responses:
+        '200':
+          description: Run a scheduled task
+  /admin/bulk/notify:
+    post:
+      tags:
+        - admin
+      summary: Send bulk notifications
+      description: Send a notification to multiple users at once (max 500).
+      operationId: bulk_notify_admin_bulk_notify_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkNotifyRequest'
+        required: true
+      responses:
+        '200':
+          description: Send bulk notifications
+  /admin/cleanup/audit-logs:
+    post:
+      tags:
+        - admin
+      summary: Cleanup old audit logs
+      description: Delete audit logs older than 90 days and impersonation messages older than 45 days.
+      operationId: cleanup_audit_logs_admin_cleanup_audit_logs_post
+      responses:
+        '200':
+          description: Cleanup old audit logs
+  /admin/impersonate/request/{user_id}:
+    post:
+      tags:
+        - admin
+      summary: Request impersonation session
+      description: Request access to a user's account for support. Sends a notification for user approval.
+      operationId: request_impersonation_admin_impersonate_request__user_id__post
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: User Id
+      responses:
+        '200':
+          description: Request impersonation session
+  /admin/impersonate/{session_id}/messages:
+    get:
+      tags:
+        - admin
+      summary: Get impersonation messages
+      description: Return all chat messages for an impersonation session.
+      operationId: get_messages_admin_impersonate__session_id__messages_get
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Session Id
+      responses:
+        '200':
+          description: Get impersonation messages
+    post:
+      tags:
+        - admin
+      summary: Send impersonation message
+      description: Send a chat message in an active impersonation session and notify the target user.
+      operationId: send_message_admin_impersonate__session_id__messages_post
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Session Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageRequest'
+      responses:
+        '200':
+          description: Send impersonation message
+  /admin/impersonate/end/{session_id}:
+    post:
+      tags:
+        - admin
+      summary: End impersonation session
+      description: End an impersonation session, send a transcript email, and notify the target user.
+      operationId: end_impersonation_admin_impersonate_end__session_id__post
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Session Id
+      responses:
+        '200':
+          description: End impersonation session
+  /admin/categorization-reviews:
+    get:
+      tags:
+        - admin
+      summary: List miscategorization reviews
+      description: Return the internal reviews generated by the miscategorization detector, with the observed precision of the detector so far.
+      operationId: list_reviews_admin_categorization_reviews_get
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            default: pending
+            title: Status
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            title: User Id
+            type: integer
+            nullable: true
+        - name: min_score
+          in: query
+          required: false
+          schema:
+            title: Min Score
+            type: number
+            nullable: true
+        - name: signal
+          in: query
+          required: false
+          schema:
+            title: Signal
+            type: string
+            nullable: true
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            title: Page
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            title: Per Page
+      responses:
+        '200':
+          description: List miscategorization reviews
+  /admin/categorization-reviews/{review_id}:
+    get:
+      tags:
+        - admin
+      summary: Get one review with its evidence
+      description: Return the review plus the signals and LLM verdict behind the score.
+      operationId: get_review_detail_admin_categorization_reviews__review_id__get
+      parameters:
+        - name: review_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Review Id
+      responses:
+        '200':
+          description: Get one review with its evidence
+  /admin/categorization-reviews/{review_id}/accept:
+    post:
+      tags:
+        - admin
+      summary: Accept a review and apply the category
+      description: Apply the suggested category (or an explicit one) to the expense, teach the merchant preference and mark the review as accepted.
+      operationId: accept_admin_categorization_reviews__review_id__accept_post
+      parameters:
+        - name: review_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Review Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Body
+              $ref: '#/components/schemas/AcceptBody'
+              nullable: true
+      responses:
+        '200':
+          description: Accept a review and apply the category
+  /admin/categorization-reviews/{review_id}/reject:
+    post:
+      tags:
+        - admin
+      summary: Reject a review
+      description: Mark the review as a false positive; the expense keeps its category.
+      operationId: reject_admin_categorization_reviews__review_id__reject_post
+      parameters:
+        - name: review_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Review Id
+      responses:
+        '200':
+          description: Reject a review
+  /admin/categorization-reviews/{review_id}/investigate:
+    post:
+      tags:
+        - admin
+      summary: Mark a review as investigated
+      description: Mark the review as looked at without changing the expense.
+      operationId: investigate_admin_categorization_reviews__review_id__investigate_post
+      parameters:
+        - name: review_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            title: Review Id
+      responses:
+        '200':
+          description: Mark a review as investigated
+  /admin/categorization-reviews/scan:
+    post:
+      tags:
+        - admin
+      summary: Run the detector now
+      description: Review the expenses created since the given date (forward-only; defaults to the last 7 days) and persist the findings. Same code path as the daily job.
+      operationId: scan_admin_categorization_reviews_scan_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: Body
+              $ref: '#/components/schemas/ScanBody'
+              nullable: true
+      responses:
+        '200':
+          description: Run the detector now
+  /webhook/whatsapp:
+    get:
+      tags:
+        - whatsapp
+      summary: Verify WhatsApp webhook
+      description: Handle Meta's webhook verification challenge by validating the token and echoing the challenge.
+      operationId: verify_webhook_webhook_whatsapp_get
+      parameters:
+        - name: hub.mode
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Hub.Mode
+        - name: hub.verify_token
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Hub.Verify Token
+        - name: hub.challenge
+          in: query
+          required: true
+          schema:
+            type: string
+            title: Hub.Challenge
+      responses:
+        '200':
+          description: Verify WhatsApp webhook
+    post:
+      tags:
+        - whatsapp
+      summary: Receive WhatsApp messages
+      description: Accept incoming WhatsApp message payloads from Meta and process them asynchronously.
+      operationId: receive_webhook_webhook_whatsapp_post
+      responses:
+        '200':
+          description: Receive WhatsApp messages
+  /webhook/whatsapp/delete-user:
+    post:
+      tags:
+        - whatsapp
+      summary: Meta data deletion callback
+      description: Handles Meta's data deletion callback for WhatsApp users. Verifies the signed_request, deletes the user's account and all data, and returns a confirmation URL and code.
+      operationId: delete_user_callback_webhook_whatsapp_delete_user_post
+      responses:
+        '200':
+          description: Meta data deletion callback
 components:
   securitySchemes:
     bearerAuth:
@@ -2971,3 +5348,364 @@ components:
         expires_at:
           type: string
           format: date-time
+    InviteRequest:
+      properties:
+        invite_code:
+          type: string
+          title: Invite Code
+      type: object
+      required:
+        - invite_code
+      title: InviteRequest
+    BulkNotifyRequest:
+      properties:
+        user_ids:
+          items:
+            type: integer
+          type: array
+          title: User Ids
+        title:
+          type: string
+          title: Title
+        body:
+          type: string
+          title: Body
+      type: object
+      required:
+        - user_ids
+        - title
+        - body
+      title: BulkNotifyRequest
+    ScanBody:
+      properties:
+        user_id:
+          title: User Id
+          type: integer
+          nullable: true
+        since:
+          title: Since
+          type: string
+          nullable: true
+        use_llm:
+          type: boolean
+          title: Use Llm
+          default: true
+        persist:
+          type: boolean
+          title: Persist
+          default: true
+      type: object
+      title: ScanBody
+    OAuthRequest:
+      properties:
+        code:
+          title: Code
+          type: string
+          nullable: true
+        provider:
+          type: string
+          title: Provider
+      type: object
+      required:
+        - provider
+      title: OAuthRequest
+    RecurringUpdate:
+      properties:
+        amount:
+          title: Amount
+          type: number
+          nullable: true
+        frequency:
+          title: Frequency
+          type: string
+          nullable: true
+        next_charge_date:
+          title: Next Charge Date
+          type: string
+          format: date
+          nullable: true
+        alert_days_before:
+          title: Alert Days Before
+          type: integer
+          nullable: true
+        is_active:
+          title: Is Active
+          type: boolean
+          nullable: true
+        category_id:
+          title: Category Id
+          type: integer
+          nullable: true
+      type: object
+      title: RecurringUpdate
+    SettingUpdate:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          type: string
+          title: Value
+      type: object
+      required:
+        - key
+        - value
+      title: SettingUpdate
+    TelegramOidcLinkRequest:
+      properties:
+        code:
+          type: string
+          title: Code
+        redirect_uri:
+          type: string
+          title: Redirect Uri
+      type: object
+      required:
+        - code
+        - redirect_uri
+      title: TelegramOidcLinkRequest
+    MessageRequest:
+      properties:
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+        - message
+      title: MessageRequest
+    TelegramLoginWidgetRequest:
+      properties:
+        id:
+          type: integer
+          title: Id
+        first_name:
+          type: string
+          title: First Name
+        last_name:
+          title: Last Name
+          type: string
+          nullable: true
+        username:
+          title: Username
+          type: string
+          nullable: true
+        photo_url:
+          title: Photo Url
+          type: string
+          nullable: true
+        auth_date:
+          type: string
+          title: Auth Date
+        hash:
+          type: string
+          title: Hash
+      type: object
+      required:
+        - id
+        - first_name
+        - auth_date
+        - hash
+      title: TelegramLoginWidgetRequest
+    TelegramWebAppRequest:
+      properties:
+        init_data:
+          type: string
+          title: Init Data
+      type: object
+      required:
+        - init_data
+      title: TelegramWebAppRequest
+    SendNotificationRequest:
+      properties:
+        title:
+          type: string
+          title: Title
+        body:
+          type: string
+          title: Body
+        type:
+          type: string
+          title: Type
+          default: admin_message
+      type: object
+      required:
+        - title
+        - body
+      title: SendNotificationRequest
+    RecurringCreate:
+      properties:
+        merchant_key:
+          type: string
+          title: Merchant Key
+        description:
+          type: string
+          title: Description
+        amount:
+          type: number
+          title: Amount
+        currency:
+          type: string
+          title: Currency
+          default: ARS
+        category_id:
+          title: Category Id
+          type: integer
+          nullable: true
+        card_id:
+          title: Card Id
+          type: integer
+          nullable: true
+        account_id:
+          title: Account Id
+          type: integer
+          nullable: true
+        frequency:
+          type: string
+          title: Frequency
+          default: monthly
+        next_charge_date:
+          title: Next Charge Date
+          type: string
+          format: date
+          nullable: true
+        alert_days_before:
+          type: integer
+          title: Alert Days Before
+          default: 3
+      type: object
+      required:
+        - merchant_key
+        - description
+        - amount
+      title: RecurringCreate
+    FeatureFlagUpdate:
+      properties:
+        value:
+          type: string
+          title: Value
+      type: object
+      required:
+        - value
+      title: FeatureFlagUpdate
+    WhatsNewDismissRequest:
+      properties:
+        version:
+          type: string
+          title: Version
+      type: object
+      required:
+        - version
+      title: WhatsNewDismissRequest
+    TagUpdate:
+      properties:
+        name:
+          title: Name
+          type: string
+          nullable: true
+        color:
+          title: Color
+          type: string
+          nullable: true
+        group_name:
+          title: Group Name
+          type: string
+          nullable: true
+        card_id:
+          title: Card Id
+          type: integer
+          nullable: true
+        account_id:
+          title: Account Id
+          type: integer
+          nullable: true
+      type: object
+      title: TagUpdate
+    TelegramOidcRequest:
+      properties:
+        code:
+          type: string
+          title: Code
+        redirect_uri:
+          type: string
+          title: Redirect Uri
+      type: object
+      required:
+        - code
+        - redirect_uri
+      title: TelegramOidcRequest
+    AcceptBody:
+      properties:
+        category_id:
+          title: Category Id
+          type: integer
+          nullable: true
+      type: object
+      title: AcceptBody
+    TagCreate:
+      properties:
+        name:
+          type: string
+          title: Name
+        color:
+          type: string
+          title: Color
+          default: '#6366f1'
+        group_name:
+          type: string
+          title: Group Name
+          default: otros
+        card_id:
+          title: Card Id
+          type: integer
+          nullable: true
+        account_id:
+          title: Account Id
+          type: integer
+          nullable: true
+      type: object
+      required:
+        - name
+      title: TagCreate
+    ForceChangePasswordRequest:
+      properties:
+        token:
+          type: string
+          title: Token
+        new_password:
+          type: string
+          title: New Password
+      type: object
+      required:
+        - token
+        - new_password
+      title: ForceChangePasswordRequest
+    MFAVerifyRequest:
+      properties:
+        code:
+          type: string
+          title: Code
+      type: object
+      required:
+        - code
+      title: MFAVerifyRequest
+    GenerateReportRequest:
+      properties:
+        user_id:
+          type: integer
+          title: User Id
+        month:
+          type: string
+          title: Month
+      type: object
+      required:
+        - user_id
+        - month
+      title: GenerateReportRequest
+    BlockRequest:
+      properties:
+        reason:
+          type: string
+          title: Reason
+          default: ''
+      type: object
+      title: BlockRequest
