@@ -10,7 +10,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models import AuditLog, Expense
+from app.models import Account, AuditLog, Card, Category, Expense
 from app.services.encryption import compute_hmac
 from app.services.import_utils import _is_duplicate
 
@@ -125,6 +125,19 @@ def update_expense_checked(
     # 1. Ownership
     if expense.user_id != user_id:
         raise ExpenseEditError("No tenés permiso para editar este gasto.")
+
+    # 1b. Referenced rows must belong to the caller too (issue #481): a foreign
+    # category/card/account id would leak its name through this expense.
+    for key, model, label in (
+        ("category_id", Category, "Categoría"),
+        ("card_id", Card, "Tarjeta"),
+        ("account_id", Account, "Cuenta"),
+    ):
+        value = changes.get(key)
+        if value is not None:
+            owned = db.query(model).filter(model.id == value, model.user_id == user_id).first()
+            if not owned:
+                raise ExpenseEditError(f"{label} no encontrada")
 
     # 2. 48-hour window
     if not skip_48h_check:

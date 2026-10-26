@@ -440,6 +440,20 @@ def create_expense(
         if not account:
             raise HTTPException(404, "Cuenta no encontrada")
 
+    # Validate category belongs to user (issue #481: same primitive as the
+    # card/account checks above — a foreign id would leak its name)
+    if data.get("category_id"):
+        category = (
+            db.query(Category)
+            .filter(
+                Category.id == data["category_id"],
+                Category.user_id == current_user.id,
+            )
+            .first()
+        )
+        if not category:
+            raise HTTPException(404, "Categoría no encontrada")
+
     db_exp = Expense(**data, user_id=current_user.id)
     db.add(db_exp)
     db.commit()

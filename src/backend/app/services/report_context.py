@@ -169,6 +169,7 @@ def get_report_context(uid_list: list[int], db, end_month: date) -> dict:
     Single expense query + in-memory grouping (no N+1).
     """
     from app.models import Category, Expense
+    from app.services.category_tree import ancestors_of
 
     window4 = [(end_month.year * 12 + end_month.month - 1 - i) for i in range(3, -1, -1)]
     window4_keys = [f"{v // 12}-{v % 12 + 1:02d}" for v in window4]
@@ -190,19 +191,19 @@ def get_report_context(uid_list: list[int], db, end_month: date) -> dict:
 
     history_months = len({(e.date.year, e.date.month) for e in expenses if e.date})
 
-    cats = {c.id: c for c in db.query(Category).all()}
+    # User-scoped on purpose (issue #481): a category_id written before the
+    # write-side validation existed may point outside the group, and its name
+    # must never reach the report.
+    cats = {c.id: c for c in db.query(Category).filter(Category.user_id.in_(uid_list)).all()}
     by_leaf: dict[int, dict] = {}
+    ancestor_names: dict[int, list[str]] = {}
     for e in expenses:
         if not e.category_id or e.category_id not in cats:
             continue
         cat = cats[e.category_id]
-        ancestors = []
-        seen = set()
-        parent = cats.get(cat.parent_id) if cat.parent_id else None
-        while parent and parent.id not in seen:
-            seen.add(parent.id)
-            ancestors.append(parent.name or "")
-            parent = cats.get(parent.parent_id) if parent.parent_id else None
+        if cat.id not in ancestor_names:
+            ancestor_names[cat.id] = [str(anc.name or "") for anc in ancestors_of(cat, db)]
+        ancestors = ancestor_names[cat.id]
         if not is_super_category(cat.name or "", ancestors):
             continue
         leaf = by_leaf.setdefault(

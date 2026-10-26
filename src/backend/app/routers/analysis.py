@@ -183,6 +183,16 @@ def _question_terms(question: str | None) -> list[str]:
     return [w for w in words if w not in _QUESTION_STOPWORDS][:8]
 
 
+def _load_cat_map(db: Session, user_id: int) -> dict:
+    """The user's categories by id.
+
+    User-scoped on purpose (issue #481): an expense may carry a category_id
+    written before the write-side validation existed, and a foreign name must
+    never reach a row's label or the prompt behind it.
+    """
+    return {c.id: c for c in db.query(Category).filter(Category.user_id == user_id).all()}
+
+
 def _cat_name(expense, cat_map: dict) -> str:
     category = cat_map.get(expense.category_id) if expense.category_id else None
     if category is None:
@@ -233,8 +243,7 @@ async def stream_analysis(
         q = q.filter(Expense.date >= window_start)
 
     expenses = q.all()
-    categories = db.query(Category).all()
-    cat_map = {c.id: c for c in categories}
+    cat_map = _load_cat_map(db, current_user.id)
 
     async def no_data_stream():
         msg = "No hay gastos registrados para el período seleccionado. Importá o cargá algunos gastos primero."
