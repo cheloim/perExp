@@ -7,6 +7,7 @@ from app.models import Category, Expense, User
 from app.schemas import CategoryCreate, CategoryResponse, CategorySuggestRequest
 from app.services.auth import get_current_user
 from app.services.categorization import llm_categorize
+from app.services.category_tree import ancestors_of
 from app.services.tag_sync import get_or_create_mirror_tag, remove_mirror_tag
 
 router = APIRouter(prefix="/categories", tags=["categories"])
@@ -39,6 +40,15 @@ def create_category(
         .first()
     ):
         raise HTTPException(400, "Ya existe una categoría con ese nombre")
+    if cat.parent_id is not None:
+        parent = (
+            db.query(Category)
+            .filter(Category.id == cat.parent_id, Category.user_id == current_user.id)
+            .first()
+        )
+        if not parent:
+            # 404 over 400 on purpose: a 400 would confirm the id exists
+            raise HTTPException(404, "Categoría padre no encontrada")
     db_cat = Category(**cat.model_dump(), user_id=current_user.id)
     db.add(db_cat)
     db.commit()
@@ -77,6 +87,19 @@ def update_category(
     )
     if existing:
         raise HTTPException(400, "Ya existe otra categoría con ese nombre")
+    if cat.parent_id is not None:
+        if cat.parent_id == cat_id:
+            raise HTTPException(400, "Una categoría no puede ser padre de sí misma")
+        parent = (
+            db.query(Category)
+            .filter(Category.id == cat.parent_id, Category.user_id == current_user.id)
+            .first()
+        )
+        if not parent:
+            # 404 over 400 on purpose: a 400 would confirm the id exists
+            raise HTTPException(404, "Categoría padre no encontrada")
+        if any(anc.id == cat_id for anc in ancestors_of(parent, db)):
+            raise HTTPException(400, "El padre elegido es una subcategoría de esta categoría")
     for k, v in cat.model_dump().items():
         setattr(db_cat, k, v)
     db.commit()
@@ -101,7 +124,13 @@ def delete_category(
     )
     if not db_cat:
         raise HTTPException(404, "Categoría no encontrada")
-    children = db.query(Category).filter(Category.parent_id == cat_id).all()
+    # Own children only: a foreign category pointing here is not part of this
+    # tree (issue #481) and the FK sets it to null on delete anyway
+    children = (
+        db.query(Category)
+        .filter(Category.parent_id == cat_id, Category.user_id == current_user.id)
+        .all()
+    )
     if children:
         raise HTTPException(
             400, f"No se puede eliminar: tiene {len(children)} subcategorías. Elimínalas primero."

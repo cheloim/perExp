@@ -30,6 +30,7 @@ from app.services.budget_helpers import (
     get_spending_for_category,
     get_spending_for_group,
 )
+from app.services.category_tree import ancestors_of, parent_of
 
 BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 BUDGET_AHORRO_ENABLED = os.getenv("BUDGET_AHORRO_ENABLED", "false").lower() == "true"
@@ -220,19 +221,17 @@ def _cat_emoji(name: str) -> str:
 
 
 def build_cat_levels(category_id: int | None, db: Session) -> list[str]:
-    """Build category hierarchy list from category_id."""
+    """Build category hierarchy list from category_id.
+
+    Only same-owner ancestors count (issue #481) and the walk is cycle-safe.
+    """
     if not category_id:
         return []
     cat = db.query(Category).filter(Category.id == category_id).first()
     if not cat:
         return []
     levels = [cat.name]
-    node = cat
-    while node.parent_id:
-        node = db.query(Category).filter(Category.id == node.parent_id).first()
-        if not node:
-            break
-        levels.append(node.name)
+    levels.extend(anc.name for anc in reversed(ancestors_of(cat, db)))
     return list(reversed(levels))
 
 
@@ -315,10 +314,9 @@ def _get_category_name(cat_id: int | None, db: Session) -> str:
     cat = db.query(Category).filter(Category.id == cat_id).first()
     if not cat:
         return "Sin categoría"
-    if cat.parent_id:
-        parent = db.query(Category).filter(Category.id == cat.parent_id).first()
-        if parent:
-            return f"{parent.name} > {cat.name}"
+    parent = parent_of(cat, db)  # same-owner only (issue #481)
+    if parent:
+        return f"{parent.name} > {cat.name}"
     return cat.name
 
 
