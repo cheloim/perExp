@@ -56,7 +56,11 @@ def get_spending_for_category(
     from app.models import Category, Expense
 
     cat_ids = [category_id]
-    children = db.query(Category).filter(Category.parent_id == category_id).all()
+    children = (
+        db.query(Category)
+        .filter(Category.parent_id == category_id, Category.user_id.in_(uid_list))
+        .all()
+    )
     cat_ids.extend([int(c.id) for c in children])
 
     start = date(year, month, 1)
@@ -153,7 +157,11 @@ def get_avg_monthly_spending(category_id: int, uid_list: list[int], db: Session)
 
     today = date.today()
     cat_ids = [category_id]
-    children = db.query(Category).filter(Category.parent_id == category_id).all()
+    children = (
+        db.query(Category)
+        .filter(Category.parent_id == category_id, Category.user_id.in_(uid_list))
+        .all()
+    )
     cat_ids.extend([int(c.id) for c in children])
 
     monthly_totals = []

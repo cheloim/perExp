@@ -71,8 +71,12 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             return "Sin categoría", "#6b7280"
         cat = cat_by_id[cat_id]
         name, color = cat.name, cat.color or "#6b7280"
-        if cat.parent_id and cat.parent_id in cat_by_id:
-            name = f"{cat_by_id[cat.parent_id].name} > {cat.name}"
+        parent = cat_by_id.get(cat.parent_id) if cat.parent_id else None
+        # A parent owned by someone else is not this user's tree (issue #481):
+        # parent_id is not trustworthy, and a foreign name must never reach
+        # the report through the label.
+        if parent is not None and parent.user_id == cat.user_id:
+            name = f"{parent.name} > {cat.name}"
         return name, color
 
     # By category (all, for pie chart) — aggregated in SQL

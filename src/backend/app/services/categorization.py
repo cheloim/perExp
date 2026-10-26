@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Category
 from app.services import get_setting as _get_setting
+from app.services.category_tree import parent_of
 from app.services.llm import LLMMessage, get_client
 
 logger = logging.getLogger(__name__)
@@ -129,13 +130,9 @@ def is_income_category(category_id: int | None, db: Session) -> bool:
     if cat.name == "Ingresos":
         return True
 
-    # Check parent
-    if cat.parent_id:
-        parent = db.query(Category).filter(Category.id == cat.parent_id).first()
-        if parent and parent.name == "Ingresos":
-            return True
-
-    return False
+    # Check if parent is 'Ingresos' — same-owner parent only (issue #481)
+    parent = parent_of(cat, db)
+    return bool(parent and parent.name == "Ingresos")
 
 
 def _resolve_category(db: Session, amount: float, description: str, cats: list) -> int | None:
