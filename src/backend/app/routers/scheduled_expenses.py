@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Expense, ScheduledExpense, User
+from app.models import Category, Expense, ScheduledExpense, User
 from app.routers.groups import get_group_user_ids
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
@@ -193,6 +193,16 @@ def update_scheduled_expense(
         raise HTTPException(404)
     if scheduled.status != "PENDING":
         raise HTTPException(400, "Solo se pueden editar cuotas pendientes")
+
+    # A foreign category id would leak its name through this row (issue #481)
+    if payload.get("category_id") is not None:
+        category = (
+            db.query(Category)
+            .filter(Category.id == payload["category_id"], Category.user_id == current_user.id)
+            .first()
+        )
+        if not category:
+            raise HTTPException(404, "Categoría no encontrada")
 
     # Permitir editar: scheduled_date, amount, description, category_id
     allowed = ["scheduled_date", "amount", "description", "category_id"]
