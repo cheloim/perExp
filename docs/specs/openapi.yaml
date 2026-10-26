@@ -160,33 +160,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Token'
 
-  /auth/oauth:
-    post:
-      tags: [auth]
-      summary: Login/register via OAuth provider
-      operationId: oauthLogin
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [provider, token]
-              properties:
-                provider:
-                  type: string
-                  enum: [google, apple]
-                token:
-                  type: string
-      responses:
-        '200':
-          description: OAuth login successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Token'
-
   /auth/refresh:
     post:
       tags: [auth]
@@ -400,25 +373,6 @@ paths:
                     type: string
                   qr_uri:
                     type: string
-
-  /mfa/enable:
-    post:
-      tags: [mfa]
-      summary: Enable MFA with TOTP verification
-      operationId: mfaEnable
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [code]
-              properties:
-                code:
-                  type: string
-      responses:
-        '200':
-          description: MFA enabled
 
   /mfa/disable:
     post:
@@ -724,41 +678,6 @@ paths:
         '409':
           description: Closing already exists for this card
 
-  /card-closings/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [card-closings]
-      summary: Update card closing configuration
-      operationId: updateCardClosing
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CardClosingUpdate'
-      responses:
-        '200':
-          description: Card closing updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CardClosingResponse'
-    delete:
-      tags: [card-closings]
-      summary: Delete card closing configuration
-      operationId: deleteCardClosing
-      responses:
-        '204':
-          description: Card closing deleted
-
-  # ─────────────────────────────────────────────────────────────
-  # EXPENSES
-  # ─────────────────────────────────────────────────────────────
   /expenses:
     get:
       tags: [expenses]
@@ -1363,59 +1282,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/InvestmentResponse'
 
-  /investments/refresh:
-    get:
-      tags: [investments]
-      summary: Trigger manual price refresh
-      operationId: refreshPrices
-      responses:
-        '200':
-          description: Refresh result
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  updated:
-                    type: integer
-                  errors:
-                    type: integer
-
-  /investments/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [investments]
-      summary: Update an investment
-      operationId: updateInvestment
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentUpdate'
-      responses:
-        '200':
-          description: Investment updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvestmentResponse'
-    delete:
-      tags: [investments]
-      summary: Delete an investment
-      operationId: deleteInvestment
-      responses:
-        '204':
-          description: Investment deleted
-
-  # ─────────────────────────────────────────────────────────────
-  # IMPORT JOBS
-  # ─────────────────────────────────────────────────────────────
   /import-jobs:
     get:
       tags: [import-jobs]
@@ -1546,84 +1412,6 @@ paths:
   # ─────────────────────────────────────────────────────────────
   # DASHBOARD
   # ─────────────────────────────────────────────────────────────
-  /dashboard:
-    get:
-      tags: [dashboard]
-      summary: KPI summary
-      operationId: dashboardSummary
-      parameters:
-        - name: start_date
-          in: query
-          schema:
-            type: string
-            format: date
-        - name: end_date
-          in: query
-          schema:
-            type: string
-            format: date
-      responses:
-        '200':
-          description: Dashboard KPIs
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DashboardSummary'
-
-  /dashboard/by-category:
-    get:
-      tags: [dashboard]
-      summary: Spending grouped by category
-      operationId: dashboardByCategory
-      parameters:
-        - name: start_date
-          in: query
-          schema:
-            type: string
-            format: date
-        - name: end_date
-          in: query
-          schema:
-            type: string
-            format: date
-      responses:
-        '200':
-          description: Category breakdown
-
-  /dashboard/by-period:
-    get:
-      tags: [dashboard]
-      summary: Spending grouped by time period
-      operationId: dashboardByPeriod
-      parameters:
-        - name: period
-          in: query
-          schema:
-            type: string
-            enum: [week, month]
-            default: month
-      responses:
-        '200':
-          description: Period breakdown
-
-  /dashboard/recent:
-    get:
-      tags: [dashboard]
-      summary: Recent expenses
-      operationId: dashboardRecent
-      parameters:
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 10
-      responses:
-        '200':
-          description: Recent expenses
-
-  # ─────────────────────────────────────────────────────────────
-  # ANALYSIS
-  # ─────────────────────────────────────────────────────────────
   /analysis/stream:
     post:
       tags: [analysis]
@@ -1692,105 +1480,6 @@ paths:
   # ─────────────────────────────────────────────────────────────
   # GROUPS
   # ─────────────────────────────────────────────────────────────
-  /groups:
-    get:
-      tags: [groups]
-      summary: Get current user's group and members
-      operationId: getGroup
-      responses:
-        '200':
-          description: Group with members
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GroupResponse'
-        '404':
-          description: User does not belong to any group
-    post:
-      tags: [groups]
-      summary: Create a new family group
-      operationId: createGroup
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name:
-                  type: string
-      responses:
-        '201':
-          description: Group created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GroupResponse'
-
-  /groups/join:
-    post:
-      tags: [groups]
-      summary: Join group via invite code
-      operationId: joinGroup
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [invite_code]
-              properties:
-                invite_code:
-                  type: string
-      responses:
-        '200':
-          description: Joined group
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GroupResponse'
-        '400':
-          description: Already in a group
-        '404':
-          description: Invalid invite code
-
-  /groups/members/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-    delete:
-      tags: [groups]
-      summary: Remove a member from the group (owner only)
-      operationId: removeGroupMember
-      responses:
-        '204':
-          description: Member removed
-        '403':
-          description: Only owner can remove members
-
-  /groups/sync-holders:
-    post:
-      tags: [groups]
-      summary: Sync card holders from group members
-      operationId: syncGroupHolders
-      responses:
-        '200':
-          description: Holders synced
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  synced:
-                    type: integer
-
-  # ─────────────────────────────────────────────────────────────
-  # NOTIFICATIONS
-  # ─────────────────────────────────────────────────────────────
   /notifications:
     get:
       tags: [notifications]
@@ -1804,26 +1493,6 @@ paths:
               schema:
                 type: string
 
-  /notifications/{id}/read:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-    put:
-      tags: [notifications]
-      summary: Mark notification as read
-      operationId: markNotificationRead
-      responses:
-        '200':
-          description: Notification marked as read
-        '404':
-          description: Notification not found
-
-  # ─────────────────────────────────────────────────────────────
-  # SCHEDULED EXPENSES
-  # ─────────────────────────────────────────────────────────────
   /scheduled-expenses:
     get:
       tags: [scheduled-expenses]
@@ -1838,24 +1507,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ScheduledExpenseResponse'
-    post:
-      tags: [scheduled-expenses]
-      summary: Create a scheduled expense
-      operationId: createScheduledExpense
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ScheduledExpenseCreate'
-      responses:
-        '201':
-          description: Scheduled expense created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ScheduledExpenseResponse'
-
   /scheduled-expenses/{id}:
     parameters:
       - name: id
@@ -2230,39 +1881,6 @@ paths:
                     items:
                       $ref: '#/components/schemas/CategorySuggestion'
 
-  /suggestions/{id}/accept:
-    post:
-      tags: [suggestions]
-      summary: Accept a category suggestion
-      operationId: acceptSuggestion
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Suggestion accepted
-
-  /suggestions/{id}/reject:
-    post:
-      tags: [suggestions]
-      summary: Reject a category suggestion
-      operationId: rejectSuggestion
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Suggestion rejected
-
-  # ─────────────────────────────────────────────────────────────
-  # RECURRING
-  # ─────────────────────────────────────────────────────────────
   /recurring:
     get:
       tags: [recurring]
@@ -2287,158 +1905,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RecurringExpenseResponse'
-
-  /recurring/{id}/accept:
-    post:
-      tags: [recurring]
-      summary: Accept auto-detected recurring expense
-      operationId: acceptRecurring
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Recurring expense accepted
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RecurringExpenseResponse'
-        '409':
-          description: Already accepted
-
-  /recurring/{id}/dismiss:
-    post:
-      tags: [recurring]
-      summary: Dismiss auto-detected recurring expense
-      operationId: dismissRecurring
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Recurring expense dismissed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RecurringExpenseResponse'
-
-  # ─────────────────────────────────────────────────────────────
-  # ADMIN
-  # ─────────────────────────────────────────────────────────────
-  /x/admin/users:
-    get:
-      tags: [admin]
-      summary: List all users (admin only)
-      operationId: adminListUsers
-      parameters:
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [active, blocked]
-      responses:
-        '200':
-          description: User list
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/UserAdminResponse'
-        '403':
-          description: Not an admin
-
-  /x/admin/audit-logs:
-    get:
-      tags: [admin]
-      summary: View audit logs (admin only)
-      operationId: adminAuditLogs
-      parameters:
-        - name: action
-          in: query
-          schema:
-            type: string
-        - name: user_id
-          in: query
-          schema:
-            type: integer
-        - name: since
-          in: query
-          schema:
-            type: string
-            format: date-time
-        - name: until
-          in: query
-          schema:
-            type: string
-            format: date-time
-      responses:
-        '200':
-          description: Audit log list
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AuditLogResponse'
-        '403':
-          description: Not an admin
-
-  /x/admin/impersonate:
-    post:
-      tags: [admin]
-      summary: Start impersonation session
-      operationId: adminImpersonate
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [target_user_id]
-              properties:
-                target_user_id:
-                  type: integer
-      responses:
-        '201':
-          description: Impersonation session started
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImpersonationSessionResponse'
-        '409':
-          description: Active session already exists
-
-  # ─────────────────────────────────────────────────────────────
-  # WHATSAPP
-  # ─────────────────────────────────────────────────────────────
-  /webhooks/whatsapp:
-    post:
-      tags: [whatsapp]
-      summary: WhatsApp Business API incoming webhook
-      operationId: whatsappWebhook
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: OK
-        '401':
-          description: Invalid webhook signature
 
 components:
   securitySchemes:
