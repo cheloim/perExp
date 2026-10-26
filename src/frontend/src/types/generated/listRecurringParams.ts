@@ -37,4 +37,5 @@ import type { ListRecurringSource } from "./listRecurringSource.ts";
 export type ListRecurringParams = {
   active?: boolean;
   source?: ListRecurringSource;
+  status?: string;
 };
