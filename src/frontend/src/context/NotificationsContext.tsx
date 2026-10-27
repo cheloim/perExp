@@ -7,6 +7,7 @@ import {
   useRef,
   ReactNode,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import type { Notification } from "../types";
 import { APP_NAME } from "../config";
 import {
@@ -14,7 +15,9 @@ import {
   markAllNotificationsRead,
   deleteNotification as apiDeleteNotification,
   deleteAllReadNotifications,
+  downloadReportPdf,
 } from "../api/client";
+import { getNotifActionLabel, resolveNotificationTarget } from "../utils/notifications";
 import { showToast } from "../utils/toast";
 
 interface NotificationsState {
@@ -39,6 +42,28 @@ const WORKER_URL = import.meta.env.DEV
   ? "/src/workers/notifications.worker.ts"
   : "/assets/notifications.worker.js";
 
+/** How hard a notification taps the user on the shoulder, and for how long. */
+function toastSeverity(n: Notification): {
+  type: "info" | "success" | "error";
+  duration: number;
+} {
+  switch (n.type) {
+    case "import_ready":
+    case "monthly_report_ready":
+      return { type: "success", duration: 9000 };
+    case "import_failed":
+    case "monthly_report_failed":
+      return { type: "error", duration: 12000 };
+    case "budget_warning":
+      return {
+        type: (n.data as { status?: string } | undefined)?.status === "exceeded" ? "error" : "info",
+        duration: 9000,
+      };
+    default:
+      return { type: "info", duration: 9000 };
+  }
+}
+
 interface WorkerMessage {
   type: "initial" | "notification" | "counts_update" | "token_expired" | "error" | "connected";
   notifications?: Notification[];
@@ -54,6 +79,8 @@ interface WorkerOutgoingMessage {
 }
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+
   const [state, setState] = useState<NotificationsState>({
     notifications: [],
     unreadCount: 0,
@@ -76,45 +103,137 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, [state.unreadCount]);
 
-  const handleNewNotification = useCallback((notification: Notification) => {
-    // Show toast for import notifications
-    if (notification.type === "import_ready") {
-      showToast(notification.title, "success", 5000, "top-right");
-    } else if (notification.type === "import_failed") {
-      showToast(notification.title, "error", 5000, "top-right");
-    } else if (
-      notification.type === "uncategorized_expense" ||
-      notification.type === "uncategorized_expenses"
-    ) {
-      showToast(notification.title, "info", 5000, "top-right");
-    } else if (notification.type === "monthly_report_ready") {
-      showToast(notification.title, "success", 5000, "top-right");
-    } else if (notification.type === "monthly_report_queued") {
-      showToast(notification.title, "info", 3000, "top-right");
-    } else if (notification.type === "monthly_report_failed") {
-      showToast(notification.title, "error", 5000, "top-right");
-    } else if (notification.type === "category_suggestions") {
-      showToast(notification.title, "info", 5000, "top-right");
-    } else if (notification.type === "budget_warning") {
-      const data = notification.data;
-      const isExceeded = data?.status === "exceeded";
-      showToast(notification.title, isExceeded ? "error" : "info", 5000, "top-right");
-    }
+  const markRead = useCallback(async (id: number) => {
+    try {
+      const n = stateRef.current.notifications.find((n) => n.id === id);
+      if (n?.read) return;
 
-    setState((s) => {
-      const exists = s.notifications.some((n) => n.id === notification.id);
-      if (exists) {
+      await markNotificationRead(id);
+      setState((s) => ({
+        ...s,
+        notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
+        unreadCount: Math.max(0, s.unreadCount - 1),
+      }));
+    } catch (err) {
+      console.error("[NotificationsContext] markRead failed", err);
+    }
+  }, []);
+
+  const markAllRead = useCallback(async () => {
+    try {
+      await markAllNotificationsRead();
+      setState((s) => ({
+        ...s,
+        notifications: s.notifications.map((n) => ({ ...n, read: true })),
+        unreadCount: 0,
+      }));
+    } catch (err) {
+      console.error("[NotificationsContext] markAllRead failed", err);
+    }
+  }, []);
+
+  /**
+   * Delete a notification.
+   *
+   * #455: this used to await the response before touching state and the panel
+   * then called `refresh()`, which reconnects the SSE stream and re-reads the
+   * whole list from the server. When that read landed before the DELETE
+   * committed, the deleted notification came back. The row now goes away
+   * immediately and comes back only if the delete really failed.
+   */
+  const deleteNotification = useCallback(async (id: number) => {
+    const snapshot = stateRef.current.notifications;
+    const target = snapshot.find((n) => n.id === id);
+    if (!target) return;
+
+    setState((s) => ({
+      ...s,
+      notifications: s.notifications.filter((n) => n.id !== id),
+      unreadCount: target.read ? s.unreadCount : Math.max(0, s.unreadCount - 1),
+    }));
+
+    try {
+      await apiDeleteNotification(id);
+    } catch (err) {
+      console.error("[NotificationsContext] deleteNotification failed", err);
+      setState((s) => ({
+        ...s,
+        notifications: snapshot,
+        unreadCount: target.read ? s.unreadCount : s.unreadCount + 1,
+      }));
+      showToast("No se pudo eliminar la notificación", "error", 6000, "top-right");
+    }
+  }, []);
+
+  /** Ask the stream for the current server-side state. */
+  const refresh = useCallback(() => {
+    if (port) {
+      port.postMessage({ type: "force_refresh" } as WorkerOutgoingMessage);
+    }
+  }, [port]);
+
+  const deleteAllRead = useCallback(async () => {
+    const readIds = new Set(stateRef.current.notifications.filter((n) => n.read).map((n) => n.id));
+    if (readIds.size === 0) return;
+
+    setState((s) => ({ ...s, notifications: s.notifications.filter((n) => !n.read) }));
+
+    try {
+      await deleteAllReadNotifications();
+      // Only now: the stream re-reads the list, and the DELETE has committed, so
+      // what comes back is already without the cleared ones.
+      refresh();
+    } catch (err) {
+      console.error("[NotificationsContext] deleteAllRead failed", err);
+      showToast("No se pudieron eliminar las notificaciones leídas", "error", 6000, "top-right");
+      refresh();
+    }
+  }, [refresh]);
+
+  const handleNewNotification = useCallback(
+    (notification: Notification) => {
+      const target = resolveNotificationTarget(notification);
+      const actionLabel = getNotifActionLabel(notification);
+      const { type, duration } = toastSeverity(notification);
+
+      showToast(notification.title, type, duration, "top-right", {
+        body: notification.body,
+        // The action is the whole point of the toast: it takes the user to the
+        // thing the notification is about, instead of just telling them.
+        action:
+          target && actionLabel
+            ? {
+                label: actionLabel,
+                onClick: () => {
+                  void markRead(notification.id);
+                  if (target.kind === "download") {
+                    downloadReportPdf(target.month);
+                  } else {
+                    navigate(target.path);
+                  }
+                },
+              }
+            : undefined,
+      });
+
+      setState((s) => {
+        const exists = s.notifications.some((n) => n.id === notification.id);
+        if (exists) {
+          return {
+            ...s,
+            notifications: s.notifications.map((n) =>
+              n.id === notification.id ? notification : n,
+            ),
+          };
+        }
         return {
           ...s,
-          notifications: s.notifications.map((n) => (n.id === notification.id ? notification : n)),
+          notifications: [notification, ...s.notifications],
         };
-      }
-      return {
-        ...s,
-        notifications: [notification, ...s.notifications],
-      };
-    });
-  }, []);
+      });
+    },
+    [markRead, navigate],
+  );
 
   const handleCountsUpdate = useCallback((unread_count: number, pending_count: number) => {
     setState((s) => ({
@@ -208,71 +327,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     broadcastChannel.addEventListener("message", handleBroadcast);
     return () => broadcastChannel.removeEventListener("message", handleBroadcast);
   }, [broadcastChannel, handleNewNotification, handleCountsUpdate]);
-
-  const markRead = useCallback(async (id: number) => {
-    try {
-      const n = stateRef.current.notifications.find((n) => n.id === id);
-      if (n?.read) return;
-
-      await markNotificationRead(id);
-      setState((s) => ({
-        ...s,
-        notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
-        unreadCount: Math.max(0, s.unreadCount - 1),
-      }));
-    } catch (err) {
-      console.error("[NotificationsContext] markRead failed", err);
-    }
-  }, []);
-
-  const markAllRead = useCallback(async () => {
-    try {
-      await markAllNotificationsRead();
-      setState((s) => ({
-        ...s,
-        notifications: s.notifications.map((n) => ({ ...n, read: true })),
-        unreadCount: 0,
-      }));
-    } catch (err) {
-      console.error("[NotificationsContext] markAllRead failed", err);
-    }
-  }, []);
-
-  const deleteNotification = useCallback(async (id: number) => {
-    try {
-      const n = stateRef.current.notifications.find((n) => n.id === id);
-      await apiDeleteNotification(id);
-      setState((s) => ({
-        ...s,
-        notifications: s.notifications.filter((n) => n.id !== id),
-        unreadCount: n && !n.read ? Math.max(0, s.unreadCount - 1) : s.unreadCount,
-      }));
-    } catch (err) {
-      console.error("[NotificationsContext] deleteNotification failed", err);
-    }
-  }, []);
-
-  const deleteAllRead = useCallback(async () => {
-    try {
-      await deleteAllReadNotifications();
-      setState((s) => ({
-        ...s,
-        notifications: s.notifications.filter((n) => !n.read),
-      }));
-      // Force SSE stream to re-sync after deletion
-      if (port) {
-        port.postMessage({ type: "force_refresh" } as WorkerOutgoingMessage);
-      }
-    } catch (err) {
-      console.error("[NotificationsContext] deleteAllRead failed", err);
-    }
-  }, [port]);
-
-  const refresh = useCallback(() => {
-    if (port) {
-      port.postMessage({ type: "force_refresh" } as WorkerOutgoingMessage);
-    }
-  }, [port]);
 
   return (
     <NotificationsContext.Provider

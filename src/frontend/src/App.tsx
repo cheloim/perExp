@@ -8,7 +8,7 @@ import { UploadProgressProvider } from "./context/UploadProgressContext";
 import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
 import { getStoredToken, getMe, getAdminSlug, dismissWhatsNew, createExpense } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { useUndoToast } from "./hooks/useUndoToast";
+import ToastViewport from "./components/ToastViewport";
 import ImpersonationBanner from "./components/ImpersonationBanner";
 import ReAuthModal from "./components/ReAuthModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,7 +22,7 @@ import { ExpenseModal } from "./components/ExpenseModals";
 import QuickViewLayout from "./layouts/QuickViewLayout";
 import Sidebar from "./components/Sidebar";
 import MobileNav from "./components/MobileNav";
-import MobileHeader from "./components/MobileHeader";
+import AppHeader from "./components/AppHeader";
 import SpeedDial from "./components/SpeedDial";
 import InstitutionalRoutes from "./pages/InstitutionalRoutes";
 import type { ExpenseCreate } from "./types";
@@ -31,6 +31,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const ClasificacionPage = lazy(() => import("./pages/ClasificacionPage"));
 const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
 const ImportJobPreview = lazy(() => import("./pages/ImportJobPreview"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const CategoryDashboard = lazy(() => import("./pages/CategoryDashboard"));
 const BudgetPage = lazy(() => import("./pages/BudgetPage"));
 const InstallmentsPage = lazy(() => import("./pages/InstallmentsPage"));
@@ -207,7 +208,6 @@ function MainLayout() {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showReAuth, setShowReAuth] = useState(false);
   const [newExpenseOpen, setNewExpenseOpen] = useState(false);
-  const { ToastContainer } = useUndoToast();
 
   // Global expense creation
   const createMut = useMutation({
@@ -376,19 +376,12 @@ function MainLayout() {
     <UploadProgressProvider>
       <div className="flex h-screen overflow-hidden bg-base">
         {/* Sidebar — GNOME Adwaita NavigationSplitView pattern */}
-        <Sidebar
-          tabs={TABS}
-          currentUser={currentUser}
-          adminSlug={slugData?.slug}
-          unreadCount={unreadCount}
-          onOpenNotifications={() => setNotifOpen((v) => !v)}
-          onOpenUserPanel={() => setUserPanelOpen(true)}
-        />
+        <Sidebar tabs={TABS} currentUser={currentUser} adminSlug={slugData?.slug} />
 
         {/* Main content */}
         <div className="md:pl-16 pb-14 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 mr-0">
-          {/* Mobile header — Adwaita HeaderBar with actions */}
-          <MobileHeader
+          {/* Header bar — notifications bell and account live here */}
+          <AppHeader
             unreadCount={unreadCount}
             onOpenNotifications={() => setNotifOpen((v) => !v)}
             onOpenUserPanel={() => setUserPanelOpen(true)}
@@ -479,6 +472,14 @@ function MainLayout() {
                       element={
                         <RequireAuth>
                           <ImportJobPreview />
+                        </RequireAuth>
+                      }
+                    />
+                    <Route
+                      path="/notifications"
+                      element={
+                        <RequireAuth>
+                          <NotificationsPage />
                         </RequireAuth>
                       }
                     />
@@ -593,7 +594,7 @@ function MainLayout() {
       <Suspense fallback={null}>
         <OnboardingWalkthrough onOpenPanel={setUserPanelOpen} />
       </Suspense>
-      {ToastContainer}
+      <ToastViewport />
     </UploadProgressProvider>
   );
 }
