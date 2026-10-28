@@ -10,6 +10,7 @@ from app.database import SessionLocal
 from app.models import Category, Expense, MonthlyReport, Notification, Tag, User
 from app.routers.groups import get_group_user_ids
 from app.services.date_utils import MONTHS_ES
+from app.services.notify import notification_excerpt
 
 logger = logging.getLogger(__name__)
 
@@ -1078,8 +1079,8 @@ def generate_single_report(self, user_id: int, month_str: str):
                 user_id=user_id,
                 type="monthly_report_failed",
                 title=f"Error al generar reporte: {month_name} {y_n}",
-                body=f"No se pudo generar: {str(e)[:100]}",
-                data=json.dumps({"month": month_str, "error": str(e)[:200]}),
+                body=f"No se pudo generar: {notification_excerpt(e)}",
+                data=json.dumps({"month": month_str, "error": str(e)}),
                 read=False,
             )
             db.add(notification)

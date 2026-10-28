@@ -207,3 +207,56 @@ class TestSendTelegram:
         user = MagicMock()
         user.telegram_chat_id = "[encrypted]"
         _send_telegram(user, "test")  # Should not raise
+
+
+# ── Notification text ────────────────────────────────────────────────
+
+
+class TestNotificationExcerpt:
+    """A notification body has to read as a complete thought.
+
+    The tasks used to write ``str(e)[:100]``, which cut the error at an
+    arbitrary character — "401 Client Error: Unauthorized for url: https://api.op"
+    — hiding exactly the detail the user needed.
+    """
+
+    def test_short_text_is_returned_untouched(self):
+        from app.services.notify import notification_excerpt
+
+        text = "401 Client Error: Unauthorized for url: https://api.openai.com/v1/chat"
+        assert notification_excerpt(text) == text
+
+    def test_short_text_gets_no_ellipsis(self):
+        from app.services.notify import notification_excerpt
+
+        assert "…" not in notification_excerpt("Falló la conexión")
+
+    def test_long_text_is_cut_on_a_word_boundary(self):
+        from app.services.notify import notification_excerpt
+
+        text = "falló la conexión con el proveedor de inteligencia artificial"
+        out = notification_excerpt(text, limit=20)
+
+        assert out.endswith("…")
+        body = out[:-1]
+        # The result is an untouched prefix of the original...
+        assert body in text
+        # ...and it stopped at a space, never in the middle of a word.
+        assert text[len(body)] == " "
+
+    def test_long_single_token_does_not_raise(self):
+        from app.services.notify import notification_excerpt
+
+        out = notification_excerpt("x" * 300, limit=50)
+        assert out.endswith("…")
+        assert len(out) == 51
+
+    def test_surrounding_whitespace_is_trimmed(self):
+        from app.services.notify import notification_excerpt
+
+        assert notification_excerpt("  error  \n") == "error"
+
+    def test_none_becomes_empty(self):
+        from app.services.notify import notification_excerpt
+
+        assert notification_excerpt(None) == ""
