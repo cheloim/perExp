@@ -3,7 +3,6 @@ import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import useSeoMeta from "./hooks/useSeoMeta";
 import Assistant, { readDrawerOpen, persistDrawerOpen } from "./components/assistant/Assistant";
 import UserPanel from "./components/UserPanel";
-import NotificationsPanel from "./components/NotificationsPanel";
 import { UploadProgressProvider } from "./context/UploadProgressContext";
 import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
 import { getStoredToken, getMe, getAdminSlug, dismissWhatsNew, createExpense } from "./api/client";
@@ -22,7 +21,8 @@ import { ExpenseModal } from "./components/ExpenseModals";
 import QuickViewLayout from "./layouts/QuickViewLayout";
 import Sidebar from "./components/Sidebar";
 import MobileNav from "./components/MobileNav";
-import AppHeader from "./components/AppHeader";
+import MobileHeader from "./components/MobileHeader";
+import UploadProgressBanner from "./components/UploadProgressBanner";
 import SpeedDial from "./components/SpeedDial";
 import InstitutionalRoutes from "./pages/InstitutionalRoutes";
 import type { ExpenseCreate } from "./types";
@@ -202,7 +202,6 @@ function MainLayout() {
   const isInvestments = location.pathname === "/investments";
   const [aiDrawerOpen, setAiDrawerOpen] = useState(readDrawerOpen);
   const [userPanelOpen, setUserPanelOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
   const [showMoreNav, setShowMoreNav] = useState(false);
   const queryClient = useQueryClient();
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -309,12 +308,11 @@ function MainLayout() {
           persistDrawerOpen(false);
         }
         if (userPanelOpen) setUserPanelOpen(false);
-        if (notifOpen) setNotifOpen(false);
       }
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [aiDrawerOpen, userPanelOpen, notifOpen]);
+  }, [aiDrawerOpen, userPanelOpen]);
 
   // Listen for open-user-panel event from Dashboard MFA banner
   useEffect(() => {
@@ -376,16 +374,17 @@ function MainLayout() {
     <UploadProgressProvider>
       <div className="flex h-screen overflow-hidden bg-base">
         {/* Sidebar — GNOME Adwaita NavigationSplitView pattern */}
-        <Sidebar tabs={TABS} currentUser={currentUser} adminSlug={slugData?.slug} />
+        <Sidebar
+          tabs={TABS}
+          unreadCount={unreadCount}
+          onOpenUserPanel={() => setUserPanelOpen(true)}
+        />
 
         {/* Main content */}
         <div className="md:pl-16 pb-14 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 mr-0">
-          {/* Header bar — notifications bell and account live here */}
-          <AppHeader
-            unreadCount={unreadCount}
-            onOpenNotifications={() => setNotifOpen((v) => !v)}
-            onOpenUserPanel={() => setUserPanelOpen(true)}
-          />
+          <MobileHeader unreadCount={unreadCount} onOpenUserPanel={() => setUserPanelOpen(true)} />
+
+          <UploadProgressBanner />
 
           {/* Scrollable content */}
           <main className="flex-1 overflow-y-auto overflow-x-auto relative z-10">
@@ -555,8 +554,11 @@ function MainLayout() {
           />
         </div>
 
-        <UserPanel open={userPanelOpen} onClose={() => setUserPanelOpen(false)} />
-        {notifOpen && <NotificationsPanel onClose={() => setNotifOpen(false)} />}
+        <UserPanel
+          open={userPanelOpen}
+          onClose={() => setUserPanelOpen(false)}
+          adminSlug={slugData?.slug}
+        />
 
         {/* Impersonation Banner */}
         {impersonationSession && (

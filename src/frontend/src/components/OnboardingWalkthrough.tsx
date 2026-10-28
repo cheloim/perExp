@@ -93,13 +93,13 @@ function getTourSteps(openPanel: (open: boolean) => void): TourStepConfig[] {
       placement: "right",
     },
     {
-      target: '[data-tour="header-notifications"]',
+      target: '[data-tour="sidebar-notifications"]',
       title: "Notificaciones",
       content:
         "Acá recibís alertas de gastos sin categorizar, reportes listos y sugerencias de la IA.",
       icon: "bell",
       color: "#9141ac",
-      placement: "bottom",
+      placement: "right",
     },
     {
       target: '[data-tour="sidebar-guide"]',
@@ -111,13 +111,13 @@ function getTourSteps(openPanel: (open: boolean) => void): TourStepConfig[] {
       placement: "right",
     },
     {
-      target: '[data-tour="header-account"]',
+      target: '[data-tour="sidebar-account"]',
       title: "Mi cuenta",
       content:
         "Configurá tu perfil, tema, contraseña, MFA y opciones de IA desde tu panel de usuario.",
       icon: "user",
       color: "#77767b",
-      placement: "bottom",
+      placement: "right",
     },
   ];
 }

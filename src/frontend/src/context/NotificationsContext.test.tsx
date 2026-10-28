@@ -149,7 +149,7 @@ describe("NotificationsContext.deleteNotification", () => {
       "No se pudo eliminar la notificación",
       "error",
       6000,
-      "top-right",
+      "bottom-center",
     );
   });
 });

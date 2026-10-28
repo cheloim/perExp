@@ -161,7 +161,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         notifications: snapshot,
         unreadCount: target.read ? s.unreadCount : s.unreadCount + 1,
       }));
-      showToast("No se pudo eliminar la notificación", "error", 6000, "top-right");
+      showToast("No se pudo eliminar la notificación", "error", 6000, "bottom-center");
     }
   }, []);
 
@@ -185,7 +185,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       refresh();
     } catch (err) {
       console.error("[NotificationsContext] deleteAllRead failed", err);
-      showToast("No se pudieron eliminar las notificaciones leídas", "error", 6000, "top-right");
+      showToast(
+        "No se pudieron eliminar las notificaciones leídas",
+        "error",
+        6000,
+        "bottom-center",
+      );
       refresh();
     }
   }, [refresh]);
@@ -196,7 +201,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       const actionLabel = getNotifActionLabel(notification);
       const { type, duration } = toastSeverity(notification);
 
-      showToast(notification.title, type, duration, "top-right", {
+      showToast(notification.title, type, duration, "bottom-center", {
         body: notification.body,
         // The action is the whole point of the toast: it takes the user to the
         // thing the notification is about, instead of just telling them.
