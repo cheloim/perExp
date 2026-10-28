@@ -241,6 +241,8 @@ function ReportsTab() {
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** The secret admin URL. Absent for non-admins. */
+  adminSlug?: string | null;
 }
 
 function formatFullName(full_name: string) {
@@ -252,7 +254,7 @@ function formatFullName(full_name: string) {
   return full_name;
 }
 
-export default function UserPanel({ open, onClose }: Props) {
+export default function UserPanel({ open, onClose, adminSlug }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { theme, toggleTheme } = useTheme();
@@ -1442,8 +1444,42 @@ export default function UserPanel({ open, onClose }: Props) {
           {activeTab === "reports" && <ReportsTab />}
         </div>
 
-        {/* Logout */}
-        <div className="px-5 py-4 border-t border-[var(--border-color)]">
+        {/* Account actions */}
+        <div className="px-5 py-4 border-t border-[var(--border-color)] space-y-2">
+          {/* Admin only — the entry used to sit in the sidebar */}
+          {user?.is_admin && adminSlug && (
+            <button
+              onClick={() => {
+                navigate(`/x/${adminSlug}`);
+                onClose();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] text-sm font-medium transition-colors"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 20 20"
+                fill="none"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M10 2.5l5.5 2.2v4.6c0 3.3-2.2 6.1-5.5 6.9-3.3-.8-5.5-3.6-5.5-6.9V4.7L10 2.5z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M7.6 9.6l1.6 1.6 3.2-3.3"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Admin Panel
+            </button>
+          )}
           <button
             onClick={() => setShowLogoutConfirm(true)}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md border border-[var(--red-3,#e01b24)]/30 text-[var(--red-3,#e01b24)] hover:bg-[var(--red-3,#e01b24)]/10 text-sm font-medium transition-colors"

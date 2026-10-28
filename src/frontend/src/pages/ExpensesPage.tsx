@@ -124,7 +124,7 @@ export default function ExpensesPage() {
       suggestionsBannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     } else {
       // The notification outlived its suggestions: say so instead of nothing.
-      showToast("No hay sugerencias pendientes", "info", 5000, "top-right");
+      showToast("No hay sugerencias pendientes", "info", 5000, "bottom-center");
     }
     const next = new URLSearchParams(searchParams);
     next.delete("category_suggestions");

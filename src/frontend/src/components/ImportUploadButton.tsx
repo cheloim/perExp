@@ -38,7 +38,7 @@ export default function ImportUploadButton() {
           startedAt: Date.now(),
         });
         // Show toast notification in top-right
-        showToast(`Procesando ${file.name}...`, "info", 5000, "top-right");
+        showToast(`Procesando ${file.name}...`, "info", 5000, "bottom-center");
       } catch (error: unknown) {
         const err = error as { name?: string; message?: string };
         // Handle abort error
@@ -50,7 +50,7 @@ export default function ImportUploadButton() {
             status: "failed",
             error: err.message ?? "Error",
           });
-          showToast(`Error: ${err.message ?? "Unknown"}`, "error", 5000, "top-right");
+          showToast(`Error: ${err.message ?? "Unknown"}`, "error", 5000, "bottom-center");
         }
       }
     }

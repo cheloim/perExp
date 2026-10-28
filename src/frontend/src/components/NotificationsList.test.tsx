@@ -1,20 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import NotificationsPanel from "./NotificationsPanel";
+import NotificationsList from "./NotificationsList";
 import type { Notification } from "../types";
 
 /**
- * The panel's contracts with #412: the notification text is shown in full (no
- * clamp, no ellipsis) and a notification is deleted with a single click.
+ * The list's contracts with #412 / #455: the notification text is shown in full
+ * (no clamp, no ellipsis), a notification is deleted with a single click, and
+ * only the actions that destroy more than the notification get a confirmation.
+ *
+ * These used to live in NotificationsPanel.test.tsx. The popover is gone; the
+ * behaviour it protected is not.
  */
 const h = vi.hoisted(() => ({
   notifications: [] as Notification[],
   deleteNotification: vi.fn(async () => {}),
-  deleteAllRead: vi.fn(async () => {}),
   markRead: vi.fn(async () => {}),
-  markAllRead: vi.fn(async () => {}),
-  refresh: vi.fn(),
 }));
 
 vi.mock("../context/NotificationsContext", () => ({
@@ -24,15 +25,11 @@ vi.mock("../context/NotificationsContext", () => ({
     pendingCount: 0,
     connected: true,
     markRead: h.markRead,
-    markAllRead: h.markAllRead,
+    markAllRead: vi.fn(),
     deleteNotification: h.deleteNotification,
-    deleteAllRead: h.deleteAllRead,
-    refresh: h.refresh,
+    deleteAllRead: vi.fn(),
+    refresh: vi.fn(),
   }),
-}));
-
-vi.mock("../context/UploadProgressContext", () => ({
-  useUploadProgress: () => ({ uploads: [], removeUpload: vi.fn(), cancelUpload: vi.fn() }),
 }));
 
 vi.mock("../api/client", () => ({
@@ -43,12 +40,12 @@ vi.mock("../api/client", () => ({
 
 vi.mock("react-router-dom", () => ({ useNavigate: () => vi.fn() }));
 
-function renderPanel(n: Notification) {
+function renderList(n: Notification) {
   h.notifications = [n];
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <NotificationsPanel onClose={() => {}} />
+      <NotificationsList variant="page" />
     </QueryClientProvider>,
   );
 }
@@ -69,14 +66,14 @@ const NOTIFICATION: Notification = {
   data: { status: "warning" },
 };
 
-describe("NotificationsPanel", () => {
+describe("NotificationsList", () => {
   beforeEach(() => {
     h.notifications = [];
     vi.clearAllMocks();
   });
 
   it("shows the whole body and title, without clamping or truncating", () => {
-    const { container } = renderPanel(NOTIFICATION);
+    const { container } = renderList(NOTIFICATION);
 
     // The body was `line-clamp-2` and the title `truncate`; both hid text.
     expect(container.querySelector(".line-clamp-2")).toBeNull();
@@ -86,7 +83,7 @@ describe("NotificationsPanel", () => {
   });
 
   it("deletes a notification with a single click", () => {
-    renderPanel(NOTIFICATION);
+    renderList(NOTIFICATION);
 
     fireEvent.click(screen.getByTitle("Eliminar notificación"));
 
@@ -97,7 +94,7 @@ describe("NotificationsPanel", () => {
   it("keeps the confirm step only where the click destroys more than the notification", () => {
     // An import notification carries a job behind it, so deleting it takes the
     // confirmation dialog — the one-click contract is for notifications alone.
-    renderPanel({
+    renderList({
       id: 8,
       type: "import_ready",
       title: "Importación lista",
