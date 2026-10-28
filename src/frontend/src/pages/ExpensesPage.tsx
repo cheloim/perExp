@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef, Fragment } from "react";
+import { useState, useMemo, useRef, useEffect, Fragment } from "react";
+import { showToast } from "../utils/toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUndoToast } from "../hooks/useUndoToast";
 import {
@@ -97,7 +98,11 @@ export default function ExpensesPage() {
   const filterSearch = filters.q;
 
   // Category suggestions from API
-  const { data: suggestionsData = [], refetch: refetchSuggestions } = useQuery({
+  const {
+    data: suggestionsData = [],
+    refetch: refetchSuggestions,
+    isFetched: suggestionsFetched,
+  } = useQuery({
     queryKey: ["suggestions"],
     queryFn: () => getSuggestions("pending"),
     staleTime: 30_000,
@@ -107,6 +112,24 @@ export default function ExpensesPage() {
     () => new Map(suggestionsData.map((s) => [s.expense_id, s])),
     [suggestionsData],
   );
+
+  const suggestionsBannerRef = useRef<HTMLDivElement>(null);
+
+  // "Ver sugerencias" from a notification lands here. Take the user to the
+  // banner instead of dropping them at the top of an unfiltered table (#455).
+  const wantsSuggestions = searchParams.get("category_suggestions") === "1";
+  useEffect(() => {
+    if (!wantsSuggestions || !suggestionsFetched) return;
+    if (showSuggestions) {
+      suggestionsBannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else {
+      // The notification outlived its suggestions: say so instead of nothing.
+      showToast("No hay sugerencias pendientes", "info", 5000, "top-right");
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("category_suggestions");
+    setSearchParams(next, { replace: true });
+  }, [wantsSuggestions, suggestionsFetched, showSuggestions, searchParams, setSearchParams]);
 
   // The same filters feed the table, the stats cards and the breakdowns, so
   // the numbers above always match the rows below (issue #477).
@@ -423,7 +446,7 @@ export default function ExpensesPage() {
     },
   });
 
-  const { show: showUndo, ToastContainer } = useUndoToast();
+  const { show: showUndo } = useUndoToast();
   const pendingDeletes = useRef<
     Map<number, { timer: ReturnType<typeof setTimeout>; expense: Expense }>
   >(new Map());
@@ -595,7 +618,10 @@ export default function ExpensesPage() {
 
       {/* Category suggestions banner */}
       {showSuggestions && (
-        <div className="card border-l-4 border-l-purple-500 bg-purple-500/5">
+        <div
+          ref={suggestionsBannerRef}
+          className="card border-l-4 border-l-purple-500 bg-purple-500/5"
+        >
           <div className="px-4 py-3 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-[var(--text-primary)]">
@@ -1705,8 +1731,6 @@ export default function ExpensesPage() {
           onCancel={() => setBulkDeleteConfirm(false)}
         />
       )}
-
-      {ToastContainer}
 
       {quickEdit && (
         <QuickEditPopover

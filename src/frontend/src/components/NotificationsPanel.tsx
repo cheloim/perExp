@@ -1,138 +1,29 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
-import { rejectGroupInvitation, downloadReportPdf } from "../api/client";
-import type { Notification } from "../types";
-import InvitationDisclaimer from "./InvitationDisclaimer";
 import { useUploadProgress } from "../context/UploadProgressContext";
 import { useNotifications } from "../context/NotificationsContext";
+import NotificationBulkActions from "./NotificationBulkActions";
+import NotificationsList from "./NotificationsList";
 import SymbolicIcon from "./SymbolicIcon";
-import type { IconName } from "./SymbolicIcon";
 
 interface Props {
   onClose: () => void;
 }
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  if (diff < 0) return "Ahora";
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Ahora";
-  if (mins < 60) return `Hace ${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `Hace ${hours}h`;
-  return `Hace ${Math.floor(hours / 24)}d`;
-}
-
-/** Returns icon name and color class for a notification type */
-function getNotifIcon(n: Notification): { icon: IconName; color: string } {
-  switch (n.type) {
-    case "import_ready":
-      return { icon: "check", color: "text-green-500" };
-    case "import_failed":
-      return { icon: "warning", color: "text-red-500" };
-    case "uncategorized_expense":
-    case "uncategorized_expenses":
-      return { icon: "warning", color: "text-amber-500" };
-    case "category_suggestions":
-      return { icon: "sparkles", color: "text-purple-500" };
-    case "auto_recurring_detected":
-      return { icon: "installments", color: "text-indigo-500" };
-    case "budget_warning":
-      return {
-        icon: "warning",
-        color: n.data?.status === "exceeded" ? "text-red-500" : "text-amber-500",
-      };
-    case "monthly_report_ready":
-    case "monthly_report_queued":
-      return { icon: "book", color: "text-blue-500" };
-    case "group_invitation":
-      return { icon: "users", color: "text-[var(--color-primary)]" };
-    default:
-      return { icon: "bell", color: "text-[var(--text-tertiary)]" };
-  }
-}
-
-/** Returns the border color for a notification type */
-function getNotifBorderColor(n: Notification): string {
-  switch (n.type) {
-    case "import_ready":
-      return "border-l-green-500";
-    case "import_failed":
-      return "border-l-red-500";
-    case "uncategorized_expense":
-    case "uncategorized_expenses":
-      return "border-l-amber-500";
-    case "category_suggestions":
-      return "border-l-purple-500";
-    case "auto_recurring_detected":
-      return "border-l-indigo-500";
-    case "budget_warning":
-      return n.data?.status === "exceeded" ? "border-l-red-500" : "border-l-amber-500";
-    case "monthly_report_ready":
-    case "monthly_report_queued":
-      return "border-l-blue-500";
-    default:
-      return "";
-  }
-}
-
-/** Returns the action label for clickable notifications */
-function getActionLabel(n: Notification): string | null {
-  switch (n.type) {
-    case "import_ready":
-    case "import_failed":
-      return "Ver importación →";
-    case "uncategorized_expense":
-    case "uncategorized_expenses":
-      return "Ver gastos sin categoría →";
-    case "category_suggestions":
-      return "Ver sugerencias →";
-    case "auto_recurring_detected":
-      return "Ver programados →";
-    case "budget_warning":
-      return "Ver presupuestos →";
-    case "monthly_report_ready":
-      return "Descargar reporte →";
-    default:
-      return null;
-  }
-}
-
+/**
+ * The notification popover.
+ *
+ * #455: it used to sit bottom-left over the sidebar at 320px, with the same
+ * elevation as the rest of the chrome — it read as an accident rather than as
+ * the place notifications live. It now hangs from the bell at the top right,
+ * is wide enough to read a message in, and has the shadow to sit above the page.
+ */
 export default function NotificationsPanel({ onClose }: Props) {
   const navigate = useNavigate();
-  const [disclaimer, setDisclaimer] = useState<{
-    notifId: number;
-    inviterName: string;
-  } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<{
-    jobId: number;
-    notifId: number;
-  } | null>(null);
-  const [confirmReject, setConfirmReject] = useState<number | null>(null);
-  const [confirmClearRead, setConfirmClearRead] = useState(false);
   const { uploads, removeUpload, cancelUpload } = useUploadProgress();
-  const {
-    notifications,
-    markRead,
-    markAllRead,
-    deleteNotification,
-    deleteAllRead,
-    refresh,
-    connected,
-  } = useNotifications();
-  const [, setTick] = useState(0);
+  const { notifications, connected } = useNotifications();
 
-  const timeAgoValues = useMemo(
-    () => new Map(notifications.map((n) => [n.id, timeAgo(n.created_at)])),
-    [notifications],
-  );
-
-  useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 60000);
-    return () => clearInterval(interval);
-  }, []);
-
+  // Once an import has landed as a notification, its progress row is noise.
   useEffect(() => {
     uploads.forEach((upload) => {
       if (upload.status === "processing" && upload.jobId) {
@@ -148,104 +39,32 @@ export default function NotificationsPanel({ onClose }: Props) {
     });
   }, [uploads, notifications, removeUpload]);
 
-  const reject = useMutation({
-    mutationFn: rejectGroupInvitation,
-    onSuccess: () => {
-      refresh();
-    },
-  });
-
-  const handleAccept = (n: Notification) => {
-    const inviterName =
-      ("inviter_name" in n.data ? (n.data.inviter_name as string) : undefined) || "el invitante";
-    setDisclaimer({ notifId: n.id, inviterName });
-  };
-
-  const handleMarkRead = async (id: number) => {
-    await markRead(id);
-  };
-
-  const handleDeleteJob = async (jobId: number, notifId: number) => {
-    const token = localStorage.getItem("auth_token");
-    if (!token) return;
-    try {
-      await fetch(`/api/import-jobs/${jobId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await deleteNotification(notifId);
-      refresh();
-    } catch (err) {
-      console.error("[NotificationsPanel] deleteJob failed", err);
-    }
-  };
-
-  const handleNotificationClick = (n: Notification) => {
-    if (n.type === "import_ready" || n.type === "import_failed") {
-      const jobId = n.data.job_id;
-      if (jobId) {
-        handleMarkRead(n.id);
-        navigate(`/import-jobs/${jobId}`);
-        onClose();
-      }
-    } else if (n.type === "uncategorized_expense" || n.type === "uncategorized_expenses") {
-      handleMarkRead(n.id);
-      navigate("/expenses?uncategorized=1");
-      onClose();
-    } else if (n.type === "monthly_report_ready" || n.type === "monthly_report_queued") {
-      handleMarkRead(n.id);
-      if (n.type === "monthly_report_ready" && n.data.month) {
-        downloadReportPdf(n.data.month as string);
-      }
-      onClose();
-    } else if (n.type === "category_suggestions") {
-      handleMarkRead(n.id);
-      navigate("/expenses?category_suggestions=1");
-      onClose();
-    } else if (n.type === "auto_recurring_detected") {
-      handleMarkRead(n.id);
-      navigate("/installments?filter=recurring");
-      onClose();
-    } else if (n.type === "budget_warning") {
-      handleMarkRead(n.id);
-      navigate("/budgets");
-      onClose();
-    }
-  };
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const readCount = notifications.filter((n) => n.read).length;
-
   return (
     <>
-      <div className="fixed inset-0 z-30 bg-black/10" onClick={onClose} aria-hidden="true" />
+      <div className="fixed inset-0 z-30 bg-black/25" onClick={onClose} aria-hidden="true" />
 
       <div
-        className="fixed bottom-[calc(3.5rem+var(--browser-bottom-inset,0px))] left-4 z-40 w-80 max-w-[calc(100vw-2rem)] bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-gnome-lg flex flex-col max-h-[480px]"
+        className="fixed top-[calc(3.5rem+0.75rem)] right-4 z-40 w-[26rem] max-w-[calc(100vw-2rem)] bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-2xl ring-1 ring-black/10 flex flex-col max-h-[min(32rem,calc(100vh-6rem))] animate-modal-content"
         role="dialog"
         aria-label="Notificaciones"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--border-color)]">
           <div className="flex items-center gap-2 text-[var(--text-primary)] font-semibold">
             <SymbolicIcon name="bell" size={18} className="text-[var(--color-primary)]" />
             <span>Notificaciones</span>
           </div>
           <div className="flex items-center gap-2">
-            {unreadCount > 0 && (
+            <NotificationBulkActions compact />
+            {notifications.length > 0 && (
               <button
-                onClick={() => markAllRead()}
+                onClick={() => {
+                  navigate("/notifications");
+                  onClose();
+                }}
                 className="text-xs text-[var(--color-primary)] hover:underline transition-colors"
               >
-                Marcar todo leído
-              </button>
-            )}
-            {readCount > 0 && (
-              <button
-                onClick={() => setConfirmClearRead(true)}
-                className="text-xs text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
-              >
-                Limpiar leídas
+                Ver todo →
               </button>
             )}
             <button
@@ -293,7 +112,10 @@ export default function NotificationsPanel({ onClose }: Props) {
                         : "text-[var(--color-primary)]"
                   }
                 />
-                <p className="text-[var(--text-primary)] text-sm font-medium flex-1 truncate">
+                <p
+                  className="text-[var(--text-primary)] text-sm font-medium flex-1 truncate"
+                  title={upload.filename}
+                >
                   {upload.filename}
                 </p>
                 {upload.status === "uploading" && (
@@ -312,7 +134,6 @@ export default function NotificationsPanel({ onClose }: Props) {
                 )}
               </div>
 
-              {/* Progress bar */}
               {upload.status === "uploading" && upload.progress != null && (
                 <div className="relative w-full h-1.5 bg-[var(--color-base-alt)] rounded-full overflow-hidden mb-1.5">
                   <div
@@ -356,237 +177,9 @@ export default function NotificationsPanel({ onClose }: Props) {
             </div>
           )}
 
-          {/* Notifications list */}
-          {notifications.map((n) => {
-            const { icon, color } = getNotifIcon(n);
-            const borderColor = getNotifBorderColor(n);
-            const actionLabel = getActionLabel(n);
-            const isClickable = !!actionLabel || n.type === "group_invitation";
-
-            return (
-              <div
-                key={n.id}
-                onClick={() => isClickable && handleNotificationClick(n)}
-                onKeyDown={(e) => {
-                  if ((e.key === "Enter" || e.key === " ") && isClickable) {
-                    e.preventDefault();
-                    handleNotificationClick(n);
-                  }
-                }}
-                className={`px-4 py-3 border-b border-[var(--border-color)] last:border-0 ${
-                  !n.read ? "bg-[var(--color-primary)]/8" : ""
-                } ${
-                  isClickable
-                    ? "cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-                    : ""
-                } ${borderColor ? `border-l-4 ${borderColor}` : ""}`}
-                role={isClickable ? "button" : undefined}
-                tabIndex={isClickable ? 0 : undefined}
-              >
-                <div className="flex items-start gap-2.5">
-                  {/* Icon */}
-                  <span className="flex-shrink-0 mt-0.5">
-                    <SymbolicIcon name={icon} size={16} className={color} />
-                  </span>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-0.5">
-                      <p className="text-[var(--text-primary)] text-sm font-medium leading-tight break-words">
-                        {n.title}
-                      </p>
-                      <span className="text-[var(--text-tertiary)] text-xs whitespace-nowrap flex-shrink-0">
-                        {timeAgoValues.get(n.id) ?? timeAgo(n.created_at)}
-                      </span>
-                    </div>
-                    {/* The full text, never clamped: a notification whose body is
-                        cut to two lines hides exactly the detail it was sent for. */}
-                    <p className="text-[var(--text-secondary)] text-xs whitespace-pre-line break-words mb-1.5">
-                      {n.body}
-                    </p>
-
-                    {/* Action link */}
-                    {actionLabel && (
-                      <p className="text-[var(--color-primary)] text-xs font-medium">
-                        {actionLabel}
-                      </p>
-                    )}
-
-                    {/* Group invitation buttons */}
-                    {n.type === "group_invitation" &&
-                      (() => {
-                        const data = n.data;
-                        const hasPendingInvite = data.member_id && !n.read;
-                        if (!hasPendingInvite) return null;
-                        return (
-                          <div className="flex gap-2 mt-1">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAccept(n);
-                              }}
-                              className="text-xs px-3 py-1 rounded-md bg-[var(--color-primary)] hover:brightness-110 text-white transition-colors"
-                            >
-                              ✓ Aceptar
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setConfirmReject(n.id);
-                              }}
-                              disabled={reject.isPending}
-                              className="text-xs px-3 py-1 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition-colors disabled:opacity-50"
-                            >
-                              ✕ Rechazar
-                            </button>
-                          </div>
-                        );
-                      })()}
-
-                    {/* Monthly report download */}
-                    {n.type === "monthly_report_ready" && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const month = n.data.month;
-                          if (month) {
-                            handleMarkRead(n.id);
-                            downloadReportPdf(month as string);
-                          }
-                        }}
-                        className="text-[var(--color-primary)] text-xs font-medium hover:underline"
-                      >
-                        Descargar reporte →
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Delete button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (n.type === "import_ready" || n.type === "import_failed") {
-                        const jobId = "job_id" in n.data ? (n.data.job_id as number) : undefined;
-                        if (jobId) setConfirmDelete({ jobId, notifId: n.id });
-                      } else {
-                        deleteNotification(n.id);
-                        refresh();
-                      }
-                    }}
-                    className="flex-shrink-0 text-[var(--text-tertiary)] hover:text-red-500 transition-colors p-0.5"
-                    title="Eliminar notificación"
-                  >
-                    <SymbolicIcon name="trash" size={14} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          <NotificationsList variant="panel" onAfterActivate={onClose} />
         </div>
       </div>
-
-      {/* Confirm dialogs */}
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
-            <h2 className="text-[var(--text-primary)] font-semibold text-lg mb-2">
-              Eliminar importación
-            </h2>
-            <p className="text-[var(--text-secondary)] text-sm mb-4">
-              Se eliminará la importación y su notificación. Esta acción no se puede deshacer.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className="flex-1 py-2 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] text-sm hover:bg-[var(--color-base-alt)] transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  handleDeleteJob(confirmDelete.jobId, confirmDelete.notifId);
-                  setConfirmDelete(null);
-                }}
-                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirmReject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
-            <h2 className="text-[var(--text-primary)] font-semibold text-lg mb-2">
-              Rechazar invitación
-            </h2>
-            <p className="text-[var(--text-secondary)] text-sm mb-4">
-              ¿Seguro que querés rechazar esta invitación? No podrás unirte a este grupo más
-              adelante a menos que te vuelvan a invitar.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmReject(null)}
-                className="flex-1 py-2 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] text-sm hover:bg-[var(--color-base-alt)] transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  reject.mutate(confirmReject);
-                  setConfirmReject(null);
-                }}
-                disabled={reject.isPending}
-                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                {reject.isPending ? "Rechazando..." : "Rechazar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirmClearRead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
-            <h2 className="text-[var(--text-primary)] font-semibold text-lg mb-2">
-              Limpiar notificaciones leídas
-            </h2>
-            <p className="text-[var(--text-secondary)] text-sm mb-4">
-              Se eliminarán {readCount} notificación
-              {readCount !== 1 ? "es" : ""} leída
-              {readCount !== 1 ? "s" : ""}. Esta acción no se puede deshacer.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmClearRead(false)}
-                className="flex-1 py-2 rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] text-sm hover:bg-[var(--color-base-alt)] transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  deleteAllRead();
-                  setConfirmClearRead(false);
-                }}
-                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {disclaimer && (
-        <InvitationDisclaimer
-          notificationId={disclaimer.notifId}
-          inviterName={disclaimer.inviterName}
-          onClose={() => setDisclaimer(null)}
-        />
-      )}
     </>
   );
 }

@@ -38,6 +38,7 @@ vi.mock("../context/UploadProgressContext", () => ({
 vi.mock("../api/client", () => ({
   rejectGroupInvitation: vi.fn(),
   downloadReportPdf: vi.fn(),
+  deleteImportJob: vi.fn(async () => {}),
 }));
 
 vi.mock("react-router-dom", () => ({ useNavigate: () => vi.fn() }));

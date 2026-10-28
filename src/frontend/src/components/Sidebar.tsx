@@ -15,19 +15,9 @@ interface SidebarProps {
   tabs: SidebarTab[];
   currentUser?: { is_admin?: boolean } | null;
   adminSlug?: string | null;
-  unreadCount: number;
-  onOpenNotifications: () => void;
-  onOpenUserPanel: () => void;
 }
 
-export default function Sidebar({
-  tabs,
-  currentUser,
-  adminSlug,
-  unreadCount,
-  onOpenNotifications,
-  onOpenUserPanel,
-}: SidebarProps) {
+export default function Sidebar({ tabs, currentUser, adminSlug }: SidebarProps) {
   return (
     <aside
       className="group fixed left-0 top-0 h-full z-30 bg-sidebar border-r border-[var(--border-color)] hidden md:flex flex-col w-16 hover:w-[220px] transition-all duration-300 overflow-hidden"
@@ -127,29 +117,6 @@ export default function Sidebar({
           </NavLink>
         )}
 
-        {/* Bell — GNOME HIG: accessible notification indicator */}
-        <div className="relative">
-          <button
-            onClick={onOpenNotifications}
-            title="Notificaciones"
-            aria-label={`${unreadCount} notificaciones sin leer`}
-            data-tour="sidebar-notifications"
-            className="group/notif relative w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)] transition-all duration-150"
-          >
-            <span className="relative w-5 h-5 flex-shrink-0 flex items-center justify-center">
-              {sidebarIcons.bell}
-              {unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-[#ed333b] text-white text-[10px] font-semibold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5 animate-pulse">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </span>
-            <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
-              Notificaciones
-            </span>
-          </button>
-        </div>
-
         {/* Import Upload Button */}
         <ImportUploadButton />
 
@@ -187,22 +154,6 @@ export default function Sidebar({
             </>
           )}
         </NavLink>
-
-        {/* User — GNOME HIG: accessible account button */}
-        <button
-          onClick={onOpenUserPanel}
-          title="Mi cuenta"
-          aria-label="Mi cuenta"
-          data-tour="sidebar-account"
-          className="group/user w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)] transition-all duration-150"
-        >
-          <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
-            {sidebarIcons.user}
-          </span>
-          <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
-            Mi cuenta
-          </span>
-        </button>
       </div>
     </aside>
   );
