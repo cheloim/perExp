@@ -13,11 +13,36 @@ export interface SidebarTab {
 
 interface SidebarProps {
   tabs: SidebarTab[];
-  currentUser?: { is_admin?: boolean } | null;
-  adminSlug?: string | null;
+  unreadCount: number;
+  onOpenUserPanel: () => void;
 }
 
-export default function Sidebar({ tabs, currentUser, adminSlug }: SidebarProps) {
+/**
+ * Navigation sidebar — GNOME Adwaita NavigationSplitView pattern.
+ *
+ * Notifications sit in their own section, apart from the locations, following
+ * the grouped sidebars of GNOME 50's AdwSidebar. The unread count is a suffix
+ * on the row: compact over the bell on the rail, at the row's end when the
+ * sidebar expands.
+ */
+export default function Sidebar({ tabs, unreadCount, onOpenUserPanel }: SidebarProps) {
+  const rowClass = (isActive: boolean) => `
+    group/nav relative flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
+    ${
+      isActive
+        ? "bg-[var(--color-base-alt)] text-[var(--color-sidebar-text-active)]"
+        : "text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)]"
+    }
+  `;
+
+  const activeIndicator = (isActive: boolean) => (
+    <span
+      className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full bg-sidebar-indicator transition-opacity duration-150 ${
+        isActive ? "opacity-100" : "opacity-0"
+      } group-hover/nav:opacity-30`}
+    />
+  );
+
   return (
     <aside
       className="group fixed left-0 top-0 h-full z-30 bg-sidebar border-r border-[var(--border-color)] hidden md:flex flex-col w-16 hover:w-[220px] transition-all duration-300 overflow-hidden"
@@ -34,7 +59,7 @@ export default function Sidebar({ tabs, currentUser, adminSlug }: SidebarProps) 
         </span>
       </div>
 
-      {/* Nav links — GNOME Adwaita sidebar style */}
+      {/* Nav links */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 scrollbar-none">
         {tabs.map((tab) => (
           <NavLink
@@ -43,24 +68,11 @@ export default function Sidebar({ tabs, currentUser, adminSlug }: SidebarProps) 
             end={tab.exact}
             title={tab.label}
             data-tour={tab.tour}
-            className={({ isActive }) => `
-              group/nav relative flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
-              ${
-                isActive
-                  ? "bg-[var(--color-base-alt)] text-[var(--color-sidebar-text-active)]"
-                  : "text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)]"
-              }
-            `}
+            className={({ isActive }) => rowClass(isActive)}
           >
             {({ isActive }) => (
               <>
-                {/* Active indicator bar — GNOME style */}
-                <span
-                  className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full bg-sidebar-indicator transition-opacity duration-150 ${
-                    isActive ? "opacity-100" : "opacity-0"
-                  } group-hover/nav:opacity-30`}
-                />
-
+                {activeIndicator(isActive)}
                 <span
                   className={`w-5 h-5 flex-shrink-0 flex items-center justify-center ${
                     isActive ? "text-[var(--color-sidebar-icon-active)]" : ""
@@ -75,72 +87,63 @@ export default function Sidebar({ tabs, currentUser, adminSlug }: SidebarProps) 
             )}
           </NavLink>
         ))}
+
+        {/* Avisos — its own section, the way GNOME 50 groups sidebar items */}
+        <div className="mt-2 mb-1.5 border-t border-[var(--border-color)]" />
+        <div className="max-h-0 opacity-0 overflow-hidden group-hover:max-h-5 group-hover:opacity-100 transition-all duration-300">
+          <div className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] whitespace-nowrap">
+            Avisos
+          </div>
+        </div>
+
+        <NavLink
+          to="/notifications"
+          title="Notificaciones"
+          aria-label={
+            unreadCount > 0 ? `Notificaciones, ${unreadCount} sin leer` : "Notificaciones"
+          }
+          data-tour="sidebar-notifications"
+          className={({ isActive }) => rowClass(isActive)}
+        >
+          {({ isActive }) => (
+            <>
+              {activeIndicator(isActive)}
+              <span className="relative w-5 h-5 flex-shrink-0 flex items-center justify-center">
+                <span className={isActive ? "text-[var(--color-sidebar-icon-active)]" : ""}>
+                  {sidebarIcons.bell}
+                </span>
+                {unreadCount > 0 && (
+                  <span className="group-hover:hidden absolute -top-1.5 -right-1.5 bg-[#ed333b] text-white text-[9px] font-semibold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-0.5">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </span>
+              <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
+                Notificaciones
+              </span>
+              {unreadCount > 0 && (
+                <span className="ml-auto hidden group-hover:flex bg-[#ed333b] text-white text-[10px] font-semibold rounded-full min-w-[18px] h-[18px] items-center justify-center px-1">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </>
+          )}
+        </NavLink>
       </nav>
 
       {/* Bottom actions */}
       <div className="px-2 py-3 border-t border-[var(--border-color)] space-y-0.5">
-        {/* Admin button - only visible for admin users */}
-        {currentUser?.is_admin && adminSlug && (
-          <NavLink
-            to={`/x/${adminSlug}`}
-            title="Admin"
-            className={({ isActive }) => `
-              group/nav relative flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
-              ${
-                isActive
-                  ? "bg-[var(--color-base-alt)] text-[var(--color-sidebar-text-active)]"
-                  : "text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)]"
-              }
-            `}
-          >
-            {({ isActive }) => (
-              <>
-                <span
-                  className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full bg-sidebar-indicator transition-opacity duration-150 ${
-                    isActive ? "opacity-100" : "opacity-0"
-                  } group-hover/nav:opacity-30`}
-                />
-                <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </span>
-                <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
-                  Admin
-                </span>
-              </>
-            )}
-          </NavLink>
-        )}
-
-        {/* Import Upload Button */}
         <ImportUploadButton />
 
-        {/* Guide */}
         <NavLink
           to="/guide"
           title="Guía de usuario"
           data-tour="sidebar-guide"
-          className={({ isActive }) => `
-            group/nav relative w-full flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
-            ${
-              isActive
-                ? "bg-[var(--color-base-alt)] text-[var(--color-sidebar-text-active)]"
-                : "text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] hover:text-[var(--text-primary)]"
-            }
-          `}
+          className={({ isActive }) => rowClass(isActive)}
         >
           {({ isActive }) => (
             <>
-              <span
-                className={`absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full bg-sidebar-indicator transition-opacity duration-150 ${
-                  isActive ? "opacity-100" : "opacity-0"
-                } group-hover/nav:opacity-30`}
-              />
+              {activeIndicator(isActive)}
               <span
                 className={`w-5 h-5 flex-shrink-0 flex items-center justify-center ${
                   isActive ? "text-[var(--color-sidebar-icon-active)]" : ""
@@ -154,6 +157,21 @@ export default function Sidebar({ tabs, currentUser, adminSlug }: SidebarProps) 
             </>
           )}
         </NavLink>
+
+        <button
+          onClick={onOpenUserPanel}
+          title="Mi cuenta"
+          aria-label="Mi cuenta"
+          data-tour="sidebar-account"
+          className={rowClass(false) + " w-full"}
+        >
+          <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+            {sidebarIcons.accountCircle}
+          </span>
+          <span className="whitespace-nowrap overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-300">
+            Mi cuenta
+          </span>
+        </button>
       </div>
     </aside>
   );

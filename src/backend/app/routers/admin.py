@@ -27,6 +27,7 @@ from app.models import (
     User,
 )
 from app.services.auth import get_current_admin
+from app.services.notify import notification_excerpt
 from app.services.rate_limit import _get_redis, is_account_locked
 
 logger = logging.getLogger(__name__)
@@ -1357,7 +1358,7 @@ def send_message(
         user_id=session.target_user_id,
         type="impersonation_message",
         title="Mensaje de administrador",
-        body=body.message[:200],
+        body=notification_excerpt(body.message),
         data=json.dumps({"session_id": session_id, "sender_id": admin.id}),
     )
     db.add(target_notif)

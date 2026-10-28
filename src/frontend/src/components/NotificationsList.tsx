@@ -56,7 +56,7 @@ export default function NotificationsList({ variant, filter = "all", onAfterActi
       setConfirmReject(null);
     },
     onError: () => {
-      showToast("No se pudo rechazar la invitación", "error", 5000, "top-right");
+      showToast("No se pudo rechazar la invitación", "error", 5000, "bottom-center");
       setConfirmReject(null);
     },
   });
@@ -91,7 +91,7 @@ export default function NotificationsList({ variant, filter = "all", onAfterActi
       await deleteNotification(notifId);
     } catch (err) {
       console.error("[NotificationsList] deleteImportJob failed", err);
-      showToast("No se pudo eliminar la importación", "error", 5000, "top-right");
+      showToast("No se pudo eliminar la importación", "error", 5000, "bottom-center");
     }
   };
 

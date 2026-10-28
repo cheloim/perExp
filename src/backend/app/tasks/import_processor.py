@@ -21,6 +21,7 @@ from app.database import SessionLocal
 logger = logging.getLogger(__name__)
 from app.celery_app import celery_app
 from app.models import ImportJob, Notification
+from app.services.notify import notification_excerpt
 from app.services.smart_import_core import run_smart_import
 
 # Redis client for per-user locks
@@ -133,7 +134,7 @@ def process_import_job(job_id: int):
             user_id=job.user_id,
             type="import_failed",
             title=f"❌ Error al importar: {job.filename}",
-            body=f"No se pudo procesar: {str(e)[:100]}",
+            body=f"No se pudo procesar: {notification_excerpt(e)}",
             data=json.dumps({"job_id": job.id, "filename": job.filename, "error": str(e)}),
             read=False,
         )

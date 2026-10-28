@@ -18,6 +18,7 @@ from app.services.date_utils import _normalize_date_str, add_months
 from app.services.encryption import compute_hmac
 from app.services.expense_filters import apply_expense_filters
 from app.services.import_utils import _is_duplicate, _normalize_text
+from app.services.notify import notification_excerpt
 from app.services.tag_sync import assign_tags_validated, sync_category_tag
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
@@ -478,7 +479,7 @@ def create_expense(
         notification = Notification(
             user_id=current_user.id,
             type="uncategorized_expense",
-            title=f"⚠ Gasto sin categoría: {db_exp.description[:50]}",
+            title=f"⚠ Gasto sin categoría: {notification_excerpt(db_exp.description, limit=50)}",
             body=f"Monto: ${db_exp.amount:,.2f} — Asigná una categoría para un mejor análisis.",
             data=json.dumps({"expense_id": db_exp.id, "description": db_exp.description}),
             read=False,

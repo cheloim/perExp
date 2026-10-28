@@ -132,7 +132,7 @@ export default function ToastViewport() {
     <>
       {bottomToasts.length > 0 && (
         <div
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 items-center"
+          className="fixed bottom-[calc(3.5rem+0.75rem)] md:bottom-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[26rem] max-w-[calc(100vw-2rem)]"
           role="status"
           aria-live="polite"
         >

@@ -12,6 +12,29 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+# Generous enough that a real error or admin message arrives whole, bounded
+# enough that a pathological one cannot bloat the row or the UI.
+MAX_NOTIFICATION_EXCERPT = 1000
+
+
+def notification_excerpt(text: str, limit: int = MAX_NOTIFICATION_EXCERPT) -> str:
+    """Keep a notification body readable instead of cutting it mid-word.
+
+    The tasks used to write ``str(e)[:100]``, which chopped the error at an
+    arbitrary character — usually the part that explained the failure. Text
+    that fits is returned untouched; longer text is cut on a word boundary and
+    marked with an ellipsis, so it reads as a deliberate end rather than a
+    rendering bug.
+    """
+    value = str(text or "").strip()
+    if len(value) <= limit:
+        return value
+
+    cut = value[:limit]
+    if " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    return f"{cut.rstrip(' ,;:-')}…"
+
 
 def _resolve_channel(user_id: int, db: Session) -> str:
     """Resolve the notification channel for a user.
