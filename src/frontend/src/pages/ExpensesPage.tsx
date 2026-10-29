@@ -28,6 +28,8 @@ import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import EmptyState from "../components/ui/EmptyState";
 import SymbolicIcon from "../components/SymbolicIcon";
 import QuickEditPopover from "../components/QuickEditPopover";
+import BulkActionBar from "../components/BulkActionBar";
+import BulkTagPicker from "../components/BulkTagPicker";
 import { getCategoryIcon } from "../utils/categoryIcon";
 import {
   PieChart,
@@ -72,6 +74,47 @@ function groupSmallCategories(
   const hidden = data.slice(maxItems);
   const hiddenTotal = hidden.reduce((s, c) => s + c.total, 0);
   return { shown, hidden, hiddenTotal };
+}
+
+function SelectAllCheckbox({
+  checked,
+  indeterminate,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      aria-label={label}
+      title={label}
+      className="h-4 w-4 cursor-pointer accent-[var(--color-primary)]"
+    />
+  );
+}
+
+function selectionSummary(selected: Expense[]): string {
+  const totals = new Map<string, number>();
+  for (const expense of selected) {
+    const currency = expense.currency || "ARS";
+    totals.set(currency, (totals.get(currency) ?? 0) + expense.amount);
+  }
+  return [...totals.entries()]
+    .map(([currency, total]) => formatCurrency(total, currency))
+    .join(" + ");
 }
 
 export default function ExpensesPage() {
@@ -229,11 +272,13 @@ export default function ExpensesPage() {
     field: "date",
     dir: "desc",
   });
-  const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
-  const [bulkTagId, setBulkTagId] = useState<string>("");
+  const [bulkPicker, setBulkPicker] = useState<{
+    type: "category" | "cuenta" | "tags";
+    rect: DOMRect;
+  } | null>(null);
+  const [bulkPending, setBulkPending] = useState(false);
+  const lastSelectedRef = useRef<number | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     id: number;
     description: string;
@@ -244,83 +289,6 @@ export default function ExpensesPage() {
     type: "category" | "cuenta";
     rect: DOMRect;
   } | null>(null);
-
-  const clearBulkState = () => {
-    setDrawerOpen(false);
-    setSelectedIds(new Set());
-    setBulkCategoryId("");
-    setBulkTagId("");
-  };
-
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      if (next.size > 0) setDrawerOpen(true);
-      else setDrawerOpen(false);
-      return next;
-    });
-  };
-
-  const bulkFieldMut = useMutation({
-    mutationFn: ({
-      ids,
-      ...updateData
-    }: {
-      ids: number[];
-      category_id?: number | null;
-      card_id?: number | null;
-      account_id?: number | null;
-    }) => bulkUpdateFields(ids, updateData),
-    onSuccess: () => {
-      invalidate();
-      clearBulkState();
-    },
-    onError: () => {
-      setSaveError("Error al actualizar");
-    },
-  });
-
-  const bulkTagMut = useMutation({
-    mutationFn: ({ ids, tag_id }: { ids: number[]; tag_id: number }) =>
-      bulkUpdateTags({ ids, tag_ids: [tag_id], mode: "add" }),
-    onSuccess: () => {
-      invalidate();
-      clearBulkState();
-    },
-    onError: () => {
-      setSaveError("Error al actualizar tags");
-    },
-  });
-
-  const handleBulkApply = () => {
-    if (selectedIds.size === 0) return;
-    const updateData: {
-      category_id?: number | null;
-    } = {};
-    if (bulkCategoryId !== "") {
-      updateData.category_id = bulkCategoryId === "__none__" ? null : parseInt(bulkCategoryId);
-    }
-    if (bulkTagId) {
-      bulkTagMut.mutate({ ids: Array.from(selectedIds), tag_id: parseInt(bulkTagId) });
-      return;
-    }
-    if (Object.keys(updateData).length === 0) return;
-    bulkFieldMut.mutate({ ids: Array.from(selectedIds), ...updateData });
-  };
-
-  const bulkDeleteMut = useMutation({
-    mutationFn: (ids: number[]) => bulkDeleteExpenses(ids),
-    onSuccess: () => {
-      invalidate();
-      clearBulkState();
-      setBulkDeleteConfirm(false);
-    },
-    onError: () => {
-      setSaveError("Error al eliminar");
-      setBulkDeleteConfirm(false);
-    },
-  });
 
   const createMut = useMutation({
     mutationFn: createExpense,
@@ -544,55 +512,293 @@ export default function ExpensesPage() {
     });
   }, [expenses, sort.field, sort.dir]);
 
+  const selectedExpenses = useMemo(
+    () => sortedExpenses.filter((expense) => selectedIds.has(expense.id)),
+    [sortedExpenses, selectedIds],
+  );
+
+  const selectedCount = selectedExpenses.length;
+  const selectedSummary = useMemo(() => selectionSummary(selectedExpenses), [selectedExpenses]);
+  const allVisibleSelected =
+    sortedExpenses.length > 0 && sortedExpenses.every((expense) => selectedIds.has(expense.id));
+  const someVisibleSelected = !allVisibleSelected && selectedCount > 0;
+
+  // A selection only makes sense against the rows the user is looking at.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [filterKey]);
+
+  // Escape clears the selection, except while a text field has focus.
+  useEffect(() => {
+    if (selectedIds.size === 0) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const target = event.target as HTMLElement | null;
+      const typingField =
+        target instanceof HTMLInputElement &&
+        !["checkbox", "radio", "button", "submit"].includes(target.type);
+      if (typingField || target?.tagName === "TEXTAREA" || target?.tagName === "SELECT") {
+        return;
+      }
+      if (target?.isContentEditable) return;
+      setSelectedIds(new Set());
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedIds.size]);
+
+  const toggleRowSelection = (id: number, shiftKey: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      const anchor = lastSelectedRef.current;
+      if (shiftKey && anchor != null && anchor !== id) {
+        const order = sortedExpenses.map((expense) => expense.id);
+        const from = order.indexOf(anchor);
+        const to = order.indexOf(id);
+        if (from !== -1 && to !== -1) {
+          const [start, end] = from < to ? [from, to] : [to, from];
+          for (let i = start; i <= end; i += 1) next.add(order[i]);
+          lastSelectedRef.current = id;
+          return next;
+        }
+      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      lastSelectedRef.current = id;
+      return next;
+    });
+  };
+
+  const plural = (count: number) => (count === 1 ? "gasto" : "gastos");
+
+  const runBulk = async (
+    ids: number[],
+    action: () => Promise<{ updated?: number; deleted?: number }>,
+    message: (count: number) => string,
+  ) => {
+    if (ids.length === 0 || bulkPending) return;
+    setBulkPending(true);
+    try {
+      const result = await action();
+      invalidate();
+      setSelectedIds(new Set());
+      const count = result.updated ?? result.deleted ?? ids.length;
+      showToast(message(count), "success", 4500, "bottom-center");
+    } catch (error) {
+      // A partially applied action still changed data; refresh before telling.
+      invalidate();
+      showToast(
+        error instanceof Error ? error.message : "No se pudo completar la acción",
+        "error",
+        6000,
+        "top-right",
+      );
+    } finally {
+      setBulkPending(false);
+    }
+  };
+
+  const applyBulkCategory = (value: string) => {
+    const ids = selectedExpenses.map((expense) => expense.id);
+    setBulkPicker(null);
+    const categoryId = value === "__clear__" ? null : parseInt(value);
+    void runBulk(
+      ids,
+      () => bulkUpdateFields(ids, { category_id: categoryId }),
+      (count) => `Categoría actualizada en ${count} ${plural(count)}`,
+    );
+  };
+
+  const applyBulkCuenta = (value: string) => {
+    const ids = selectedExpenses.map((expense) => expense.id);
+    setBulkPicker(null);
+    if (value === "__clear__") {
+      const cuentaIds = [
+        ...new Set(
+          selectedExpenses.flatMap((expense) =>
+            (expense.tags ?? []).filter((tag) => tag.group_name === "cuenta").map((tag) => tag.id),
+          ),
+        ),
+      ];
+      if (cuentaIds.length === 0) {
+        setSelectedIds(new Set());
+        return;
+      }
+      void runBulk(
+        ids,
+        () => bulkUpdateTags({ ids, tag_ids: cuentaIds, mode: "remove" }),
+        (count) => `Cuenta quitada en ${count} ${plural(count)}`,
+      );
+      return;
+    }
+    const tagId = parseInt(value);
+    void runBulk(
+      ids,
+      () => bulkUpdateTags({ ids, tag_ids: [tagId], mode: "add" }),
+      (count) => `Cuenta actualizada en ${count} ${plural(count)}`,
+    );
+  };
+
+  const applyBulkTags = (addIds: number[], removeIds: number[]) => {
+    const ids = selectedExpenses.map((expense) => expense.id);
+    setBulkPicker(null);
+    void runBulk(
+      ids,
+      async () => {
+        let updated = 0;
+        if (addIds.length > 0) {
+          const result = await bulkUpdateTags({ ids, tag_ids: addIds, mode: "add" });
+          updated = result.updated;
+        }
+        if (removeIds.length > 0) {
+          const result = await bulkUpdateTags({ ids, tag_ids: removeIds, mode: "remove" });
+          updated = result.updated;
+        }
+        return { updated };
+      },
+      (count) => `Etiquetas actualizadas en ${count} ${plural(count)}`,
+    );
+  };
+
+  const deleteSelected = () => {
+    const ids = selectedExpenses.map((expense) => expense.id);
+    setBulkDeleteConfirm(false);
+    void runBulk(
+      ids,
+      () => bulkDeleteExpenses(ids),
+      (count) => `${count} ${plural(count)} eliminado${count === 1 ? "" : "s"}`,
+    );
+  };
+
+  const buildCsv = (rows: Expense[]) => {
+    const headers = ["Fecha", "Descripción", "Monto", "Moneda", "Categoría", "Cuenta", "Etiquetas"];
+    const lines = rows.map((expense) => [
+      expense.date,
+      `"${expense.description.replace(/"/g, '""')}"`,
+      expense.amount,
+      expense.currency || "ARS",
+      expense.category_name || "",
+      expense.tags?.find((tag) => tag.group_name === "cuenta")?.name || "",
+      expense.tags
+        ?.filter((tag) => tag.group_name !== "categoria" && tag.group_name !== "cuenta")
+        .map((tag) => tag.name)
+        .join("; ") || "",
+    ]);
+    return [headers.join(","), ...lines.map((line) => line.join(","))].join("\n");
+  };
+
+  const downloadCsv = (rows: Expense[], filename: string) => {
+    const blob = new Blob(["\uFEFF" + buildCsv(rows)], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   const exportCSV = async () => {
     const allData = await getExpenses({
       ...filterParams,
       limit: 10000,
     });
-    const headers = ["Fecha", "Descripción", "Monto", "Moneda", "Categoría", "Cuenta", "Etiquetas"];
-    const rows = allData.map((e) => [
-      e.date,
-      `"${e.description.replace(/"/g, '""')}"`,
-      e.amount,
-      e.currency || "ARS",
-      e.category_name || "",
-      e.tags?.find((t) => t.group_name === "cuenta")?.name || "",
-      e.tags
-        ?.filter((t) => t.group_name !== "categoria" && t.group_name !== "cuenta")
-        .map((t) => t.name)
-        .join("; ") || "",
-    ]);
-    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob(["\uFEFF" + csv], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `gastos_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(allData, `gastos_${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
+  const exportSelected = () => {
+    if (selectedExpenses.length === 0) return;
+    downloadCsv(
+      selectedExpenses,
+      `gastos_seleccionados_${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+  };
+
+  const cuentaTags = tags.filter((tag) => tag.group_name === "cuenta");
+  const otrosTags = tags.filter((tag) => tag.group_name === "otros");
+
+  const filterChips: { key: string; label: string; clear: () => void }[] = [];
+  if (filterSearch) {
+    filterChips.push({
+      key: "q",
+      label: `«${filterSearch}»`,
+      clear: () => {
+        setSearchInput("");
+        setFilter("q", undefined);
+      },
+    });
+  }
+  if (filterCategory) {
+    filterChips.push({
+      key: "category",
+      label: categories.find((category) => category.id === filterCategory)?.name ?? "Categoría",
+      clear: () => handleCategoryFilter(""),
+    });
+  }
+  if (filterUncategorized) {
+    filterChips.push({
+      key: "uncategorized",
+      label: "Sin categoría",
+      clear: () => handleCategoryFilter(""),
+    });
+  }
+  if (filterCuentaId) {
+    filterChips.push({
+      key: "cuenta",
+      label: tags.find((tag) => tag.id === filterCuentaId)?.name ?? "Cuenta",
+      clear: () => setFilter("cuenta_id", undefined),
+    });
+  }
+  if (filterSinCuenta) {
+    filterChips.push({
+      key: "sin_cuenta",
+      label: "Sin cuenta",
+      clear: () => setFilter("sin_cuenta", undefined),
+    });
+  }
+  if (filterTagId) {
+    filterChips.push({
+      key: "tag",
+      label: tags.find((tag) => tag.id === filterTagId)?.name ?? "Etiqueta",
+      clear: () => setFilter("tag_id", undefined),
+    });
+  }
+  if (filterUntagged) {
+    filterChips.push({
+      key: "untagged",
+      label: "Sin etiqueta",
+      clear: () => setFilter("untagged", undefined),
+    });
+  }
+  if (filterDateFrom) {
+    filterChips.push({
+      key: "date_from",
+      label: `Desde ${formatDateDMY(filterDateFrom)}`,
+      clear: () => setFilter("date_from", undefined),
+    });
+  }
+  if (filterDateTo) {
+    filterChips.push({
+      key: "date_to",
+      label: `Hasta ${formatDateDMY(filterDateTo)}`,
+      clear: () => setFilter("date_to", undefined),
+    });
+  }
+  if (filterPerson) {
+    filterChips.push({
+      key: "person",
+      label: `Titular: ${filterPerson}`,
+      clear: () => setFilter("person", undefined),
+    });
+  }
+
   return (
-    <div className="space-y-6 pb-20 md:pb-0">
+    <div className={`space-y-6 ${selectedCount > 0 ? "pb-52 md:pb-28" : "pb-20 md:pb-0"}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Gastos</h1>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setSelectMode((v) => !v);
-              clearBulkState();
-            }}
-            className={`gnome-btn-secondary-round text-sm ${
-              selectMode
-                ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] border-transparent hover:bg-[var(--color-primary)] hover:text-[var(--color-on-primary)] hover:border-transparent hover:shadow-md"
-                : ""
-            }`}
-          >
-            {selectMode ? "Cancelar" : "Seleccionar"}
-          </button>
           <button
             onClick={exportCSV}
             className="gnome-btn-secondary-round text-sm"
@@ -657,199 +863,220 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* Search box — always visible (issue #420) */}
-      <div>
-        <div className="relative">
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setSearchInput("");
-            }}
-            placeholder="Buscar por descripción, nota o categoría…"
-            aria-label="Buscar gastos"
-            className="input text-sm pl-8 pr-8"
-          />
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tertiary">
-            <SymbolicIcon name="search" size={14} />
-          </span>
-          {searchInput && (
+      {/* Filters — the description search lives inside this section (issue #420) */}
+      <div className="card" data-testid="expense-filters">
+        <div className="space-y-3 p-3">
+          <div className="flex items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setSearchInput("");
+                }}
+                placeholder="Buscar por descripción, nota o categoría…"
+                aria-label="Buscar gastos"
+                className="input text-sm pl-8 pr-8"
+              />
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tertiary">
+                <SymbolicIcon name="search" size={14} />
+              </span>
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                  aria-label="Limpiar búsqueda"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-tertiary hover:text-primary transition"
+                >
+                  ×
+                </button>
+              )}
+            </div>
             <button
               type="button"
-              onClick={() => setSearchInput("")}
-              aria-label="Limpiar búsqueda"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-tertiary hover:text-primary transition"
+              onClick={() => setFiltersExpanded(!filtersExpanded)}
+              aria-expanded={filtersExpanded}
+              aria-controls="expense-filter-fields"
+              className="gnome-btn-secondary-round shrink-0 px-3 text-sm"
             >
-              ×
-            </button>
-          )}
-        </div>
-        <p className="text-xs text-secondary mt-1" aria-live="polite">
-          {filterSearch
-            ? `${expenses.length}${expenses.length >= visibleCount ? "+" : ""} gastos para «${filterSearch}»`
-            : ""}
-        </p>
-      </div>
-
-      {/* Filter panel - collapsible */}
-      <div className="card">
-        <button
-          onClick={() => setFiltersExpanded(!filtersExpanded)}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--color-base-alt)] transition"
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-[var(--text-primary)]">Filtros</span>
-            {activeFiltersCount > 0 && (
-              <span className="bg-[var(--color-primary)] text-[var(--color-on-primary)] text-[10px] px-1.5 py-0.5 rounded-full">
-                {activeFiltersCount}
+              <span className="flex items-center gap-1.5">
+                Filtros
+                {activeFiltersCount > 0 && (
+                  <span className="rounded-full bg-[var(--color-primary)] px-1.5 py-0.5 text-[10px] leading-none text-[var(--color-on-primary)]">
+                    {activeFiltersCount}
+                  </span>
+                )}
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  aria-hidden="true"
+                  className={`transition-transform ${filtersExpanded ? "rotate-180" : ""}`}
+                >
+                  <path
+                    d="M3 4.5L6 7.5L9 4.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </span>
-            )}
+            </button>
           </div>
-          <div className="flex items-center gap-2">
-            {activeFiltersCount > 0 && (
+
+          {filterSearch && (
+            <p className="text-xs text-secondary" aria-live="polite">
+              {`${expenses.length}${expenses.length >= visibleCount ? "+" : ""} gastos para «${filterSearch}»`}
+            </p>
+          )}
+
+          {activeFiltersCount > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {filterChips.map((chip) => (
+                <span
+                  key={chip.key}
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 py-0.5 text-xs text-[var(--text-primary)]"
+                >
+                  {chip.label}
+                  <button
+                    type="button"
+                    onClick={chip.clear}
+                    aria-label={`Quitar filtro ${chip.label}`}
+                    className="text-[var(--text-tertiary)] transition hover:text-[var(--text-primary)]"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  clearFilters();
-                }}
-                className="text-xs px-2.5 py-1 rounded-full border border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 transition"
+                type="button"
+                onClick={clearFilters}
+                className="rounded-full border border-[var(--color-primary)] px-2.5 py-1 text-xs text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/10"
               >
                 Limpiar ({activeFiltersCount})
               </button>
-            )}
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              className={`transition-transform ${filtersExpanded ? "rotate-180" : ""}`}
-            >
-              <path
-                d="M3 4.5L6 7.5L9 4.5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-        </button>
-        {filtersExpanded && (
-          <div className="px-4 pb-4 space-y-3 border-t border-[var(--border-color)]">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-3">
-              {/* Categoría */}
-              {(() => {
-                const groups = categoryGroupOptions(categories);
-                return (
-                  <Select
-                    value={
-                      filterUncategorized
-                        ? "__none__"
-                        : filterCategory
-                          ? String(filterCategory)
-                          : ""
-                    }
-                    onChange={(v) => handleCategoryFilter(v)}
-                    options={[{ value: "__none__", label: "Sin categoría" }]}
-                    groups={groups}
-                    placeholder="Categoría"
-                  />
-                );
-              })()}
-
-              {/* Cuenta */}
-              {(() => {
-                const cuentaTags = tags.filter((t) => t.group_name === "cuenta");
-                const options: { value: string; label: string }[] = [
-                  { value: "", label: "Todas" },
-                  { value: "__sin_cuenta__", label: "Sin cuenta" },
-                  ...cuentaTags.map((t) => ({ value: String(t.id), label: t.name })),
-                ];
-                const currentValue = filterSinCuenta
-                  ? "__sin_cuenta__"
-                  : filterCuentaId
-                    ? String(filterCuentaId)
-                    : "";
-                return (
-                  <Select
-                    value={currentValue}
-                    onChange={(v) => {
-                      const next = new URLSearchParams(searchParams);
-                      if (v === "__sin_cuenta__") {
-                        next.set("sin_cuenta", "1");
-                        next.delete("cuenta_id");
-                      } else if (v) {
-                        next.set("cuenta_id", v);
-                        next.delete("sin_cuenta");
-                      } else {
-                        next.delete("cuenta_id");
-                        next.delete("sin_cuenta");
-                      }
-                      setSearchParams(next);
-                    }}
-                    options={options}
-                    placeholder="Cuenta"
-                  />
-                );
-              })()}
-
-              {/* Etiqueta */}
-              {(() => {
-                const otrosTags = tags.filter((t) => t.group_name === "otros");
-                const options: { value: string; label: string }[] = [
-                  { value: "", label: "Todas" },
-                  { value: "__untagged__", label: "Sin etiqueta" },
-                  ...otrosTags.map((t) => ({ value: String(t.id), label: t.name })),
-                ];
-                const currentTag = filterUntagged
-                  ? "__untagged__"
-                  : filterTagId
-                    ? String(filterTagId)
-                    : "";
-                return (
-                  <Select
-                    value={currentTag}
-                    onChange={(v) => {
-                      const next = new URLSearchParams(searchParams);
-                      if (v === "__untagged__") {
-                        next.set("untagged", "1");
-                        next.delete("tag_id");
-                      } else if (v) {
-                        next.set("tag_id", v);
-                        next.delete("untagged");
-                      } else {
-                        next.delete("tag_id");
-                        next.delete("untagged");
-                      }
-                      setSearchParams(next);
-                    }}
-                    options={options}
-                    placeholder="Etiqueta"
-                  />
-                );
-              })()}
-
-              {/* Desde */}
-              <input
-                type="date"
-                value={filterDateFrom ?? ""}
-                onChange={(e) => setFilter("date_from", e.target.value || undefined)}
-                className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                placeholder="Desde"
-              />
-
-              {/* Hasta */}
-              <input
-                type="date"
-                value={filterDateTo ?? ""}
-                onChange={(e) => setFilter("date_to", e.target.value || undefined)}
-                className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                placeholder="Hasta"
-              />
             </div>
-          </div>
-        )}
+          )}
+
+          {filtersExpanded && (
+            <div id="expense-filter-fields" className="border-t border-[var(--border-color)] pt-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                {/* Categoría */}
+                {(() => {
+                  const groups = categoryGroupOptions(categories);
+                  return (
+                    <Select
+                      value={
+                        filterUncategorized
+                          ? "__none__"
+                          : filterCategory
+                            ? String(filterCategory)
+                            : ""
+                      }
+                      onChange={(v) => handleCategoryFilter(v)}
+                      options={[{ value: "__none__", label: "Sin categoría" }]}
+                      groups={groups}
+                      placeholder="Categoría"
+                    />
+                  );
+                })()}
+
+                {/* Cuenta */}
+                {(() => {
+                  const cuentaTags = tags.filter((t) => t.group_name === "cuenta");
+                  const options: { value: string; label: string }[] = [
+                    { value: "", label: "Todas" },
+                    { value: "__sin_cuenta__", label: "Sin cuenta" },
+                    ...cuentaTags.map((t) => ({ value: String(t.id), label: t.name })),
+                  ];
+                  const currentValue = filterSinCuenta
+                    ? "__sin_cuenta__"
+                    : filterCuentaId
+                      ? String(filterCuentaId)
+                      : "";
+                  return (
+                    <Select
+                      value={currentValue}
+                      onChange={(v) => {
+                        const next = new URLSearchParams(searchParams);
+                        if (v === "__sin_cuenta__") {
+                          next.set("sin_cuenta", "1");
+                          next.delete("cuenta_id");
+                        } else if (v) {
+                          next.set("cuenta_id", v);
+                          next.delete("sin_cuenta");
+                        } else {
+                          next.delete("cuenta_id");
+                          next.delete("sin_cuenta");
+                        }
+                        setSearchParams(next);
+                      }}
+                      options={options}
+                      placeholder="Cuenta"
+                    />
+                  );
+                })()}
+
+                {/* Etiqueta */}
+                {(() => {
+                  const otrosTags = tags.filter((t) => t.group_name === "otros");
+                  const options: { value: string; label: string }[] = [
+                    { value: "", label: "Todas" },
+                    { value: "__untagged__", label: "Sin etiqueta" },
+                    ...otrosTags.map((t) => ({ value: String(t.id), label: t.name })),
+                  ];
+                  const currentTag = filterUntagged
+                    ? "__untagged__"
+                    : filterTagId
+                      ? String(filterTagId)
+                      : "";
+                  return (
+                    <Select
+                      value={currentTag}
+                      onChange={(v) => {
+                        const next = new URLSearchParams(searchParams);
+                        if (v === "__untagged__") {
+                          next.set("untagged", "1");
+                          next.delete("tag_id");
+                        } else if (v) {
+                          next.set("tag_id", v);
+                          next.delete("untagged");
+                        } else {
+                          next.delete("tag_id");
+                          next.delete("untagged");
+                        }
+                        setSearchParams(next);
+                      }}
+                      options={options}
+                      placeholder="Etiqueta"
+                    />
+                  );
+                })()}
+
+                {/* Desde */}
+                <input
+                  type="date"
+                  value={filterDateFrom ?? ""}
+                  onChange={(e) => setFilter("date_from", e.target.value || undefined)}
+                  className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                  placeholder="Desde"
+                />
+
+                {/* Hasta */}
+                <input
+                  type="date"
+                  value={filterDateTo ?? ""}
+                  onChange={(e) => setFilter("date_to", e.target.value || undefined)}
+                  className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+                  placeholder="Hasta"
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stats cards + Charts */}
@@ -1059,22 +1286,22 @@ export default function ExpensesPage() {
           <table className="w-full">
             <thead className="bg-[var(--color-surface)] border-b border-[var(--border-color)]">
               <tr>
-                {selectMode && (
-                  <th className="px-3 py-3 w-10">
-                    <input
-                      type="checkbox"
-                      checked={expenses.length > 0 && selectedIds.size === expenses.length}
-                      onChange={(e) => {
-                        const next = e.target.checked
-                          ? new Set<number>(expenses.map((x) => x.id))
-                          : new Set<number>();
-                        setSelectedIds(next);
-                        setDrawerOpen(next.size > 0);
-                      }}
-                      className="accent-[var(--color-primary)]"
-                    />
-                  </th>
-                )}
+                <th className="w-10 px-3 py-3">
+                  <SelectAllCheckbox
+                    checked={allVisibleSelected}
+                    indeterminate={someVisibleSelected}
+                    onChange={(checked) =>
+                      setSelectedIds(
+                        checked ? new Set(expenses.map((expense) => expense.id)) : new Set(),
+                      )
+                    }
+                    label={
+                      allVisibleSelected
+                        ? "Deseleccionar los gastos visibles"
+                        : "Seleccionar los gastos visibles"
+                    }
+                  />
+                </th>
                 <th
                   className={thClass("date") + " hidden sm:table-cell"}
                   onClick={() =>
@@ -1129,6 +1356,9 @@ export default function ExpensesPage() {
                 <>
                   {[...Array(8)].map((_, i) => (
                     <tr key={i} className="border-b border-[var(--border-color)]">
+                      <td className="px-3 py-3">
+                        <div className="h-4 w-4 rounded bg-[var(--color-base-alt)] animate-pulse" />
+                      </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-16" />
                       </td>
@@ -1149,7 +1379,7 @@ export default function ExpensesPage() {
                 </>
               ) : expenses.length === 0 ? (
                 <tr>
-                  <td colSpan={selectMode ? 6 : 5} className="px-4 py-4">
+                  <td colSpan={6} className="px-4 py-4">
                     <EmptyState
                       icon="list"
                       title={
@@ -1184,7 +1414,7 @@ export default function ExpensesPage() {
                         {showDateHeader && (
                           <tr key={`date-${exp.date}`}>
                             <td
-                              colSpan={selectMode ? 6 : 5}
+                              colSpan={6}
                               className="px-4 py-2 text-xs font-medium text-[var(--text-tertiary)] bg-[var(--color-base-alt)]"
                             >
                               {formatDateDMY(exp.date)}
@@ -1193,17 +1423,14 @@ export default function ExpensesPage() {
                         )}
                         <tr
                           key={exp.id}
-                          className={`group transition-colors cursor-pointer ${
-                            selectMode
-                              ? "hover:bg-[var(--color-base-alt)]/50"
-                              : "hover:bg-[var(--color-base-alt)]/30"
-                          } ${selectedIds.has(exp.id) ? "bg-[var(--color-primary)]/10" : ""}`}
+                          className={`group cursor-pointer transition-colors hover:bg-[var(--color-base-alt)]/30 ${
+                            selectedIds.has(exp.id)
+                              ? "bg-[var(--color-primary)]/10 shadow-[inset_3px_0_0_var(--color-primary)]"
+                              : ""
+                          }`}
                           style={missing ? { borderLeft: "3px solid #f6d32d" } : undefined}
-                          onClick={() =>
-                            selectMode ? toggleSelect(exp.id) : setDetailExpense(exp)
-                          }
+                          onClick={() => setDetailExpense(exp)}
                           onContextMenu={(e) => {
-                            if (selectMode) return;
                             e.preventDefault();
                             setQuickEdit({
                               expenseId: exp.id,
@@ -1217,16 +1444,19 @@ export default function ExpensesPage() {
                             });
                           }}
                         >
-                          {selectMode && (
-                            <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.has(exp.id)}
-                                onChange={() => toggleSelect(exp.id)}
-                                className="accent-[var(--color-primary)]"
-                              />
-                            </td>
-                          )}
+                          <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(exp.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleRowSelection(exp.id, e.shiftKey);
+                              }}
+                              onChange={() => {}}
+                              aria-label={`Seleccionar ${exp.description}`}
+                              className="h-4 w-4 cursor-pointer accent-[var(--color-primary)]"
+                            />
+                          </td>
                           {isDateSort ? (
                             <td className="px-4 py-3 hidden sm:table-cell" />
                           ) : (
@@ -1288,48 +1518,46 @@ export default function ExpensesPage() {
                                   )}
                                 </span>
                               </button>
-                              {!selectMode && (
-                                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditing(exp);
-                                    }}
-                                    className="p-1 rounded text-[var(--text-tertiary)] hover:text-primary hover:bg-[var(--color-base-alt)] transition"
-                                    title="Editar"
-                                  >
-                                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                                      <path
-                                        d="M10.5 1.5l2 2-8 8H2.5v-2l8-8z"
-                                        stroke="currentColor"
-                                        strokeWidth="1.2"
-                                        strokeLinejoin="round"
-                                      />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeleteConfirm({
-                                        id: exp.id,
-                                        description: exp.description,
-                                      });
-                                    }}
-                                    className="p-1 rounded text-[var(--text-tertiary)] hover:text-danger hover:bg-[var(--color-base-alt)] transition"
-                                    title="Eliminar"
-                                  >
-                                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                                      <path
-                                        d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4"
-                                        stroke="currentColor"
-                                        strokeWidth="1.2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                      />
-                                    </svg>
-                                  </button>
-                                </div>
-                              )}
+                              <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditing(exp);
+                                  }}
+                                  className="p-1 rounded text-[var(--text-tertiary)] hover:text-primary hover:bg-[var(--color-base-alt)] transition"
+                                  title="Editar"
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                                    <path
+                                      d="M10.5 1.5l2 2-8 8H2.5v-2l8-8z"
+                                      stroke="currentColor"
+                                      strokeWidth="1.2"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteConfirm({
+                                      id: exp.id,
+                                      description: exp.description,
+                                    });
+                                  }}
+                                  className="p-1 rounded text-[var(--text-tertiary)] hover:text-danger hover:bg-[var(--color-base-alt)] transition"
+                                  title="Eliminar"
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                                    <path
+                                      d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4"
+                                      stroke="currentColor"
+                                      strokeWidth="1.2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
                             </div>
                             {/* Mobile: category + cuenta chip + otros tags under title */}
                             <div className="text-xs flex gap-1.5 items-center flex-wrap md:hidden">
@@ -1589,93 +1817,67 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* Bulk Drawer */}
-      {drawerOpen && selectedIds.size > 0 && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/30 transition-opacity"
-            onClick={clearBulkState}
-          />
-          <div className="fixed right-0 top-0 z-50 h-full w-full sm:w-80 bg-[var(--color-surface)] border-l border-[var(--border-color)] shadow-gnome-lg flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
-              <div>
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                  Acciones en lote
-                </h3>
-                <p className="text-xs text-[var(--text-tertiary)]">
-                  {selectedIds.size} gasto{selectedIds.size !== 1 ? "s" : ""} seleccionado
-                  {selectedIds.size !== 1 ? "s" : ""}
-                </p>
-              </div>
-              <button
-                onClick={clearBulkState}
-                className="p-1.5 rounded-md hover:bg-[var(--color-base-alt)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition"
-              >
-                ✕
-              </button>
-            </div>
+      {selectedCount > 0 && (
+        <BulkActionBar
+          count={selectedCount}
+          summary={selectedSummary}
+          pending={bulkPending}
+          onCategory={(rect) => setBulkPicker({ type: "category", rect })}
+          onCuenta={(rect) => {
+            if (cuentaTags.length === 0) {
+              showToast("No hay cuentas configuradas", "info", 4000, "bottom-center");
+              return;
+            }
+            setBulkPicker({ type: "cuenta", rect });
+          }}
+          onTags={(rect) => {
+            if (otrosTags.length === 0) {
+              showToast("No hay etiquetas configuradas", "info", 4000, "bottom-center");
+              return;
+            }
+            setBulkPicker({ type: "tags", rect });
+          }}
+          onExport={exportSelected}
+          onDelete={() => setBulkDeleteConfirm(true)}
+          onClear={() => setSelectedIds(new Set())}
+        />
+      )}
 
-            <div className="flex-1 p-4 space-y-5">
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-                  Asignar categoría
-                </label>
-                <Select
-                  value={bulkCategoryId}
-                  onChange={setBulkCategoryId}
-                  options={[{ value: "__none__", label: "Sin categoría" }]}
-                  groups={categoryGroupOptions(categories)}
-                  placeholder="Seleccionar..."
-                />
-              </div>
-              {tags.filter((t) => t.group_name !== "categoria").length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-                    Asignar tag
-                  </label>
-                  <Select
-                    value={bulkTagId}
-                    onChange={setBulkTagId}
-                    options={tags
-                      .filter((t) => t.group_name !== "categoria")
-                      .map((t) => ({ value: String(t.id), label: t.name }))}
-                    placeholder="Seleccionar..."
-                  />
-                </div>
-              )}
-            </div>
+      {bulkPicker?.type === "category" && (
+        <QuickEditPopover
+          triggerRect={bulkPicker.rect}
+          onClose={() => setBulkPicker(null)}
+          searchPlaceholder="Buscar categoría…"
+          clearLabel="Sin categoría"
+          groups={categoryGroupOptions(categories)}
+          onSelect={applyBulkCategory}
+        />
+      )}
 
-            <div className="p-4 border-t border-[var(--border-color)] flex gap-2">
-              <button
-                onClick={handleBulkApply}
-                disabled={
-                  bulkFieldMut.isPending ||
-                  bulkTagMut.isPending ||
-                  (bulkCategoryId === "" && !bulkTagId)
-                }
-                className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] text-sm font-medium hover:brightness-110 disabled:opacity-50 transition"
-              >
-                {bulkFieldMut.isPending ? "Aplicando…" : "Aplicar cambios"}
-              </button>
-              <button
-                onClick={() => setBulkDeleteConfirm(true)}
-                disabled={bulkDeleteMut.isPending}
-                className="flex-shrink-0 px-4 py-2 rounded-md border border-[var(--red-3,#e01b24)]/30 text-[var(--red-3,#e01b24)] hover:bg-[var(--red-3,#e01b24)]/10 text-sm font-medium transition disabled:opacity-50"
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="inline mr-1">
-                  <path
-                    d="M3 4h8M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M4.5 4v7a1 1 0 001 1h3a1 1 0 001-1V4"
-                    stroke="currentColor"
-                    strokeWidth="1.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </>
+      {bulkPicker?.type === "cuenta" && (
+        <QuickEditPopover
+          triggerRect={bulkPicker.rect}
+          onClose={() => setBulkPicker(null)}
+          searchPlaceholder="Buscar cuenta…"
+          clearLabel="Sin cuenta"
+          options={cuentaTags.map((tag) => ({
+            value: String(tag.id),
+            label: tag.name,
+            color: tag.color,
+          }))}
+          onSelect={applyBulkCuenta}
+        />
+      )}
+
+      {bulkPicker?.type === "tags" && (
+        <BulkTagPicker
+          triggerRect={bulkPicker.rect}
+          tags={otrosTags}
+          selectedExpenses={selectedExpenses}
+          onApply={applyBulkTags}
+          onClose={() => setBulkPicker(null)}
+          isPending={bulkPending}
+        />
       )}
 
       {detailExpense && (
@@ -1720,14 +1922,11 @@ export default function ExpensesPage() {
         <ConfirmDialog
           isOpen={true}
           title="Eliminar gastos"
-          message={`¿Eliminar ${selectedIds.size} gasto${
-            selectedIds.size !== 1 ? "s" : ""
-          }? Esta acción no se puede deshacer.`}
+          message={`¿Eliminar ${selectedCount} gasto${
+            selectedCount !== 1 ? "s" : ""
+          }${selectedSummary ? ` (${selectedSummary})` : ""}? Esta acción no se puede deshacer.`}
           confirmLabel="Eliminar"
-          onConfirm={() => {
-            bulkDeleteMut.mutate(Array.from(selectedIds));
-            setBulkDeleteConfirm(false);
-          }}
+          onConfirm={deleteSelected}
           onCancel={() => setBulkDeleteConfirm(false)}
         />
       )}
