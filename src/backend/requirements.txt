@@ -46,6 +46,9 @@ pygments>=2.20.0
 # Email validation
 email-validator>=2.0.0
 
+# In-memory image normalization for expense capture
+Pillow>=11
+
 # Emoji handling
 emoji>=2.0.0
 
