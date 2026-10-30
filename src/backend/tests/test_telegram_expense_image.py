@@ -158,6 +158,50 @@ def test_rate_limited_image_is_not_downloaded(monkeypatch, fake_photo_update, fa
     telegram_bot.extract_expense_from_image.assert_not_called()
 
 
+def test_missing_file_size_rejects_downloaded_payload_over_8_mb(
+    monkeypatch, fake_photo_update, fake_context
+):
+    media = fake_photo_update.message.photo[-1]
+    media.file_size = None
+    media._file.data = b"x" * (telegram_bot.MAX_IMAGE_BYTES + 1)
+    extractor = Mock()
+    monkeypatch.setattr(telegram_bot, "extract_expense_from_image", extractor)
+
+    asyncio.run(telegram_bot.handle_expense_image(fake_photo_update, fake_context))
+
+    assert "supera el límite de 8 MB" in fake_photo_update.message.replies[-1]
+    extractor.assert_not_called()
+
+
+def test_missing_file_size_processes_small_downloaded_payload(
+    monkeypatch, fake_photo_update, fake_context
+):
+    media = fake_photo_update.message.photo[-1]
+    media.file_size = None
+    media._file.data = b"small-image"
+    extractor = Mock(
+        return_value=ExpenseImageResult(
+            status="ok",
+            draft=ExpenseDraft(
+                amount=800,
+                currency="ARS",
+                description="Kiosco",
+                date=date(2026, 10, 29),
+                confidence="high",
+                source_type="paper_receipt",
+            ),
+            reason=None,
+            message="Detecté un total.",
+        )
+    )
+    monkeypatch.setattr(telegram_bot, "extract_expense_from_image", extractor)
+
+    asyncio.run(telegram_bot.handle_expense_image(fake_photo_update, fake_context))
+
+    assert fake_context.user_data["pending_expense_image"]["description"] == "Kiosco"
+    extractor.assert_called_once()
+
+
 class FakeCallbackQuery:
     def __init__(self, data):
         self.data = data
@@ -228,6 +272,47 @@ def test_save_callback_categorizes_and_saves_without_payment_method(monkeypatch)
     assert saved_values["kwargs"]["account_id"] is None
     assert query.edited_text == "✅ Guardado"
     assert "pending_expense_image" not in context.user_data
+
+
+def test_save_failure_clears_pending_and_logs_only_exception_type(monkeypatch, caplog):
+    query = FakeCallbackQuery("expenseimg:save")
+    update = SimpleNamespace(
+        callback_query=query,
+        effective_chat=SimpleNamespace(id=987),
+        effective_user=SimpleNamespace(full_name="Test"),
+    )
+    context = SimpleNamespace(
+        user_data={
+            "user_id": 42,
+            "pending_expense_image": {
+                "amount": 15200,
+                "currency": "ARS",
+                "description": "Sensitive Merchant",
+                "date": "2026-10-29",
+            },
+        }
+    )
+    monkeypatch.setattr(telegram_bot, "_get_user_by_chat_id", lambda _: SimpleNamespace(id=42))
+    monkeypatch.setattr(telegram_bot, "SessionLocal", lambda: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(
+        telegram_bot,
+        "_instant_categorize",
+        lambda *_: (None, []),
+    )
+
+    def fail_save(*_args, **_kwargs):
+        raise RuntimeError("amount=15200 merchant=Sensitive Merchant description=Sensitive")
+
+    monkeypatch.setattr(telegram_bot, "_save_expense", fail_save)
+    caplog.set_level("ERROR")
+
+    asyncio.run(telegram_bot.handle_expense_image_callback(update, context))
+
+    assert "Revisá tus gastos" in query.edited_text
+    assert "pending_expense_image" not in context.user_data
+    assert "RuntimeError" in caplog.text
+    assert "15200" not in caplog.text
+    assert "Sensitive Merchant" not in caplog.text
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { extractExpenseFromImage } from "../api/client";
 import type { Expense } from "../types";
@@ -60,7 +60,11 @@ describe("ExpenseModal comprobante scan", () => {
     expect(screen.getByText(/bank notification/i)).toBeInTheDocument();
     expect(screen.getByText(/Visa \*\*\*\*4521/)).toBeInTheDocument();
     expect(screen.getByDisplayValue("2026-10-29")).toHaveAttribute("type", "date");
-    expect(extractExpenseFromImage).toHaveBeenCalledWith(expect.any(File), undefined);
+    expect(extractExpenseFromImage).toHaveBeenCalledWith(
+      expect.any(File),
+      undefined,
+      expect.any(AbortSignal),
+    );
   });
 
   it("does not touch the form when the image is rejected", async () => {
@@ -157,5 +161,89 @@ describe("ExpenseModal comprobante scan", () => {
     renderExpenseModal({ initial });
 
     expect(screen.queryByLabelText(/escanear comprobante/i)).not.toBeInTheDocument();
+  });
+
+  it("asks before applying a result if the user edits the form while scanning", async () => {
+    let resolveScan!: (response: typeof accepted) => void;
+    vi.mocked(extractExpenseFromImage).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveScan = resolve;
+      }),
+    );
+    renderExpenseModal();
+    fireEvent.change(screen.getByLabelText(/escanear comprobante/i), {
+      target: { files: [new File(["image"], "ticket.png", { type: "image/png" })] },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Ej: Supermercado Coto"), {
+      target: { value: "Taxi" },
+    });
+
+    await act(async () => resolveScan(accepted));
+
+    expect(
+      await screen.findByRole("dialog", { name: "¿Reemplazar los datos actuales?" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText("Monto")).toHaveValue(0);
+    expect(screen.getByPlaceholderText("Ej: Supermercado Coto")).toHaveValue("Taxi");
+    fireEvent.click(screen.getByRole("button", { name: "Reemplazar" }));
+    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(15200));
+  });
+
+  it("ignores an in-flight result after the preview is removed", async () => {
+    let resolveScan!: (response: typeof accepted) => void;
+    vi.mocked(extractExpenseFromImage).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveScan = resolve;
+      }),
+    );
+    renderExpenseModal();
+    fireEvent.change(screen.getByLabelText(/escanear comprobante/i), {
+      target: { files: [new File(["image"], "ticket.png", { type: "image/png" })] },
+    });
+    await screen.findByAltText("Vista previa del comprobante");
+    const signal = vi.mocked(extractExpenseFromImage).mock.calls[0][2] as AbortSignal;
+
+    fireEvent.click(screen.getByRole("button", { name: "Quitar" }));
+    expect(signal.aborted).toBe(true);
+    await act(async () => resolveScan(accepted));
+
+    expect(screen.getByLabelText("Monto")).toHaveValue(0);
+    expect(screen.getByPlaceholderText("Ej: Supermercado Coto")).toHaveValue("");
+    expect(screen.queryByText(/comprobante detectado/i)).not.toBeInTheDocument();
+  });
+
+  it("ignores an older result when a newer scan has started", async () => {
+    let resolveFirst!: (response: typeof accepted) => void;
+    let resolveSecond!: (response: typeof accepted) => void;
+    vi.mocked(extractExpenseFromImage)
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSecond = resolve;
+        }),
+      );
+    renderExpenseModal();
+    const input = screen.getByLabelText(/escanear comprobante/i);
+    fireEvent.change(input, {
+      target: { files: [new File(["first"], "first.png", { type: "image/png" })] },
+    });
+    fireEvent.change(input, {
+      target: { files: [new File(["second"], "second.png", { type: "image/png" })] },
+    });
+    const newerDraft = {
+      ...accepted,
+      draft: { ...accepted.draft, amount: 4500, description: "Café" },
+    };
+
+    await act(async () => resolveSecond(newerDraft));
+    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(4500));
+    await act(async () => resolveFirst(accepted));
+
+    expect(screen.getByLabelText("Monto")).toHaveValue(4500);
+    expect(screen.getByPlaceholderText("Ej: Supermercado Coto")).toHaveValue("Café");
   });
 });

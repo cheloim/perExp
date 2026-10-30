@@ -101,6 +101,12 @@ export function ExpenseModal({
     }
     return { ...EMPTY_FORM };
   });
+  const formRef = useRef(form);
+  const updateForm = (updater: ExpenseCreate | ((current: ExpenseCreate) => ExpenseCreate)) => {
+    const nextForm = typeof updater === "function" ? updater(formRef.current) : updater;
+    formRef.current = nextForm;
+    setForm(nextForm);
+  };
 
   const [cuotasEnabled, setCuotasEnabled] = useState(
     isInstallmentsOnly || !!(initial?.installment_total && initial.installment_total > 1),
@@ -109,7 +115,7 @@ export function ExpenseModal({
   // Track dirty state for unsaved changes warning (GNOME HIG: confirmation before destructive actions)
   const [isDirty, setIsDirty] = useState(false);
   const set = <K extends keyof ExpenseCreate>(key: K, value: ExpenseCreate[K]) => {
-    setForm((f) => ({ ...f, [key]: value }));
+    updateForm((f) => ({ ...f, [key]: value }));
     setIsDirty(true);
   };
 
@@ -120,6 +126,8 @@ export function ExpenseModal({
   const [confirmReplace, setConfirmReplace] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const previewUrlRef = useRef<string | null>(null);
+  const scanIdRef = useRef(0);
+  const imageAbortControllerRef = useRef<AbortController | null>(null);
 
   const clearImagePreview = () => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -129,6 +137,8 @@ export function ExpenseModal({
 
   useEffect(
     () => () => {
+      scanIdRef.current += 1;
+      imageAbortControllerRef.current?.abort();
       if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     },
     [],
@@ -137,7 +147,7 @@ export function ExpenseModal({
   const applyImageDraft = (draft: ExpenseImageDraft) => {
     const [year, month, day] = (draft.date ?? "").split("-");
     const date = year && month && day ? `${day}-${month}-${year}` : todayDDMMYYYY();
-    setForm((current) => ({
+    updateForm((current) => ({
       ...current,
       amount: draft.amount,
       description: draft.description,
@@ -150,6 +160,12 @@ export function ExpenseModal({
 
   const handleImageFile = async (file?: File) => {
     if (!file) return;
+    imageAbortControllerRef.current?.abort();
+    const scanId = ++scanIdRef.current;
+    const controller = new AbortController();
+    imageAbortControllerRef.current = controller;
+    const formAtStart = formRef.current;
+    const wasEmptyAtStart = !formAtStart.description.trim() && formAtStart.amount === 0;
     clearImagePreview();
     if (typeof URL.createObjectURL === "function") {
       const url = URL.createObjectURL(file);
@@ -160,7 +176,8 @@ export function ExpenseModal({
     setImageDraft(null);
     setImageError("");
     try {
-      const result = await extractExpenseFromImage(file, undefined);
+      const result = await extractExpenseFromImage(file, undefined, controller.signal);
+      if (controller.signal.aborted || scanId !== scanIdRef.current) return;
       if (result.status !== "ok" || !result.draft) {
         setImageStatus("error");
         setImageError(result.message);
@@ -168,18 +185,26 @@ export function ExpenseModal({
       }
       setImageDraft(result.draft);
       setImageStatus("ok");
-      if (!form.description.trim() && form.amount === 0) {
+      const currentForm = formRef.current;
+      const isEmptyNow = !currentForm.description.trim() && currentForm.amount === 0;
+      if (wasEmptyAtStart && isEmptyNow) {
         applyImageDraft(result.draft);
       } else {
         setConfirmReplace(true);
       }
     } catch {
+      if (controller.signal.aborted || scanId !== scanIdRef.current) return;
       setImageStatus("error");
       setImageError("No pude analizar la imagen. Probá con otra foto más nítida.");
+    } finally {
+      if (scanId === scanIdRef.current) imageAbortControllerRef.current = null;
     }
   };
 
   const removeImage = () => {
+    scanIdRef.current += 1;
+    imageAbortControllerRef.current?.abort();
+    imageAbortControllerRef.current = null;
     clearImagePreview();
     setImageDraft(null);
     setImageError("");
@@ -219,7 +244,7 @@ export function ExpenseModal({
     if (!desc || desc.length < 3 || initial?.category_id || form.category_id) return;
     const match = keywordMatch(desc);
     if (match) {
-      setForm((f) => ({ ...f, category_id: match }));
+      updateForm((f) => ({ ...f, category_id: match }));
       setAiSuggested(false);
     }
   }, [form.description]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -231,7 +256,7 @@ export function ExpenseModal({
     suggestCategory({ description: desc, amount: form.amount || undefined })
       .then((res) => {
         if (res?.category_id) {
-          setForm((f) => ({ ...f, category_id: res.category_id }));
+          updateForm((f) => ({ ...f, category_id: res.category_id }));
           setAiSuggested(true);
         }
       })
@@ -241,7 +266,7 @@ export function ExpenseModal({
   // Generate installment group ID on mount for installments-only mode
   useEffect(() => {
     if (isInstallmentsOnly && !form.installment_group_id) {
-      setForm((prev) => ({
+      updateForm((prev) => ({
         ...prev,
         installment_group_id: crypto.randomUUID(),
         installment_number: prev.installment_number ?? 1,
@@ -257,14 +282,14 @@ export function ExpenseModal({
     setCuotasEnabled(enabled);
     if (enabled) {
       const gid = form.installment_group_id || crypto.randomUUID();
-      setForm((prev) => ({
+      updateForm((prev) => ({
         ...prev,
         installment_number: 1,
         installment_total: 1,
         installment_group_id: gid,
       }));
     } else {
-      setForm((prev) => ({
+      updateForm((prev) => ({
         ...prev,
         installment_number: null,
         installment_total: null,
@@ -295,7 +320,7 @@ export function ExpenseModal({
 
     const isExclusive = tag.group_name === "cuenta";
 
-    setForm((prev) => {
+    updateForm((prev) => {
       const current = prev.tag_ids ?? [];
       if (current.includes(id)) {
         return { ...prev, tag_ids: current.filter((x) => x !== id) };
@@ -320,7 +345,7 @@ export function ExpenseModal({
         group_name: "otros",
       });
       queryClient.invalidateQueries({ queryKey: ["tags"] });
-      setForm((prev) => ({
+      updateForm((prev) => ({
         ...prev,
         tag_ids: [...(prev.tag_ids ?? []), created.id],
       }));

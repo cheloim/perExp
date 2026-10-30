@@ -1111,8 +1111,15 @@ async def handle_expense_image_callback(update: Update, context: ContextTypes.DE
             card_id=None,
             account_id=None,
         )
-    except Exception:
-        await query.edit_message_text("No pude guardar el gasto. Probá de nuevo.")
+    except Exception as exc:
+        logger.error(
+            "[TELEGRAM_CAPTURE] save_failed error_type=%s",
+            type(exc).__name__,
+        )
+        context.user_data.pop("pending_expense_image", None)
+        await query.edit_message_text(
+            "No pude confirmar si el gasto se guardó. Revisá tus gastos antes de reintentar."
+        )
         return ConversationHandler.END
     finally:
         db.close()
