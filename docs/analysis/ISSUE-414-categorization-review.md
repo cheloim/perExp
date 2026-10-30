@@ -1,8 +1,8 @@
 # Issue 414 — Detector de gastos mal categorizados
 
-**Status:** Implementado (fase 1) — piloto forward-only en curso
-**Date:** 2026-10-24
-**Related:** issue #414, issue #466 (UI interna, postergada), PR #453 (causa raíz del matcher)
+**Status:** Implementado (fases 1 y 2). El piloto forward-only se cerró como *Not Doing* (#470).
+**Date:** 2026-10-24 (actualizado 2026-10-29)
+**Related:** issue #414, issue #466 (UI interna, implementada), issue #470 (piloto, Not Doing), PR #453 (causa raíz del matcher)
 
 ## Summary
 
@@ -96,8 +96,9 @@ saben qué categoría proponer — el caso YENNY, por ejemplo, termina con
 2. **Tabla propia, no `category_suggestions`.** Esa tabla es para gastos **sin
    categoría**, alimenta el banner del usuario y tiene `expense_id` único. Meter
    revisiones ahí las filtraría hacia el usuario.
-3. **Sin UI.** La revisión se hace por API admin o CLI. La UI va en el issue #466,
-   cuando el piloto muestre precisión aceptable.
+3. **Sin UI al principio.** La revisión se hace por API admin o CLI durante la fase 1.
+   La UI interna llegó después, en #466 (ver
+   `docs/analysis/ISSUE-466-categorization-review-ui.md`).
 4. **Feature flag `categorization_review_enabled`**, apagado por defecto. Se activa
    con el panel de flags existente (global o por usuario).
 5. **Sin notificaciones ni chat.** A diferencia de `suggest_uncategorized`, este job
@@ -130,8 +131,14 @@ python -m scripts.categorization_review reject 12
 python -m scripts.categorization_review investigate 12
 ```
 
-**Resultados del piloto:** _pendientes de la corrida forward-only. Se completan acá
-con conteos, ejemplos y precisión observada._
+**Resultados del piloto:** **no se ejecutó**. La recolección de evidencia se evaluó como
+inviable en el corto plazo (volumen insuficiente en la ventana forward-only y etiquetado
+manual de 30–50 casos sin equipo dedicado), así que #470 se cerró como *Not Doing* el
+2026-10-29. Consecuencia explícita: **el detector no tiene precisión medida** y sigue
+siendo una herramienta interna, detrás de `categorization_review_enabled`, sin exposición
+al usuario final. La UI de #466 se construyó igual porque es la herramienta que haría
+posible ese etiquetado si se retoma; `summary` ahora separa `manual_precision` de
+`observed_precision` para que una decisión futura no se apoye en aceptaciones masivas.
 
 ---
 
@@ -158,6 +165,12 @@ mande la sugerencia a investigación, y un flujo separado para mal categorizados
 Hasta validar el detector, **no se muestran sugerencias al usuario final ni en el
 chat** (criterio de aceptación del issue).
 
+**Estado (2026-10-29):** el flujo separado para mal categorizados se implementó en
+#466 como tab interno de admin (`Categorización`), no en el banner del usuario. El
+umbral configurable y la evidencia visible quedaron ahí, aplicados a las revisiones
+internas. El banner de `ExpensesPage` no se tocó. Con el piloto cerrado como *Not
+Doing*, nada de esto se expone al usuario final.
+
 ---
 
 ## 7. Riesgos
@@ -177,6 +190,7 @@ chat** (criterio de aceptación del issue).
 | Proceso que marca y persiste sugerencias (transacción, categoría actual, sugerida, score, evidencia) | ✅ `CategorizationReview` + job diario + CLI |
 | API/interna para listar y actualizar estados | ✅ `/admin/categorization-reviews` |
 | Tests de reglas/estimadores | ✅ `test_categorization_review*.py`, regresión YENNY |
-| Piloto con resultados y ejemplos | ⏳ forward-only, pendiente de corrida |
+| Piloto con resultados y ejemplos | ❌ No se ejecuta (*Not Doing*, #470) |
 | Nada de sugerencias en el chat hasta validar | ✅ sin cambios en `/suggestions` ni chat |
 | Evaluación documentada del modal | ✅ §6 |
+| UI interna de revisión (#466) | ✅ tab `Categorización` + bulk/CSV/scan forward-only |

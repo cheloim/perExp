@@ -1,31 +1,33 @@
 feature: categorization-review
 domain: Categorization Review
 type: full
-version: "1.0.0"
-status: in-progress
+version: "1.1.0"
+status: implemented
 owner: backend
 created: 2026-10-24
-updated: 2026-10-24
-github_issue: 414
+updated: 2026-10-29
+github_issue: "414, 466"
 
 description: >
   Internal, admin-only detection of expenses that already have a category but look
   miscategorized. Rules first (keyword conflict, category keyword miss, merchant
   history, amount outlier) with the LLM as a batched second opinion on the rule
   candidates only. Findings are persisted as reviews that an analyst resolves
-  through the admin API or the CLI. Nothing reaches the end user, notifications or
-  chat; it never touches the user-facing `/suggestions` flow.
+  through the admin API, the CLI or the admin UI's "Categorización" tab. Nothing
+  reaches the end user, notifications or chat; it never touches the user-facing
+  `/suggestions` flow.
 
 requirements:
   - "Admin access for every endpoint (JWT + is_admin)"
   - "Forward-only: only expenses created in the scan window are reviewed"
   - "LLM second opinion is optional and falls back to rules-only on failure"
   - "Feature flag categorization_review_enabled; off unless explicitly enabled"
+  - "The admin UI never re-processes history or reopens resolved reviews"
 
 pre_evaluation:
   questions:
     - question: "Are suggestions shown to the user?"
-      answer: "No. This is internal review only until the pilot shows acceptable precision (>= 0.8)."
+      answer: "No. This stays internal review only; nothing reaches the user or the chat."
     - question: "Does the detector change expenses by itself?"
       answer: "No. Categories change only on an explicit accept action."
     - question: "Is the pre-existing dataset re-scanned?"
@@ -39,6 +41,7 @@ users:
       - "accept_review"
       - "reject_review"
       - "investigate_review"
+      - "bulk_accept_reviews"
       - "run_scan"
 
 entities:
@@ -82,6 +85,10 @@ entities:
       - name: "status"
         type: "string"
         enum: ["pending", "accepted", "rejected", "investigated"]
+      - name: "bulk_applied"
+        type: "boolean"
+        default: false
+        description: "Accepted from the UI bulk action; excluded from manual precision"
     indexes:
       - columns: ["user_id"]
       - columns: ["expense_id"]
@@ -104,6 +111,17 @@ endpoints:
         type: "integer"
       - name: "min_score"
         type: "float"
+      - name: "max_score"
+        type: "float"
+      - name: "date_from"
+        type: "date"
+        description: "Inclusive, on expenses.date"
+      - name: "date_to"
+        type: "date"
+        description: "Inclusive, on expenses.date"
+      - name: "search"
+        type: "string"
+        description: "Merchant text, case/accent-insensitive (application-level, encrypted column)"
       - name: "signal"
         type: "string"
       - name: "page"
@@ -113,7 +131,7 @@ endpoints:
 
   - method: "GET"
     path: "/admin/categorization-reviews/{review_id}"
-    description: "One review with its evidence"
+    description: "One review with its evidence and the owner's available_categories"
     auth: "admin"
 
   - method: "POST"
@@ -137,9 +155,32 @@ endpoints:
     auth: "admin"
 
   - method: "POST"
+    path: "/admin/categorization-reviews/bulk-accept"
+    description: "Accept every pending review with score >= min_score (optional user_id, max_items, dry_run). Never touches resolved reviews; flags them bulk_applied"
+    auth: "admin"
+    errors:
+      - status: 400
+        description: "min_score fuera de [0,1] o max_items fuera de [1,200]"
+
+  - method: "POST"
     path: "/admin/categorization-reviews/scan"
     description: "Run the detector now (forward-only). Same code path as the daily job"
     auth: "admin"
+
+ui:
+  entry_point: "Admin → Categorización (/x/:slug)"
+  access: "admin only; the panel is desktop-only like the rest of AdminPage"
+  components:
+    - "pages/admin/CategorizationReviewTab.tsx (container: summary, filters, table, actions)"
+    - "pages/admin/ReviewEvidence.tsx (expandable evidence + category picker)"
+    - "utils/csv.ts (client-side export)"
+  capabilities:
+    - "Summary: pending/accepted/rejected, manual precision, counts by signal, last daily-job run"
+    - "Filters: status, user, score range, signal, expense date range, merchant search"
+    - "Per row: accept (or pick a category when the detector had none), reject, investigate"
+    - "Bulk: accept pending reviews at or above a configurable threshold"
+    - "Export the filtered list to CSV"
+    - "Run the forward-only scan for one user now"
 
 business_rules:
   - name: "Rules First"
@@ -154,6 +195,8 @@ business_rules:
     description: "Accepting a review fails with 409 when the expense category changed since the review"
   - name: "Internal Only"
     description: "No notifications, no chat, no user-facing surface"
+  - name: "Bulk Does Not Count"
+    description: "Bulk acceptances are flagged and excluded from manual_precision, so the metric never validates itself"
 
 integrations:
   - name: "LLM batch second opinion"

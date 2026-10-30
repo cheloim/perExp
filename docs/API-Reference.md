@@ -202,20 +202,32 @@ Status values:
 
 ### Admin — Categorization Reviews (`/admin/categorization-reviews`)
 
-Internal, admin-only (issue #414): findings of the miscategorization detector.
-Never exposed to end users, notifications or chat.
+Internal, admin-only (issues #414 and #466): findings of the miscategorization
+detector, reviewed from the admin UI's "Categorización" tab. Never exposed to
+end users, notifications or chat.
 
-| Method | Endpoint                                | Description                                        |
-| ------ | --------------------------------------- | -------------------------------------------------- |
-| `GET`  | `/admin/categorization-reviews`         | List reviews + summary (status, user_id, min_score, signal, page) |
-| `GET`  | `/admin/categorization-reviews/{id}`    | Detail with evidence                               |
+| Method | Endpoint                                         | Description |
+| ------ | ------------------------------------------------ | ----------- |
+| `GET`  | `/admin/categorization-reviews`                  | List reviews + summary (`status`, `user_id`, `min_score`, `max_score`, `date_from`, `date_to`, `search`, `signal`, `page`, `per_page`) |
+| `GET`  | `/admin/categorization-reviews/{id}`             | Detail with evidence and `available_categories` (the owner's categories) |
 | `POST` | `/admin/categorization-reviews/{id}/accept`      | Apply the suggested (or explicit `category_id`) category |
-| `POST` | `/admin/categorization-reviews/{id}/reject`      | Mark as false positive (expense unchanged)         |
-| `POST` | `/admin/categorization-reviews/{id}/investigate` | Mark as reviewed, no change                        |
-| `POST` | `/admin/categorization-reviews/scan`    | Run the detector now (forward-only: `since`, `user_id`, `use_llm`, `persist`) |
+| `POST` | `/admin/categorization-reviews/{id}/reject`      | Mark as false positive (expense unchanged) |
+| `POST` | `/admin/categorization-reviews/{id}/investigate` | Mark as reviewed, no change |
+| `POST` | `/admin/categorization-reviews/bulk-accept`      | Accept every pending review with `score >= min_score` (`user_id`, `max_items`, `dry_run`) |
+| `POST` | `/admin/categorization-reviews/scan`             | Run the detector now (forward-only: `since`, `user_id`, `use_llm`, `persist`) |
 
 `accept` returns `409` when the expense was recategorized after the review was
 created, and `400` when no category can be applied.
+
+`search` matches the merchant text case- and accent-insensitively. Descriptions
+are encrypted at rest, so the filter runs at application level (same helper as
+`GET /expenses`), after the SQL filters and before pagination. Like every other
+filter here, it only selects what is displayed: it never scans or changes data.
+
+`bulk-accept` never touches reviews that are already resolved and flags the ones
+it accepts (`bulk_applied`). `summary` returns `observed_precision` (all actions),
+`manual_precision` (excluding bulk) and `bulk_accepted`.
+
 
 ## Error Responses
 
