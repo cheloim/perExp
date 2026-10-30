@@ -106,6 +106,21 @@ def test_curated_contract_has_no_new_drift(raw_spec):
         )
 
 
+def test_capture_operations_are_multipart_and_have_stable_operation_ids():
+    curated = yaml.safe_load(CURATED_SPEC.read_text(encoding="utf-8"))
+    assert any(tag.get("name") == "capture" for tag in curated["tags"])
+    expectations = {
+        "/capture/transcribe": ("transcribeAudio", {"file", "duration_seconds"}),
+        "/capture/expense-image": ("extractExpenseFromImage", {"file", "hint"}),
+    }
+    for path, (operation_id, fields) in expectations.items():
+        operation = curated["paths"][path]["post"]
+        assert operation["operationId"] == operation_id
+        schema = operation["requestBody"]["content"]["multipart/form-data"]["schema"]
+        assert set(schema["properties"]) == fields
+        assert schema["properties"]["file"] == {"type": "string", "format": "binary"}
+
+
 # ── The gate itself, proven on synthetic specs ─────────────────────────
 
 

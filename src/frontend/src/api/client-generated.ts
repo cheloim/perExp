@@ -73,6 +73,7 @@ import type {
   BulkNotifyRequest,
   BulkUpdateExpensesExpensesBulkUpdatePatchBody,
   BulkUpdateTagsExpensesBulkTagsPostBody,
+  CaptureError,
   CardClosingCreate,
   CardClosingResponse,
   CardCreate,
@@ -92,12 +93,14 @@ import type {
   DownloadMonthlyReportDashboardMonthlyReportDownloadGetParams,
   ExecuteScheduledExpense201,
   ExpenseCreate,
+  ExpenseImageResponse,
   ExpenseResponse,
   ExpenseStatsParams,
   ExpenseTrendParams,
   ExpenseUpdate,
   ExpensesByCategoryParams,
   ExpensesByPersonParams,
+  ExtractExpenseFromImageBody,
   FeatureFlagUpdate,
   ForceChangePasswordRequest,
   ForgotPasswordBody,
@@ -173,6 +176,8 @@ import type {
   TelegramStatusResponse,
   TelegramWebAppRequest,
   Token,
+  TranscribeAudioBody,
+  TranscriptionResponse,
   UncategorizedCount200,
   UpdateImportPreviewBody,
   UpdateInvestmentPriceInvestmentsInvIdPricePatchBody,
@@ -22362,4 +22367,197 @@ export const useDeleteUserCallbackWebhookWhatsappDeleteUserPost = <
     getDeleteUserCallbackWebhookWhatsappDeleteUserPostMutationOptions(options),
     queryClient,
   );
+};
+
+/**
+ * @summary Transcribe a short audio recording
+ */
+export const transcribeAudio = (
+  transcribeAudioBody: BodyType<TranscribeAudioBody>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  const formData = new FormData();
+  formData.append(`file`, transcribeAudioBody.file);
+  if (
+    transcribeAudioBody.duration_seconds !== undefined &&
+    transcribeAudioBody.duration_seconds !== null
+  ) {
+    formData.append(`duration_seconds`, transcribeAudioBody.duration_seconds.toString());
+  }
+
+  return customInstance<TranscriptionResponse>(
+    {
+      url: `/capture/transcribe`,
+      method: "POST",
+      headers: { "Content-Type": "multipart/form-data" },
+      data: formData,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getTranscribeAudioMutationKey = () => ["transcribeAudio"] as const;
+
+export const getTranscribeAudioMutationOptions = <
+  TError = ErrorType<CaptureError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof transcribeAudio>>,
+    TError,
+    TranscribeAudioMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof transcribeAudio>>,
+  TError,
+  TranscribeAudioMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTranscribeAudioMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof transcribeAudio>>,
+    TranscribeAudioMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return transcribeAudio(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TranscribeAudioMutationResult = NonNullable<
+  Awaited<ReturnType<typeof transcribeAudio>>
+>;
+export type TranscribeAudioMutationBody = BodyType<TranscribeAudioBody>;
+export type TranscribeAudioMutationError = ErrorType<CaptureError>;
+export type TranscribeAudioMutationVariables = { data: BodyType<TranscribeAudioBody> };
+
+/**
+ * @summary Transcribe a short audio recording
+ */
+export const useTranscribeAudio = <TError = ErrorType<CaptureError>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof transcribeAudio>>,
+      TError,
+      TranscribeAudioMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof transcribeAudio>>,
+  TError,
+  TranscribeAudioMutationVariables,
+  TContext
+> => {
+  return useMutation(getTranscribeAudioMutationOptions(options), queryClient);
+};
+
+/**
+ * @summary Extract one expense from a payment proof image
+ */
+export const extractExpenseFromImage = (
+  extractExpenseFromImageBody: BodyType<ExtractExpenseFromImageBody>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  const formData = new FormData();
+  formData.append(`file`, extractExpenseFromImageBody.file);
+  if (extractExpenseFromImageBody.hint !== undefined && extractExpenseFromImageBody.hint !== null) {
+    formData.append(`hint`, extractExpenseFromImageBody.hint);
+  }
+
+  return customInstance<ExpenseImageResponse>(
+    {
+      url: `/capture/expense-image`,
+      method: "POST",
+      headers: { "Content-Type": "multipart/form-data" },
+      data: formData,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getExtractExpenseFromImageMutationKey = () => ["extractExpenseFromImage"] as const;
+
+export const getExtractExpenseFromImageMutationOptions = <
+  TError = ErrorType<CaptureError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof extractExpenseFromImage>>,
+    TError,
+    ExtractExpenseFromImageMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof extractExpenseFromImage>>,
+  TError,
+  ExtractExpenseFromImageMutationVariables,
+  TContext
+> => {
+  const mutationKey = getExtractExpenseFromImageMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof extractExpenseFromImage>>,
+    ExtractExpenseFromImageMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return extractExpenseFromImage(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExtractExpenseFromImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof extractExpenseFromImage>>
+>;
+export type ExtractExpenseFromImageMutationBody = BodyType<ExtractExpenseFromImageBody>;
+export type ExtractExpenseFromImageMutationError = ErrorType<CaptureError>;
+export type ExtractExpenseFromImageMutationVariables = {
+  data: BodyType<ExtractExpenseFromImageBody>;
+};
+
+/**
+ * @summary Extract one expense from a payment proof image
+ */
+export const useExtractExpenseFromImage = <TError = ErrorType<CaptureError>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof extractExpenseFromImage>>,
+      TError,
+      ExtractExpenseFromImageMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof extractExpenseFromImage>>,
+  TError,
+  ExtractExpenseFromImageMutationVariables,
+  TContext
+> => {
+  return useMutation(getExtractExpenseFromImageMutationOptions(options), queryClient);
 };

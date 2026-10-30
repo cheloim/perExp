@@ -82,7 +82,7 @@ This document defines the logical domain boundaries within the Oikonomia monolit
 ###3. AI / Analysis
 - **Models:** AnalysisHistory, CategorySuggestion, MerchantPreference
 - **Services:** categorization.py (LLM-dependent)
-- **External deps:** Google Gemini API
+- **External deps:** OpenAI API in production; Google is an optional text-only alternative
 - **Challenge:** LLM calls are slow, need async handling
 
 ###4. Imports

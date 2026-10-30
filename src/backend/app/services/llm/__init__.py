@@ -15,15 +15,17 @@ provider touches `client.py` and one adapter; callers keep working.
 """
 
 from .metrics import credit_days_remaining, record_llm_call, register_llm_metrics
-from .pricing import estimate_cost_usd
-from .types import LLMMessage, LLMResult, parse_json_block
+from .pricing import estimate_audio_cost_usd, estimate_cost_usd
+from .types import LLMMedia, LLMMessage, LLMResult, parse_json_block
 
 __all__ = [
     "LLMError",
     "LLMMessage",
+    "LLMMedia",
     "LLMResult",
     "credit_days_remaining",
     "estimate_cost_usd",
+    "estimate_audio_cost_usd",
     "get_client",
     "is_configured",
     "parse_json_block",
@@ -32,6 +34,8 @@ __all__ = [
     "resolve_api_key",
     "resolve_model",
     "resolve_provider",
+    "SUPPORTED_CAPABILITIES",
+    "LLMUnsupportedCapabilityError",
 ]
 
 
@@ -40,6 +44,14 @@ def get_client(*args, **kwargs):
     from .client import get_client as _get_client
 
     return _get_client(*args, **kwargs)
+
+
+def __getattr__(name: str):
+    if name in {"LLMError", "LLMUnsupportedCapabilityError", "SUPPORTED_CAPABILITIES"}:
+        from . import client
+
+        return getattr(client, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def is_configured(*args, **kwargs) -> bool:
@@ -64,11 +76,3 @@ def resolve_model(*args, **kwargs) -> str:
     from .client import resolve_model as _resolve_model
 
     return _resolve_model(*args, **kwargs)
-
-
-def __getattr__(name: str):
-    if name == "LLMError":
-        from .client import LLMError
-
-        return LLMError
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

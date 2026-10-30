@@ -9,7 +9,7 @@ from typing import Any
 from google import genai
 from google.genai import types as genai_types
 
-from .client import LLMClient
+from .client import LLMClient, LLMUnsupportedCapabilityError
 from .types import LLMMessage, LLMResult
 
 logger = logging.getLogger(__name__)
@@ -53,11 +53,16 @@ class GoogleClient(LLMClient):
     def _contents(messages: list[LLMMessage]) -> list:
         turns = []
         for m in messages:
+            if m.media:
+                raise LLMUnsupportedCapabilityError("vision", "google")
             if m.role == "system":
                 continue
             role = "model" if m.role == "assistant" else "user"
             turns.append(genai_types.Content(role=role, parts=[genai_types.Part(text=m.text)]))
         return turns
+
+    def _transcribe(self, audio, *, filename, mime_type, language, duration_hint):
+        raise LLMUnsupportedCapabilityError("audio", "google")
 
     def _result(self, response: Any) -> LLMResult:
         input_tokens, output_tokens, cached = _usage_of(response)

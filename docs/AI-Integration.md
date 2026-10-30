@@ -2,7 +2,7 @@
 
 ## Overview
 
-NikoFin uses **Google Gemini Flash** (`gemini-flash-latest`) via the `google-genai` SDK for multiple AI-powered features. Three separate API keys are used for different purposes.
+NikoFin uses **OpenAI** in production through the provider-neutral `app/services/llm` layer. `LLM_PROVIDER=openai` and `LLM_MODEL_NAME=gpt-6-luna` are the production defaults; Google remains available for text-only compatibility. Three separate API keys are used for different purposes.
 
 ## API Keys
 
@@ -18,7 +18,7 @@ NikoFin uses **Google Gemini Flash** (`gemini-flash-latest`) via the `google-gen
 
 **File**: `services/smart_import_core.py`
 
-Sends extracted PDF text (or CSV/XLSX content) to Gemini with `SMART_IMPORT_PROMPT`. The LLM:
+Sends extracted PDF text (or CSV/XLSX content) to the configured text model with `SMART_IMPORT_PROMPT`. The LLM:
 
 - Parses Argentine bank statement formats
 - Extracts transactions (date, description, amount, currency, card_header, transaction_id)
@@ -62,7 +62,7 @@ prompt = CARD_EXTRACT_PROMPT.format(raw_input=user_input, card_type=card_type)
 
 **File**: `routers/analysis.py`
 
-Formats expense data into structured text and sends to Gemini:
+Formats expense data into structured text and sends to the configured text model:
 
 ```python
 prompt = f"""{ANALYSIS_SYSTEM_PROMPT}
@@ -90,7 +90,7 @@ Summarizes a conversation for session resume:
 
 **File**: `routers/dashboard.py`
 
-Structured prompt `AI_TRENDS_PROMPT` asks Gemini to return JSON:
+Structured prompt `AI_TRENDS_PROMPT` asks the configured text model to return JSON:
 
 ```json
 {
@@ -135,6 +135,35 @@ those candidates, in batches of 25, via `CATEGORY_REVIEW_PROMPT`:
 - Nothing is auto-applied: the verdict only feeds an internal review
 - A failed batch falls back to the rule score, never to per-expense calls
 
+### 9. Voice transcription and payment-proof extraction
+
+`POST /capture/transcribe` sends supported audio (WAV, OGG, MP3, M4A; up to
+10 MB / 120 seconds) to OpenAI Audio using `LLM_AUDIO_MODEL` (default
+`whisper-1`). Transcription cost is estimated at USD 0.006 per audio minute and
+is recorded in the existing LLM budget metrics. Unclear audio returns a retry
+signal instead of an empty expense.
+
+`POST /capture/expense-image` accepts JPEG, PNG, or WebP (up to 8 MB / 20 MP);
+Pillow strips EXIF and downsizes images to at most 1600 px per side before
+OpenAI Vision receives them. `LLM_VISION_MODEL` defaults to `LLM_MODEL_NAME`.
+The model returns a single-expense draft or a rejection reason; the user must
+review and save it. A receipt with many line items is valid when it has one
+clear final total, while multiple transactions, credits, balances, and pending
+payments are rejected. HEIC is not supported in v1.
+
+Audio and image bytes are not stored persistently by the application and are
+not logged. Starlette may spool a multipart upload to a temporary file during
+the request and removes it when the request ends. The service itself processes
+the bounded data in memory.
+OpenAI calls remain subject to the existing monthly budget. The Google adapter
+supports text only; capture explicitly returns unavailable when configured with
+Google rather than silently dropping media.
+
+The app uses hand-written multipart wrappers in `frontend/src/api/client.ts`
+for these two operations because Orval's generated functions set
+`Content-Type: multipart/form-data` themselves. The wrappers leave that header
+unset so the browser can add the required multipart boundary.
+
 ## Prompt Templates
 
 All prompts are defined in `backend/app/prompts.py`:
@@ -149,11 +178,12 @@ All prompts are defined in `backend/app/prompts.py`:
 | `CATEGORY_SUGGEST_PROMPT`| Category suggestion (single expense) |
 | `BATCH_CATEGORY_PROMPT`  | Category suggestion (batch of uncategorized expenses) |
 | `CATEGORY_REVIEW_PROMPT` | Miscategorization review (internal, issue #414) |
+| `EXPENSE_IMAGE_PROMPT` | Single payment-proof extraction with rejection taxonomy |
 
 ## Cost Optimization
 
 - **Token reduction**: Prompts optimized from 10,800 → 3,669 chars (66% reduction)
-- **Model choice**: Gemini Flash (fastest, cheapest)
+- **Model choice**: OpenAI `gpt-6-luna` for production text; vision inherits `LLM_MODEL_NAME` unless `LLM_VISION_MODEL` is set; audio defaults to `whisper-1`
 - **Caching**: Analysis history saved to avoid re-analysis
 - **Batch processing**: Import processes all transactions in one LLM call
 

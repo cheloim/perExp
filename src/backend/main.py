@@ -39,6 +39,7 @@ from app.routers import (
     analysis,
     auth,
     budgets,
+    capture,
     card_closings,
     cards,
     categories,
@@ -173,6 +174,7 @@ app = FastAPI(
         {"name": "import-jobs", "description": "PDF/CSV/XLSX bank statement import pipeline"},
         {"name": "dashboard", "description": "Dashboard summaries, charts, and reports"},
         {"name": "analysis", "description": "AI-powered spending analysis"},
+        {"name": "capture", "description": "AI voice transcription and payment-proof extraction"},
         {"name": "groups", "description": "Family group management and invite system"},
         {"name": "notifications", "description": "SSE real-time notification streaming"},
         {"name": "scheduled-expenses", "description": "Recurring and scheduled expense management"},
@@ -228,6 +230,7 @@ app.include_router(investments.router)
 app.include_router(import_jobs.router)
 app.include_router(dashboard.router)
 app.include_router(analysis.router)
+app.include_router(capture.router)
 app.include_router(groups.router)
 app.include_router(notifications.router)
 app.include_router(scheduled_expenses.router)

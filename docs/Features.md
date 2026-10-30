@@ -6,7 +6,7 @@
 
 Upload bank/credit card statements (PDF, CSV, XLSX) and let AI parse them automatically. The system extracts transactions, detects installments, identifies cardholders, and auto-categorizes expenses.
 
-- **PDF parsing**: pdfplumber extracts text → Gemini LLM parses transactions
+- **PDF parsing**: pdfplumber extracts text → OpenAI LLM parses transactions
 - **CSV/XLSX parsing**: Also uses LLM for unified approach
 - **Installment expansion**: "C.03/12" creates 12 future scheduled expenses
 - **Duplicate detection**: Two-layer protection (during processing + at confirm time)
@@ -73,6 +73,14 @@ Track credit card billing cycles:
 
 ## AI Features
 
+### Voice Input — en implementación
+
+Transcribe audio corto al composer para que la persona revise el texto antes de enviarlo.
+
+### Escaneo de comprobantes — en implementación
+
+Extrae un borrador de gasto desde una imagen de un único pago completado, para revisar antes de guardar.
+
 ### Financial Analysis Chat
 
 Chat with AI about your expenses:
@@ -81,7 +89,7 @@ Chat with AI about your expenses:
 - Month-specific or all-time analysis
 - Streaming responses via SSE
 - Analysis history saved for reference
-- Powered by Gemini Flash
+- Powered by OpenAI
 
 ### AI Trends
 

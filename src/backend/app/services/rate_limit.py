@@ -25,6 +25,7 @@ RATE_LIMITS = {
     "mfa": {"max_attempts": 5, "window_seconds": 300},
     "password_change": {"max_attempts": 5, "window_seconds": 300},
     "token_refresh": {"max_attempts": 20, "window_seconds": 60},
+    "capture": {"max_attempts": 60, "window_seconds": 3600},
 }
 
 
