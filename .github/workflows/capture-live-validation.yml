@@ -1,0 +1,55 @@
+name: Capture live validation
+
+# Runs the real provider against synthetic audio and payment-proof images.
+# Secrets are read from the repository secrets and never printed.
+on:
+  push:
+    branches: [integration/capture-inputs]
+    paths:
+      - ".github/workflows/capture-live-validation.yml"
+      - "src/backend/scripts/live_capture_check.py"
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: |
+      github.event_name != 'pull_request' || (
+        github.event.label.name == 'live-validation' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: src/backend/requirements.txt
+
+      - name: Install system tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y espeak-ng fonts-dejavu-core
+
+      - name: Install backend dependencies
+        run: pip install -r src/backend/requirements.txt
+
+      - name: Run live capture validation
+        working-directory: src/backend
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src/backend
+          SECRET_KEY: "test-secret-key-that-is-at-least-32-chars-long-for-testing"
+          LLM_PROVIDER: openai
+          LLM_MODEL_NAME: gpt-6-luna
+          LLM_AUDIO_MODEL: whisper-1
+          LLM_VISION_MODEL: gpt-6-luna
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          MESSAGES_BOT_LLM_API_KEY: ${{ secrets.MESSAGES_BOT_LLM_API_KEY }}
+        run: python scripts/live_capture_check.py
