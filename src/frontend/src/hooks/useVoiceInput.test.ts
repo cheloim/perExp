@@ -90,6 +90,22 @@ describe("audioToWav", () => {
     expect(view.getInt16(44, true)).toBe(-32768);
   });
 
+  it("downmixes multichannel audio and resamples non-16-kHz input", () => {
+    const wav = encodeAudioBufferToWav({
+      duration: 0.0005,
+      sampleRate: 8_000,
+      numberOfChannels: 2,
+      length: 4,
+      getChannelData: (channel: number) => new Float32Array(4).fill(channel === 0 ? 1 : 0),
+    } as unknown as AudioBuffer);
+    const view = new DataView(wav);
+
+    expect(wav.byteLength).toBe(60);
+    expect(view.getUint32(24, true)).toBe(16_000);
+    expect(view.getUint16(22, true)).toBe(1);
+    expect(view.getInt16(44, true)).toBe(16_383);
+  });
+
   it("decodes browser audio and returns its duration with a WAV blob", async () => {
     const result = await toWav(new Blob(["webm"], { type: "audio/webm" }));
 
@@ -108,6 +124,14 @@ describe("useVoiceInput", () => {
     expect(result.current.supported).toBe(false);
   });
 
+  it("reports unsupported when mediaDevices is missing", () => {
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
+
+    const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+    expect(result.current.supported).toBe(false);
+  });
+
   it("transcribes a WAV on stop and calls onTranscript", async () => {
     const onTranscript = vi.fn();
     const { result } = renderHook(() => useVoiceInput({ onTranscript }));
@@ -115,6 +139,7 @@ describe("useVoiceInput", () => {
     await act(() => result.current.start());
     act(() => result.current.stop());
 
+    expect(stoppedTrack).toHaveBeenCalledOnce();
     await waitFor(() => expect(onTranscript).toHaveBeenCalledWith("supermercado 15200"));
     expect(transcribeAudio).toHaveBeenCalledWith(
       expect.objectContaining({ type: "audio/wav" }),
@@ -142,6 +167,28 @@ describe("useVoiceInput", () => {
     expect(result.current.state).toBe("idle");
     expect(stoppedTrack).toHaveBeenCalledOnce();
     expect(transcribeAudio).not.toHaveBeenCalled();
+  });
+
+  it("releases the stream when the hook unmounts while recording", async () => {
+    const { result, unmount } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+    await act(() => result.current.start());
+    unmount();
+
+    expect(stoppedTrack).toHaveBeenCalledOnce();
+    expect(transcribeAudio).not.toHaveBeenCalled();
+  });
+
+  it("automatically stops at the default 60-second maximum", async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+    await act(() => result.current.start());
+
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(stoppedTrack).toHaveBeenCalledOnce();
+
+    vi.useRealTimers();
+    await waitFor(() => expect(transcribeAudio).toHaveBeenCalledOnce());
   });
 
   it("does not pass an unclear transcription to the composer", async () => {

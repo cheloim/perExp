@@ -1305,10 +1305,7 @@ async def _handle_bank_notification(
                 text[:200],
             )
         else:
-            logger.warning(
-                "[BANK_PARSE] Could not parse private message — chat_id=%s",
-                update.effective_chat.id,
-            )
+            logger.warning("[BANK_PARSE] Could not parse private message")
         await update.message.reply_text(
             "🔔 Notificación bancaria detectada pero no pude parsear el monto.\n"
             "Probá de nuevo o escribí el gasto manualmente.",
@@ -1349,12 +1346,13 @@ async def _handle_bank_notification(
                 card_id = matched_tag.card_id
                 account_id = matched_tag.account_id
                 matched_tag_ids = [matched_tag.id]
-                logger.info(
-                    "[BANK_PARSE] matched cuenta tag: id=%d card_id=%s account_id=%s",
-                    matched_tag.id,
-                    card_id,
-                    account_id,
-                )
+                if log_content:
+                    logger.info(
+                        "[BANK_PARSE] matched cuenta tag: id=%d card_id=%s account_id=%s",
+                        matched_tag.id,
+                        card_id,
+                        account_id,
+                    )
 
         # Fallback tag name from bank+card_name text when nothing matched
         if not card_id and not account_id and not matched_tag_ids:
@@ -1449,10 +1447,10 @@ async def _process_text_expense(
     from app.metrics import TELEGRAM_MESSAGES
 
     TELEGRAM_MESSAGES.labels(direction="inbound").inc()
-    chat_id = str(update.effective_chat.id)
-    user = update.effective_user
-    username = user.username or user.first_name or "unknown" if user else "unknown"
     if source == "text":
+        chat_id = str(update.effective_chat.id)
+        user = update.effective_user
+        username = user.username or user.first_name or "unknown" if user else "unknown"
         text_raw = text or ""
         logger.info(
             "[MSG] chat_id=%s user=%s len=%d preview=%s",
@@ -1462,7 +1460,7 @@ async def _process_text_expense(
             text_raw[:80] if text_raw else "(empty)",
         )
     else:
-        logger.info("[MSG] chat_id=%s user=%s source=voice len=%d", chat_id, username, len(text))
+        logger.info("[VOICE] len=%d", len(text))
 
     auth_user = _authenticated_user(update)
     if not auth_user:

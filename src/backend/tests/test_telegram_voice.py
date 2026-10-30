@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from types import SimpleNamespace
 
 import pytest
@@ -189,3 +190,64 @@ def test_private_expense_parse_does_not_log_transcript(monkeypatch, caplog):
 
     assert telegram_bot._parse_expense(transcript, log_content=False) == []
     assert transcript not in caplog.text
+
+
+def test_voice_processing_logs_no_identifying_metadata(monkeypatch, caplog):
+    update = make_update(media=make_media())
+    context = make_context()
+    monkeypatch.setattr(
+        telegram_bot,
+        "_authenticated_user",
+        lambda update: SimpleNamespace(id=42),
+    )
+    caplog.set_level(logging.INFO, logger="app.telegram_bot")
+
+    asyncio.run(telegram_bot._process_text_expense(update, context, text="ayuda", source="voice"))
+
+    assert "[VOICE] len=5" in caplog.text
+    assert "1234" not in caplog.text
+    assert "tester" not in caplog.text
+    assert "ayuda" not in caplog.text
+
+
+def test_private_bank_parse_failure_does_not_log_chat_id_or_text(monkeypatch, caplog):
+    update = make_update(media=make_media())
+
+    async def fake_to_thread(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(telegram_bot.asyncio, "to_thread", fake_to_thread)
+    caplog.set_level(logging.WARNING, logger="app.telegram_bot")
+
+    asyncio.run(
+        telegram_bot._handle_bank_notification(
+            update,
+            SimpleNamespace(user_data={}),
+            "private bank transcript",
+            log_content=False,
+        )
+    )
+
+    assert "Could not parse private message" in caplog.text
+    assert "1234" not in caplog.text
+    assert "private bank transcript" not in caplog.text
+
+
+def test_handle_message_keeps_text_wrapper_arguments(monkeypatch):
+    update = make_update(media=make_media())
+    update.message.text = " gasto 500 en supermercado "
+    context = SimpleNamespace(user_data={})
+    calls = []
+
+    async def fake_process(*args, **kwargs):
+        calls.append((args, kwargs))
+        return 17
+
+    monkeypatch.setattr(telegram_bot, "_process_text_expense", fake_process)
+
+    result = asyncio.run(telegram_bot.handle_message(update, context))
+
+    assert result == 17
+    assert calls == [
+        ((update, context, update.message.text), {"source": "text"}),
+    ]

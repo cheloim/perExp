@@ -126,6 +126,7 @@ export function useVoiceInput({ onTranscript, maxSeconds = 60 }: VoiceInputOptio
         setState("transcribing");
         const recording = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType });
         chunksRef.current = [];
+        releaseStream();
         void (async () => {
           let wav: Awaited<ReturnType<typeof toWav>>;
           try {
