@@ -89,38 +89,6 @@ def _audio() -> bytes:
         path.unlink(missing_ok=True)
 
 
-def _probe_chat_audio(wav: bytes) -> dict:
-    """Probe whether the text model accepts audio through chat input_audio."""
-    import base64
-
-    from openai import OpenAI
-
-    key = os.getenv("MESSAGES_BOT_LLM_API_KEY") or os.getenv("LLM_API_KEY")
-    client = OpenAI(api_key=key)
-    response = client.chat.completions.create(
-        model=os.getenv("LLM_MODEL_NAME", "gpt-6-luna"),
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Transcribí este audio textualmente en español. Devolvé solo el texto.",
-                    },
-                    {
-                        "type": "input_audio",
-                        "input_audio": {
-                            "data": base64.b64encode(wav).decode(),
-                            "format": "wav",
-                        },
-                    },
-                ],
-            }
-        ],
-    )
-    return {"text": (response.choices[0].message.content or "").strip()}
-
-
 def _ok(result, *, amount: float) -> bool:
     return (
         result.status == "ok"
@@ -226,36 +194,34 @@ def main() -> int:
     failures: list[str] = []
 
     wav = _audio()
-    try:
-        audio = transcribe_audio(
-            wav,
-            filename="voice.wav",
-            mime_type="audio/wav",
-            duration_hint=None,
-            api_key_env="MESSAGES_BOT_LLM_API_KEY",
-        )
-        summary["audio"] = {
-            "text": audio.text,
-            "unclear": audio.unclear,
-            "duration_seconds": audio.duration_seconds,
-        }
-        if audio.unclear or len(audio.text.strip()) < 3:
-            failures.append("audio_unclear")
-        if not audio.duration_seconds or audio.duration_seconds <= 0:
-            failures.append("audio_duration_missing")
-    except Exception as exc:  # provider/model unavailable must not hide the image checks
-        summary["audio"] = {
-            "error": type(exc).__name__,
-            "detail": str(exc)[:300],
-        }
-        failures.append("audio_provider_unavailable")
+    audio_checks: dict[str, dict] = {}
+    for env_name in ("LLM_API_KEY", "MESSAGES_BOT_LLM_API_KEY"):
         try:
-            summary["audio_chat_fallback"] = _probe_chat_audio(wav)
-        except Exception as fallback_exc:
-            summary["audio_chat_fallback"] = {
-                "error": type(fallback_exc).__name__,
-                "detail": str(fallback_exc)[:300],
+            audio = transcribe_audio(
+                wav,
+                filename="voice.wav",
+                mime_type="audio/wav",
+                duration_hint=None,
+                api_key_env=env_name,
+            )
+            check: dict = {
+                "text": audio.text,
+                "unclear": audio.unclear,
+                "duration_seconds": audio.duration_seconds,
             }
+            if audio.unclear or len(audio.text.strip()) < 3:
+                check["issue"] = "unclear"
+            if not audio.duration_seconds or audio.duration_seconds <= 0:
+                check["issue"] = "duration_missing"
+            audio_checks[env_name] = check
+        except Exception as exc:  # one key/project may have audio while the other does not
+            audio_checks[env_name] = {
+                "error": type(exc).__name__,
+                "detail": str(exc)[:300],
+            }
+    summary["audio"] = audio_checks
+    if not any("text" in value and "issue" not in value for value in audio_checks.values()):
+        failures.append("audio_provider_unavailable")
 
     for name, (image, expectation) in cases.items():
         result = extract_expense_from_image(image, mime_type="image/png")
