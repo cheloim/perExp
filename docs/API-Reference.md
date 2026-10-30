@@ -1,250 +1,79 @@
-# API Reference
+# Referencia de API
 
-## Base URL
+> **Este documento ya no mantiene una tabla manual de endpoints.** La versión anterior
+> documentaba 90 endpoints, de los cuales **23 no existían** y faltaban 7 routers completos.
+> El contrato real está en `specs/openapi.yaml` y se valida en CI.
 
-- **Development**: `http://localhost:8001`
-- **Production**: `https://your-domain.com`
-- **API Docs**: `http://localhost:8001/docs` (Swagger UI)
+## Fuentes de verdad
 
-## Authentication
+| Recursos | Dónde |
+|---|---|
+| Contrato curado (entrada de orval) | `docs/specs/openapi.yaml` — 184 paths |
+| Contrato inferido por FastAPI | `GET /docs` (Swagger UI) y `GET /openapi.json` |
+| Gate de sincronía | `src/backend/tests/test_openapi_contract.py` |
 
-All endpoints (except auth) require JWT token:
+El gate falla si el contrato curado queda atrás de los routers o si un gap documentado se
+arregla sin achicar el baseline (`tests/openapi_contract_baseline.yaml`, hoy vacío).
 
-```
-Authorization: Bearer {access_token}
-```
+## Mapa de routers
 
-## Routers
+| Router | Prefijo | Endpoints | Responsabilidad |
+|---|---|---|---|
+| `admin` | `/admin` | 33 | Usuarios, flags, impersonación, health, logs |
+| `auth` | `/auth` | 26 | Login, registro, OAuth, Telegram, sesión |
+| `investments` | `/investments` | 22 | Portfolio, brokers, precios, asistente |
+| `budgets` | `/budgets` | 19 | Presupuestos y grupos 50/30/20 |
+| `expenses` | `/expenses` | 18 | CRUD, bulk, stats, export |
+| `dashboard` | `/dashboard` | 17 | KPIs, tendencias, categorías, próximos vencimientos |
+| `notifications` | `/notifications` | 9 | Bandeja y stream SSE |
+| `recurring` | `/recurring` | 8 | Detección y confirmación de recurrentes |
+| `admin_categorization` | `/admin/categorization-reviews` | 7 | Revisión de categorización |
+| `import_jobs` | `/import-jobs` | 6 | Subida, preview y confirmación |
+| `suggestions` | `/suggestions` | 5 | Sugerencias de categoría |
+| `groups` | `/groups` | 5 | Grupos familiares e invitaciones |
+| `categories` | `/categories` | 5 | Árbol de categorías |
+| `cards` | `/cards` | 5 | Tarjetas |
+| `tags` | `/tags` | 4 | Etiquetas |
+| `scheduled_expenses` | `/scheduled-expenses` | 4 | Gastos programados |
+| `mfa` | `/mfa` | 4 | TOTP |
+| `analysis` | `/analysis` | 4 | Asistente de gastos (SSE) |
+| `accounts` | `/accounts` | 4 | Cuentas |
+| `whatsapp_webhook` | `/webhook/whatsapp` | 3 | Webhook de Meta |
+| `health` | `/health` | 2 | Liveness |
+| `card_closings` | `/card-closings` | 2 | Cierres de tarjeta |
+| `capture` | `/capture` | 2 | Transcripción de voz e import por imagen |
 
-### Health (`/health`)
+**Total: 23 routers, 214 operaciones.** Coincide exactamente con `operationId` en
+`specs/openapi.yaml`.
 
-| Method | Endpoint         | Auth  | Description                                          |
-| ------ | ---------------- | ----- | ---------------------------------------------------- |
-| `GET`  | `/health`        | No    | Liveness — version, uptime, timestamp (always 200)   |
-| `GET`  | `/health/ready`  | No    | Readiness — DB, Redis, Celery, Bots (503 if critical) |
+## Autenticación
 
-**Liveness** (`/health`): Returns 200 if the process is alive. Does not check dependencies. Use for container liveness probes and uptime monitoring.
+Todas las rutas salvo `/health`, `/auth/*` y `/webhook/whatsapp` requieren
+`Authorization: Bearer <jwt>`. Ver `Authentication.md`.
 
-**Readiness** (`/health/ready`): Checks critical services (DB, Redis, Celery workers). Returns 200 if healthy/degraded, 503 if unhealthy. Also checks optional services (Telegram bot, Celery Beat). Use for load balancer readiness and blackbox monitoring.
+## Convenciones
 
-Response structure:
-```json
-{
-  "status": "healthy",
-  "version": "1.0.0",
-  "uptime_seconds": 12345,
-  "timestamp": "2026-10-04T12:00:00Z",
-  "checks": {
-    "database": {"status": "ok", "latency_ms": 2},
-    "redis": {"status": "ok", "latency_ms": 1},
-    "celery_workers": {"status": "ok", "worker_count": 1},
-    "celery_beat": {"status": "ok", "last_heartbeat": "..."},
-    "telegram_bot": {"status": "ok", "thread_alive": true}
-  }
-}
-```
+- Errores: `{"detail": "..."}` con el código HTTP correspondiente.
+- Paginación: `limit`/`offset` o `page` según el router (no está unificado; ver #527).
+- Fechas: ISO 8601 en UTC.
+- Dinero: `amount` numérico + `currency` (`ARS`/`USD`). **No sumar monedas distintas.**
 
-Status values:
-- `healthy`: all services OK
-- `degraded`: critical services OK, optional services down
-- `unhealthy`: critical services down (DB, Redis, or Celery)
+## Cómo cambiar la API
 
-### Auth (`/auth`)
+1. Modificá el router.
+2. Actualizá `docs/specs/openapi.yaml` (path, params, schemas).
+3. Regenerá el cliente:
+   ```bash
+   cd src/frontend
+   npm run generate:api
+   npx prettier --write src/types/generated/ src/api/client-generated.ts
+   ```
+4. Corré el gate:
+   ```bash
+   cd src/backend
+   SECRET_KEY="test-secret-key-that-is-at-least-32-chars-long-for-testing" \
+     pytest tests/test_openapi_contract.py -q
+   ```
 
-| Method | Endpoint                           | Description                |
-| ------ | ---------------------------------- | -------------------------- |
-| `POST` | `/auth/login`                      | Email + password login     |
-| `POST` | `/auth/register`                   | Create new account         |
-| `POST` | `/auth/oauth`                      | Google/Apple OAuth         |
-| `POST` | `/auth/oauth/callback`             | OAuth authorization code   |
-| `POST` | `/auth/refresh`                    | Refresh JWT token          |
-| `POST` | `/auth/forgot-password`            | Send reset email           |
-| `POST` | `/auth/reset-password`             | Reset with token           |
-| `PUT`  | `/auth/password`                   | Change password            |
-| `GET`  | `/auth/me`                         | Get current user           |
-| `GET`  | `/auth/me/telegram-key`            | Get Telegram auth key      |
-| `POST` | `/auth/me/telegram-key/regenerate` | Regenerate Telegram key    |
-| `GET`  | `/auth/me/telegram-status`         | Check Telegram link status |
-
-### Expenses (`/expenses`)
-
-| Method   | Endpoint                  | Description                                                                  |
-| -------- | ------------------------- | ---------------------------------------------------------------------------- |
-| `GET`    | `/expenses`               | List expenses (filters: date, category, bank, person, card, account, search) |
-| `POST`   | `/expenses`               | Create expense                                                               |
-| `PUT`    | `/expenses/{id}`          | Update expense                                                               |
-| `DELETE` | `/expenses/{id}`          | Delete expense                                                               |
-| `POST`   | `/expenses/bulk-category` | Bulk update categories                                                       |
-| `POST`   | `/expenses/bulk-delete`   | Bulk delete expenses                                                         |
-
-### Cards (`/cards`)
-
-| Method   | Endpoint      | Description |
-| -------- | ------------- | ----------- |
-| `GET`    | `/cards`      | List cards  |
-| `POST`   | `/cards`      | Create card |
-| `PUT`    | `/cards/{id}` | Update card |
-| `DELETE` | `/cards/{id}` | Delete card |
-
-### Accounts (`/accounts`)
-
-| Method   | Endpoint         | Description    |
-| -------- | ---------------- | -------------- |
-| `GET`    | `/accounts`      | List accounts  |
-| `POST`   | `/accounts`      | Create account |
-| `PUT`    | `/accounts/{id}` | Update account |
-| `DELETE` | `/accounts/{id}` | Delete account |
-
-### Categories (`/categories`)
-
-| Method   | Endpoint           | Description                    |
-| -------- | ------------------ | ------------------------------ |
-| `GET`    | `/categories`      | List categories (hierarchical) |
-| `POST`   | `/categories`      | Create category                |
-| `PUT`    | `/categories/{id}` | Update category                |
-| `DELETE` | `/categories/{id}` | Delete category                |
-
-### Dashboard (`/dashboard`)
-
-| Method | Endpoint                                    | Description                                      |
-| ------ | ------------------------------------------- | ------------------------------------------------ |
-| `GET`  | `/dashboard`                                | Main dashboard summary                           |
-| `GET`  | `/dashboard/by-category`                    | Expenses by category                             |
-| `GET`  | `/dashboard/by-period`                      | Expenses by period                               |
-| `GET`  | `/dashboard/by-currency`                    | Expenses by currency                             |
-| `GET`  | `/dashboard/by-card`                        | Expenses by card                                 |
-| `GET`  | `/dashboard/trends`                         | AI trend analysis                                |
-| `GET`  | `/dashboard/monthly-reports`                | List monthly reports                             |
-| `POST` | `/dashboard/monthly-reports/generate`       | Generate monthly report on-demand                |
-| `GET`  | `/dashboard/monthly-reports/{month}/download` | Download monthly report PNG                    |
-
-**Monthly report generation rules:**
-- **Previous months**: always available
-- **Current month**: available only after 20:00 on the last day of the month
-- **Future months**: rejected with 400
-
-### Import Jobs (`/import-jobs`)
-
-| Method   | Endpoint                    | Description                 |
-| -------- | --------------------------- | --------------------------- |
-| `POST`   | `/import-jobs`              | Upload file (multipart)     |
-| `GET`    | `/import-jobs`              | List import jobs            |
-| `GET`    | `/import-jobs/{id}`         | Get job details + preview   |
-| `PUT`    | `/import-jobs/{id}`         | Update preview data         |
-| `POST`   | `/import-jobs/{id}/confirm` | Confirm and create expenses |
-| `DELETE` | `/import-jobs/{id}`         | Delete job                  |
-
-### Analysis (`/analysis`)
-
-| Method | Endpoint              | Description             |
-| ------ | --------------------- | ----------------------- |
-| `POST` | `/analysis/chat`      | AI chat (SSE streaming) |
-| `POST` | `/analysis/summarize` | Summarize conversation  |
-| `GET`  | `/analysis/history`   | Get analysis history    |
-
-### Investments (`/investments`)
-
-| Method   | Endpoint                      | Description             |
-| -------- | ----------------------------- | ----------------------- |
-| `GET`    | `/investments`                | List investments        |
-| `POST`   | `/investments`                | Create investment       |
-| `PUT`    | `/investments/{id}`           | Update investment       |
-| `DELETE` | `/investments/{id}`           | Delete investment       |
-| `POST`   | `/investments/sync/iol`       | Sync with IOL           |
-| `POST`   | `/investments/sync/ppi`       | Sync with PPI           |
-| `POST`   | `/investments/refresh-prices` | Manual price refresh    |
-| `GET`    | `/investments/usd-rate`       | Get USD/ARS rate        |
-| `GET`    | `/investments/settings`       | Get broker settings     |
-| `PUT`    | `/investments/settings`       | Update broker settings  |
-| `POST`   | `/investments/assistant`      | AI chat (SSE streaming) |
-
-### Groups (`/groups`)
-
-| Method   | Endpoint               | Description         |
-| -------- | ---------------------- | ------------------- |
-| `POST`   | `/groups`              | Create group        |
-| `POST`   | `/groups/join`         | Join by invite code |
-| `POST`   | `/groups/leave`        | Leave group         |
-| `GET`    | `/groups`              | Get current group   |
-| `GET`    | `/groups/members`      | List members        |
-| `DELETE` | `/groups/members/{id}` | Remove member       |
-
-### Notifications (`/notifications`)
-
-| Method   | Endpoint                     | Description               |
-| -------- | ---------------------------- | ------------------------- |
-| `GET`    | `/notifications`             | List notifications        |
-| `GET`    | `/notifications/count`       | Get unread/pending counts |
-| `GET`    | `/notifications/stream`      | SSE stream                |
-| `PUT`    | `/notifications/{id}/read`   | Mark as read              |
-| `PUT`    | `/notifications/read-all`    | Mark all as read          |
-| `DELETE` | `/notifications/{id}`        | Delete notification       |
-| `DELETE` | `/notifications/read-all`    | Delete all read           |
-| `POST`   | `/notifications/{id}/accept` | Accept group invitation   |
-| `POST`   | `/notifications/{id}/reject` | Reject group invitation   |
-
-### Card Closings (`/card-closings`)
-
-| Method   | Endpoint              | Description         |
-| -------- | --------------------- | ------------------- |
-| `GET`    | `/card-closings`      | List card closings  |
-| `POST`   | `/card-closings`      | Create card closing |
-| `PUT`    | `/card-closings/{id}` | Update card closing |
-| `DELETE` | `/card-closings/{id}` | Delete card closing |
-
-### Scheduled Expenses (`/scheduled-expenses`)
-
-| Method | Endpoint                           | Description               |
-| ------ | ---------------------------------- | ------------------------- |
-| `GET`  | `/scheduled-expenses`              | List scheduled expenses   |
-| `POST` | `/scheduled-expenses/{id}/execute` | Execute scheduled expense |
-| `POST` | `/scheduled-expenses/{id}/cancel`  | Cancel scheduled expense  |
-
-### Admin — Categorization Reviews (`/admin/categorization-reviews`)
-
-Internal, admin-only (issues #414 and #466): findings of the miscategorization
-detector, reviewed from the admin UI's "Categorización" tab. Never exposed to
-end users, notifications or chat.
-
-| Method | Endpoint                                         | Description |
-| ------ | ------------------------------------------------ | ----------- |
-| `GET`  | `/admin/categorization-reviews`                  | List reviews + summary (`status`, `user_id`, `min_score`, `max_score`, `date_from`, `date_to`, `search`, `signal`, `page`, `per_page`) |
-| `GET`  | `/admin/categorization-reviews/{id}`             | Detail with evidence and `available_categories` (the owner's categories) |
-| `POST` | `/admin/categorization-reviews/{id}/accept`      | Apply the suggested (or explicit `category_id`) category |
-| `POST` | `/admin/categorization-reviews/{id}/reject`      | Mark as false positive (expense unchanged) |
-| `POST` | `/admin/categorization-reviews/{id}/investigate` | Mark as reviewed, no change |
-| `POST` | `/admin/categorization-reviews/bulk-accept`      | Accept every pending review with `score >= min_score` (`user_id`, `max_items`, `dry_run`) |
-| `POST` | `/admin/categorization-reviews/scan`             | Run the detector now (forward-only: `since`, `user_id`, `use_llm`, `persist`) |
-
-`accept` returns `409` when the expense was recategorized after the review was
-created, and `400` when no category can be applied.
-
-`search` matches the merchant text case- and accent-insensitively. Descriptions
-are encrypted at rest, so the filter runs at application level (same helper as
-`GET /expenses`), after the SQL filters and before pagination. Like every other
-filter here, it only selects what is displayed: it never scans or changes data.
-
-`bulk-accept` never touches reviews that are already resolved and flags the ones
-it accepts (`bulk_applied`). `summary` returns `observed_precision` (all actions),
-`manual_precision` (excluding bulk) and `bulk_accepted`.
-
-
-## Error Responses
-
-All errors follow the format:
-
-```json
-{
-  "detail": "Error message"
-}
-```
-
-Common HTTP status codes:
-
-- `400`: Bad request (validation error)
-- `401`: Unauthorized (invalid/missing token)
-- `403`: Forbidden (insufficient permissions)
-- `404`: Not found
-- `410`: Gone (expired import job)
-- `415`: Unsupported media type
-- `500`: Internal server error
+Si el cambio rompe compatibilidad, ver `Migrations.md` y el issue de versionado
+[#527](https://github.com/cheloim/perExp/issues/527).

@@ -61,13 +61,25 @@ grep SECRET_KEY .env
 
 **There is NO automatic recovery from a key change.**
 
-## Key Rotation (Not Currently Supported)
+## Rotación de claves
 
-If key rotation is needed in the future:
-1. Implement dual-key support (decrypt with old, encrypt with new)
-2. Re-encrypt all data with new key
-3. Update all HMAC hashes
-4. Remove old key after verification
+**La rotación no está soportada hoy.** `docs/Security.md` recomendaba rotar periódicamente;
+esa recomendación se retiró porque, sin soporte de doble clave, rotar equivale a perder los
+datos cifrados.
+
+Camino de implementación:
+
+1. Soportar dos claves: descifrar con la vieja, cifrar con la nueva.
+2. Re-cifrar todas las columnas `EncryptedType`.
+3. Recalcular todos los `*_hmac`.
+4. Retirar la clave vieja después de verificar.
+
+Trabajo pendiente: issue de política de migraciones
+([#527](https://github.com/cheloim/perExp/issues/527)) y threat model
+([#533](https://github.com/cheloim/perExp/issues/533)).
+
+Mientras tanto: **no rotar.** Si se sospecha compromiso, tratarlo como incidente y seguir
+`docs/Security.md`.
 
 ## Verification
 

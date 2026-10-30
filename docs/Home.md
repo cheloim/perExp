@@ -22,7 +22,7 @@ Tracking personal finances across credit cards, bank accounts, and investments i
 | [Smart Import](Smart-Import.md)     | PDF/CSV/XLSX import pipeline (LLM, Redis queue, Celery) |
 | [Telegram Bot](Telegram-Bot.md)     | Bot setup, conversation flow, all states                |
 | [Data Model](Data-Model.md)         | All entities, relationships, key fields                 |
-| [AI Integration](AI-Integration.md) | How Gemini is used: parsing, analysis, trends           |
+| [AI Integration](AI-Integration.md) | Proveedor LLM, parsing, análisis y costos                |
 | [Family Groups](Family-Groups.md)   | Multi-user sharing, invite flow                         |
 | [Investments](Investments.md)       | IOL/PPI sync, Yahoo Finance, price refresh scheduler    |
 | [Authentication](Authentication.md) | JWT, Google OAuth, MFA, password reset                  |
@@ -30,7 +30,13 @@ Tracking personal finances across credit cards, bank accounts, and investments i
 | [API Reference](API-Reference.md)   | All routers and key endpoints                           |
 | [Deployment](Deployment.md)         | Docker/Podman setup, CI/CD pipeline, secrets            |
 | [Frontend](Frontend.md)             | Routes, key components, state management                |
-| [Security](Security.md)             | Encryption, rate limiting, MFA                          |
+| [Security](Security.md)             | Encryption, rate limiting, MFA, advisories              |
+| [Configuración](Configuration.md)   | Variables de entorno, secretos, entornos                |
+| [Design System](Design-System.md)   | Tokens, primitivas y reglas de UI                       |
+| [Accesibilidad](Accessibility.md)   | Contrato WCAG 2.2 AA                                    |
+| [Migraciones](Migrations.md)        | Política de esquema y expand/contract                   |
+| [Matriz de autoridad](README.md)    | Qué documento es canónico por tema                      |
+| [Auditoría 2026-10](https://github.com/cheloim/perExp/blob/main/docs/analysis/audit-2026-10/index.html) | Diagnóstico completo y plan de evolución |
 
 ## Quick Start (Development)
 
@@ -39,10 +45,13 @@ Tracking personal finances across credit cards, bank accounts, and investments i
 git clone https://github.com/cheloim/perExp.git
 cd perExp
 
-# Create secrets file
-cp .env.example .env  # Edit with your values
+# Configuración no secreta
+cp .env.example .env  # completá POSTGRES_PASSWORD y POSTGRES_PASSWORD_DEV
 
-# Start with Podman
+# Secretos reales
+./scripts/setup-secrets.sh dev
+
+# Levantar
 podman-compose up -d
 
 # Access
@@ -59,7 +68,7 @@ podman-compose up -d
 | Database     | PostgreSQL 16                                   |
 | Cache/Broker | Redis 7                                         |
 | Frontend     | React 18, TypeScript, Vite, TanStack Query v5   |
-| AI/LLM       | Google Gemini Flash                             |
+| AI/LLM       | OpenAI (default), Google para texto             |
 | Task Queue   | Celery + Redis                                  |
 | Telegram     | python-telegram-bot                             |
 | WhatsApp     | Meta Cloud API                                  |
@@ -73,8 +82,8 @@ creditCardAnalyzer/
 ├── src/
 │   ├── backend/
 │   │   ├── app/
-│   │   │   ├── models.py          # SQLAlchemy models (20+ entities)
-│   │   │   ├── routers/           # 22 API routers
+│   │   │   ├── models/            # SQLAlchemy models (28 tablas)
+│   │   │   ├── routers/           # 23 API routers
 │   │   │   ├── services/          # Business logic (auth, import, analysis, deletion)
 │   │   │   ├── tasks/             # Celery tasks (import, cleanup, scheduled)
 │   │   │   ├── telegram_bot.py    # @NikoFin_bot

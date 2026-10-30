@@ -1,0 +1,2336 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oikonomia · Auditoría de madurez y plan de evolución · Octubre 2026</title>
+<style>
+  :root {
+    --bg: #f6f5f4;
+    --surface: #ffffff;
+    --surface-2: #f0efee;
+    --border: #dcd9d6;
+    --text: #1d1d1f;
+    --muted: #6b6a68;
+    --accent: #1c71d8;
+    --accent-soft: #e3effb;
+    --p1: #c01c28;
+    --p1-soft: #fbe7e9;
+    --p2: #b8830a;
+    --p2-soft: #fdf3dc;
+    --p3: #1b7f3e;
+    --p3-soft: #e4f5e8;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.04);
+    --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --surface: #1f2124;
+      --surface-2: #26292d;
+      --border: #34373c;
+      --text: #eceff2;
+      --muted: #a0a4aa;
+      --accent: #78aeed;
+      --accent-soft: #1e2c3d;
+      --p1: #ff7b72;
+      --p1-soft: #3a1f22;
+      --p2: #e5a50a;
+      --p2-soft: #3a3018;
+      --p3: #57e389;
+      --p3-soft: #1c3324;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Cantarell", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: var(--mono); font-size: .86em; background: var(--surface-2); padding: .1em .35em; border-radius: 5px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px 96px; }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 56px 0 28px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  h1 { font-size: clamp(28px, 4vw, 44px); line-height: 1.15; margin: 10px 0 14px; letter-spacing: -.02em; }
+  .lede { font-size: 18px; color: var(--muted); max-width: 78ch; margin: 0 0 26px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--muted); }
+  .meta b { color: var(--text); font-weight: 600; }
+
+  /* ---------- kpis ---------- */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 30px 0 8px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
+  .kpi .n { font-size: 30px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .kpi .l { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .kpi.p1 .n { color: var(--p1); }
+  .kpi.p2 .n { color: var(--p2); }
+  .kpi.p3 .n { color: var(--p3); }
+
+  /* ---------- sections ---------- */
+  section { margin-top: 52px; scroll-margin-top: 72px; }
+  h2 { font-size: 24px; letter-spacing: -.015em; margin: 0 0 6px; }
+  h3 { font-size: 17px; margin: 28px 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 20px; max-width: 80ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; box-shadow: var(--shadow); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+
+  /* ---------- nav ---------- */
+  nav.tabs {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; gap: 4px; overflow-x: auto;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 0; margin: 32px -28px 0;
+    padding-left: 28px; padding-right: 28px;
+  }
+  nav.tabs a {
+    padding: 7px 14px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+    color: var(--muted); white-space: nowrap;
+  }
+  nav.tabs a:hover { background: var(--surface-2); text-decoration: none; color: var(--text); }
+
+  /* ---------- findings ---------- */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0; }
+  .filters select, .filters input {
+    font: inherit; font-size: 13.5px; padding: 8px 12px; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  }
+  .filters input { min-width: 220px; flex: 1; }
+  .count { font-size: 13px; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+
+  .finding {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 10px; box-shadow: var(--shadow);
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 18px;
+  }
+  .finding:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+  .finding .title { font-weight: 650; font-size: 15px; letter-spacing: -.01em; }
+  .finding .id { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .finding .why { grid-column: 1 / -1; color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+  .finding .ev { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .finding .ev code { font-size: 11.5px; }
+  .finding .tags { display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; margin-top: 8px; align-items: center; }
+
+  .chip {
+    font-size: 11.5px; font-weight: 650; padding: 2px 9px; border-radius: 999px;
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .chip.P1 { background: var(--p1-soft); color: var(--p1); border-color: color-mix(in srgb, var(--p1) 35%, transparent); }
+  .chip.P2 { background: var(--p2-soft); color: var(--p2); border-color: color-mix(in srgb, var(--p2) 35%, transparent); }
+  .chip.P3 { background: var(--p3-soft); color: var(--p3); border-color: color-mix(in srgb, var(--p3) 35%, transparent); }
+  .chip.area { background: var(--surface-2); color: var(--muted); border-color: var(--border); }
+  .chip.size { background: transparent; color: var(--muted); border-color: var(--border); }
+
+  /* ---------- tables ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  td.num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- themes ---------- */
+  .theme { border-left: 3px solid var(--accent); padding-left: 16px; margin: 18px 0; }
+  .theme h4 { margin: 0 0 4px; font-size: 15.5px; }
+  .theme p { margin: 0; color: var(--muted); font-size: 13.5px; }
+
+  /* ---------- roadmap ---------- */
+  .phase { display: grid; grid-template-columns: 120px 1fr; gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .phase:last-child { border-bottom: 0; }
+  .phase .when { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--accent); }
+  .phase h4 { margin: 0 0 6px; font-size: 16px; }
+  .phase ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; }
+  .phase li { margin: 3px 0; }
+
+  .callout { border-left: 3px solid var(--p2); background: var(--p2-soft); padding: 14px 18px; border-radius: 0 10px 10px 0; font-size: 14px; margin: 18px 0; }
+  .callout.ok { border-color: var(--p3); background: var(--p3-soft); }
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--muted); }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px 64px; }
+    nav.tabs { margin: 24px -16px 0; padding-left: 16px; padding-right: 16px; }
+    .finding { grid-template-columns: 1fr; }
+    .phase { grid-template-columns: 1fr; gap: 6px; }
+  }
+  @media print {
+    nav.tabs, .filters { display: none; }
+    body { background: #fff; }
+    .card, .finding, .kpi { box-shadow: none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Oikonomia · Auditoría de producto · Octubre 2026</div>
+    <h1>De un producto que funciona a un producto que evoluciona</h1>
+    <p class="lede">
+      Inventario completo de frontend y backend, análisis profundo de los puntos de mayor riesgo,
+      documentación puesta al día y un programa de evolución priorizado por impacto en el usuario.
+      Todo hallazgo de este informe está respaldado por evidencia en el código.
+    </p>
+    <div class="meta">
+      <span><b>Repo</b> cheloim/perExp</span>
+      <span><b>Commit base</b> <code id="baseCommit">—</code></span>
+      <span><b>Fecha</b> 30 de octubre de 2026</span>
+      <span><b>Alcance</b> <span id="scopeLine">—</span></span>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+  </header>
+
+  <nav class="tabs">
+    <a href="#resumen">Resumen</a>
+    <a href="#evolucion">Evolutivos</a>
+    <a href="#ux">UX/UI</a>
+    <a href="#backend">Backend</a>
+    <a href="#deuda">Deuda técnica</a>
+    <a href="#docs">Documentación</a>
+    <a href="#plan">Plan</a>
+    <a href="#metodo">Método</a>
+  </nav>
+
+  <section id="resumen">
+    <h2>Resumen ejecutivo</h2>
+    <p class="sub">Qué encontramos, qué significa para el producto y qué hacemos primero.</p>
+    <div id="executive"></div>
+  </section>
+
+  <section id="evolucion">
+    <h2>Los cuatro evolutivos</h2>
+    <p class="sub">
+      No son arreglos sueltos: cada evolutivo agrupa trabajo de front, back y datos alrededor de un
+      resultado observable para el usuario.
+    </p>
+    <div id="themes"></div>
+  </section>
+
+  <section id="ux">
+    <h2>UX/UI y design system</h2>
+    <p class="sub" id="uxSub"></p>
+    <div id="uxFindings"></div>
+  </section>
+
+  <section id="backend">
+    <h2>Arquitectura y datos de backend</h2>
+    <p class="sub" id="backendSub"></p>
+    <div id="backendFindings"></div>
+  </section>
+
+  <section id="deuda">
+    <h2>Deuda técnica y quality gates</h2>
+    <p class="sub" id="debtSub"></p>
+    <div id="debtFindings"></div>
+  </section>
+
+  <section id="docs">
+    <h2>Documentación</h2>
+    <p class="sub" id="docsSub"></p>
+    <div id="docsContent"></div>
+    <h3 style="margin-top:34px">Huecos documentales</h3>
+    <div id="docsFindings"></div>
+  </section>
+
+  <section id="plan">
+    <h2>Plan de ejecución</h2>
+    <p class="sub">Secuenciado por dependencia real, no por comodidad. Un solo lote a la vez.</p>
+    <div id="planContent"></div>
+  </section>
+
+  <section id="metodo">
+    <h2>Método y límites</h2>
+    <div class="grid2" id="method"></div>
+  </section>
+
+  <footer id="footer"></footer>
+</div>
+
+<script>
+let DATA = window.__AUDIT__ || { findings: [], themes: [], plan: [], docs: [], kpis: {}, meta: {} };
+let F = DATA.findings || [];
+
+const AREA_LABEL = { frontend: "Frontend", backend: "Backend", docs: "Docs", debt: "Deuda" };
+const fmt = (n) => new Intl.NumberFormat("es-AR").format(n);
+
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html != null) e.innerHTML = html;
+  return e;
+}
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function findingCard(f) {
+  const card = el("article", "finding");
+  card.dataset.sev = f.sev;
+  card.dataset.area = f.area;
+  card.dataset.size = f.size || "";
+  card.dataset.text = JSON.stringify(f).toLowerCase();
+
+  card.appendChild(el("div", "title", `${esc(f.title)} <span class="id">${esc(f.id)}</span>`));
+  const sev = el("div");
+  sev.appendChild(el("span", `chip ${f.sev}`, f.sev));
+  card.appendChild(sev);
+  if (f.why) card.appendChild(el("div", "why", esc(f.why)));
+  if (f.evidence) card.appendChild(el("div", "ev", "Evidencia: " + f.evidence.map(e => `<code>${esc(e)}</code>`).join(" · ")));
+  const tags = el("div", "tags");
+  tags.appendChild(el("span", "chip area", AREA_LABEL[f.area] || f.area));
+  if (f.size) tags.appendChild(el("span", "chip size", "Tamaño " + f.size));
+  if (f.effort) tags.appendChild(el("span", "chip size", esc(f.effort)));
+  if (f.issue) { tags.appendChild(el("a", "", `<span class="chip area">Issue #${f.issue} ↗</span>`)); tags.lastChild.href = f.issueUrl; }
+  if (f.advisory) {
+    tags.appendChild(el("a", "", `<span class="chip P1">Advisory privado · ${esc(f.advisoryLabel)} ↗</span>`));
+    tags.lastChild.href = f.advisoryUrl;
+  }
+  card.appendChild(tags);
+  return card;
+}
+
+function renderFindings(containerId, area, subId, subtitle) {
+  const host = document.getElementById(containerId);
+  if (subId && subtitle) document.getElementById(subId).innerHTML = subtitle;
+  const items = F.filter(f => !area || f.area === area);
+  if (!items.length) { host.appendChild(el("p", "sub", "Sin hallazgos en esta área.")); return; }
+
+  const bar = el("div", "filters");
+  const q = el("input"); q.type = "search"; q.placeholder = "Buscar en los hallazgos…";
+  const selSev = el("select");
+  selSev.innerHTML = `<option value="">Toda severidad</option><option value="P1">P1 · bloqueante</option><option value="P2">P2 · importante</option><option value="P3">P3 · deseable</option>`;
+  const cnt = el("span", "count");
+  bar.append(q, selSev, cnt);
+  host.appendChild(bar);
+
+  const list = el("div");
+  const sorted = items.slice().sort((a, b) => ({ P1: 0, P2: 1, P3: 2 }[a.sev] - { P1: 0, P2: 1, P3: 2 }[b.sev]));
+  sorted.forEach(f => list.appendChild(findingCard(f)));
+  host.appendChild(list);
+
+  const apply = () => {
+    const term = q.value.trim().toLowerCase();
+    let visible = 0;
+    [...list.children].forEach(c => {
+      const okSev = !selSev.value || c.dataset.sev === selSev.value;
+      const okTerm = !term || c.dataset.text.includes(term);
+      const show = okSev && okTerm;
+      c.style.display = show ? "" : "none";
+      if (show) visible++;
+    });
+    cnt.textContent = `${visible} de ${sorted.length}`;
+  };
+  q.addEventListener("input", apply);
+  selSev.addEventListener("change", apply);
+  apply();
+}
+
+function renderKpis() {
+  const k = DATA.kpis || {};
+  const host = document.getElementById("kpis");
+  [
+    ["p1", k.p1, "Bloqueantes (P1)"],
+    ["p2", k.p2, "Importantes (P2)"],
+    ["p3", k.p3, "Deseables (P3)"],
+    ["", k.total, "Hallazgos totales"],
+    ["", k.epics, "Evolutivos / epics"],
+  ].forEach(([cls, n, label]) => {
+    const c = el("div", "kpi " + cls);
+    c.appendChild(el("div", "n", fmt(n ?? 0)));
+    c.appendChild(el("div", "l", label));
+    host.appendChild(c);
+  });
+}
+
+function renderThemes() {
+  const host = document.getElementById("themes");
+  (DATA.themes || []).forEach(t => {
+    const d = el("div", "theme");
+    d.appendChild(el("h4", "", `${esc(t.name)}${t.issue ? ` · <a href="${t.issueUrl}">#${t.issue} ↗</a>` : ""}`));
+    d.appendChild(el("p", "", `<b>Resultado:</b> ${esc(t.outcome)}<br><b>Métrica:</b> ${esc(t.metric)}`));
+    host.appendChild(d);
+  });
+}
+
+function renderExec() {
+  const host = document.getElementById("executive");
+  (DATA.executive || []).forEach(p => host.appendChild(el("p", "", p)));
+  (DATA.callouts || []).forEach(c => {
+    host.appendChild(el("div", "callout " + (c.kind || ""), `<b>${esc(c.title)}</b><br>${c.body}`));
+  });
+}
+
+function renderDocs() {
+  const host = document.getElementById("docs");
+  if (DATA.docsSub) document.getElementById("docsSub").innerHTML = DATA.docsSub;
+  const c = document.getElementById("docsContent");
+  (DATA.docs || []).forEach(d => {
+    const card = el("div", "card");
+    card.style.marginBottom = "14px";
+    card.appendChild(el("h3", "", esc(d.title)));
+    card.appendChild(el("div", "", d.body));
+    c.appendChild(card);
+  });
+}
+
+function renderPlan() {
+  const host = document.getElementById("planContent");
+  (DATA.plan || []).forEach(p => {
+    const row = el("div", "phase");
+    row.appendChild(el("div", "when", esc(p.when)));
+    const body = el("div");
+    body.appendChild(el("h4", "", esc(p.title)));
+    const ul = el("ul");
+    (p.items || []).forEach(i => ul.appendChild(el("li", "", i)));
+    body.appendChild(ul);
+    row.appendChild(body);
+    host.appendChild(row);
+  });
+}
+
+function renderMethod() {
+  const host = document.getElementById("method");
+  const blocks = DATA.method || [];
+  blocks.forEach(b => {
+    const c = el("div", "card");
+    c.appendChild(el("h3", "", esc(b.title)));
+    c.appendChild(el("div", "", b.body));
+    host.appendChild(c);
+  });
+}
+
+function boot() {
+  document.getElementById("baseCommit").textContent = (DATA.meta && DATA.meta.commit) || "—";
+  document.getElementById("scopeLine").textContent = (DATA.meta && DATA.meta.scope) || "—";
+  renderKpis();
+  renderExec();
+  renderThemes();
+  renderFindings("uxFindings", "frontend", "uxSub", DATA.meta && DATA.meta.uxSub);
+  renderFindings("backendFindings", "backend", "backendSub", DATA.meta && DATA.meta.backendSub);
+  renderFindings("debtFindings", "debt", "debtSub", DATA.meta && DATA.meta.debtSub);
+  renderDocs();
+  renderFindings("docsFindings", "docs");
+  renderPlan();
+  renderMethod();
+  document.getElementById("footer").innerHTML = (DATA.meta && DATA.meta.footer) || "";
+}
+if (window.__AUDIT__) boot();
+</script>
+
+<script id="audit-data" type="application/json">
+{
+ "meta": {
+  "commit": "333be7d",
+  "scope": "317 archivos TS/TSX · 122 Python · 23 routers · 214 endpoints · 71 documentos",
+  "uxSub": "36 hallazgos. Ocho pantallas analizadas a fondo y chequeos transversales de accesibilidad, estados, dinero y design system.",
+  "backendSub": "38 hallazgos. Siete módulos analizados a fondo, más contrato OpenAPI, multi-tenancy, migraciones y operación.",
+  "debtSub": "17 hallazgos de deuda transversal y 15 huecos de documentación.",
+  "footer": "Generado el 30 de octubre de 2026 sobre el commit <code>333be7d</code>. Análisis de solo lectura: no se modificó código de producto. Los hallazgos de seguridad están en <a href=\"https://github.com/cheloim/perExp/security/advisories\">Security Advisories privados</a>."
+ },
+ "kpis": {
+  "p1": 23,
+  "p2": 66,
+  "p3": 17,
+  "total": 106,
+  "epics": 4
+ },
+ "executive": [
+  "El producto no está en mal estado: los linters pasan, <b>711 tests</b> pasan, el contrato OpenAPI coincide en <b>214 de 214</b> operaciones y los campos con PII están cifrados. El problema es otro: <b>la app muestra números que no siempre son ciertos</b>, el login falla en caminos válidos, y la documentación describe un sistema que ya no existe.",
+  "La auditoría cubrió los 317 archivos de frontend y los 122 de backend con un inventario completo, y profundizó en 14 módulos críticos. Resultado: <b>106 hallazgos</b>, de los cuales <b>23 son P1</b>. Dieciséis de esos P1 se pueden arreglar sin rediseñar nada: son contradicciones concretas entre pantallas, permisos y cálculos.",
+  "El hallazgo más caro no es técnico: <b>un gasto en dólares consume presupuesto en pesos a valor nominal</b>, y las tres pantallas principales no coinciden sobre cuánto se gastó. En una app de finanzas, eso destruye la razón para usarla.",
+  "Además aparecieron <b>cinco vulnerabilidades</b> que no se publicaron como issues porque el repo es público. Están en Security Advisories privados y se detallan en la sección de seguridad."
+ ],
+ "callouts": [
+  {
+   "kind": "",
+   "title": "Acción inmediata antes de cualquier feature",
+   "body": "Tres cosas no deberían esperar al próximo sprint: (1) el seed de administrador con contraseña por defecto, (2) el bypass de MFA donde el token parcial abre toda la API, (3) la deduplicación de gastos sin <code>user_id</code>, que filtra existencia de datos entre usuarios. Los tres tienen advisory privado con remediación concreta."
+  },
+  {
+   "kind": "ok",
+   "title": "Lo que ya está bien y no hay que tocar",
+   "body": "Contrato OpenAPI sin gaps, cifrado de campos con HMAC para búsqueda, separación de servicios, CI con lint + types + tests + e2e + contrato, y un design system GNOME con tokens reales. La base es mejor de lo que sugiere la lista de hallazgos."
+  }
+ ],
+ "themes": [
+  {
+   "name": "1 · Confianza en los números",
+   "issue": 504,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/504",
+   "outcome": "Que el mismo mes muestre el mismo total en todas las pantallas, en la moneda correcta, y que nunca se muestre un cero por una falla de red.",
+   "metric": "Cero discrepancias en un test de consistencia entre Dashboard, Gastos y Presupuesto."
+  },
+  {
+   "name": "2 · Experiencia accesible y confiable",
+   "issue": 505,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/505",
+   "outcome": "Que se pueda usar con teclado y lector de pantalla, que el login no deje a nadie afuera, y que el admin no destruya nada con un click.",
+   "metric": "Cero violaciones axe críticas en las cuatro pantallas núcleo; login completo por teclado."
+  },
+  {
+   "name": "3 · Plataforma y operación",
+   "issue": 506,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/506",
+   "outcome": "Que agregar features no degrade la latencia ni la integridad, y que las fallas se vean antes que el usuario.",
+   "metric": "p95 de búsqueda y dashboard bajo 300 ms; import de 40k caracteres completo; cero jobs colgados."
+  },
+  {
+   "name": "4 · Documentación y conocimiento",
+   "issue": 507,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/507",
+   "outcome": "Que un dev nuevo levante el proyecto con el README y entienda una decisión sin preguntar.",
+   "metric": "Cero paths inexistentes citados en docs; un documento canónico por tema; gate en CI."
+  }
+ ],
+ "plan": [
+  {
+   "when": "Semana 0",
+   "title": "Contención de seguridad",
+   "items": [
+    "Rotar la credencial de Postgres commiteada y limpiar el DSN de tests.",
+    "Quitar el seed de admin del lifespan; crear admins por CLI.",
+    "Claim <code>scope</code> en el JWT y validación en <code>get_current_user</code>.",
+    "Agregar <code>user_id</code> al dedupe de gastos; unique parcial en base.",
+    "Cerrar el SSE con Redis pub/sub o patrón abrir-consultar-cerrar."
+   ]
+  },
+  {
+   "when": "Semanas 1-2",
+   "title": "Confianza en los números",
+   "items": [
+    "Servicio único de agregación por moneda y definición única de gasto (#508, #509).",
+    "Parser tipado de filtros y drilldowns que no pierden parámetros (#510).",
+    "Estados de carga/error/vacío en Dashboard, Gastos y Presupuesto (#511)."
+   ]
+  },
+  {
+   "when": "Semanas 3-4",
+   "title": "Acceso y accesibilidad",
+   "items": [
+    "Cerrar los flujos OAuth + MFA y Telegram (#514, #515).",
+    "Step-up y gate de rol en el admin (#516).",
+    "Teclado, formularios y diálogos accesibles (#517, #518)."
+   ]
+  },
+  {
+   "when": "Semanas 5-8",
+   "title": "Plataforma",
+   "items": [
+    "Import confiable y búsqueda sin full-scan (#522, #523).",
+    "Autorización multi-tenant centralizada (#524).",
+    "Migraciones reales, idempotencia de tareas y observabilidad (#527, #529, #526)."
+   ]
+  },
+  {
+   "when": "Continuo",
+   "title": "Documentación",
+   "items": [
+    "Matriz de autoridad y gate de CI (#531).",
+    "Refrescar specs y roadmap (#532).",
+    "Runbooks, SLOs y threat model (#533)."
+   ]
+  }
+ ],
+ "docs": [
+  {
+   "title": "El diagnóstico en una línea",
+   "body": "<p>Se inventariaron <b>71 documentos</b>: <b>24 vigentes</b>, <b>42 desactualizados</b> y <b>3 huérfanos</b>. Solo el contrato OpenAPI y el Roadmap tienen garantía mecánica; el resto puede mentir sin que CI lo note.</p><p>El caso más grave no es un documento viejo: es <code>Authentication.md</code> describiendo Apple Sign-In que no existe, y <code>Security.md</code> afirmando una columna <code>description_search</code> que nunca se implementó, mientras niega las cookies que sí se usan.</p>"
+  },
+  {
+   "title": "Qué se corrigió en este lote",
+   "body": "<ul><li><code>.env.example</code> y <code>docs/Configuration.md</code>: el quickstart vuelve a ser ejecutable.</li><li><code>docs/Authentication.md</code>, <code>Security.md</code>, <code>Key-Management.md</code>: alineados al código real.</li><li><code>docs/Frontend.md</code>, <code>Data-Model.md</code>, <code>API-Reference.md</code>: reemplazados por descripciones que coinciden con el repo.</li><li><code>docs/README.md</code>: matriz de autoridad, un tema = un documento canónico.</li><li><code>docs/Design-System.md</code> y <code>docs/Accessibility.md</code>: los dos huecos que bloqueaban el trabajo de UI.</li><li><code>docs/Migrations.md</code>: política expand/contract para dejar de improvisar.</li></ul>"
+  },
+  {
+   "title": "Qué queda como trabajo trackeado",
+   "body": "<p>Las 23 specs de features requieren una pasada completa y un gate que valide los paths citados: hoy 18 de 20 archivos referenciados no existen (#532). Los runbooks, SLOs y el threat model son trabajo nuevo, no una corrección (#533). Y la matriz de autoridad necesita el gate en CI para no volver a pudrirse (#531).</p>"
+  }
+ ],
+ "method": [
+  {
+   "title": "Qué se auditó",
+   "body": "<p>Inventario completo de <code>src/frontend/src</code> (317 archivos) y <code>src/backend/app</code> (122 archivos), más 71 documentos. Deep-dive de 7 módulos de frontend y 7 de backend, elegidos por tamaño, criticidad y superficie de falla.</p>"
+  },
+  {
+   "title": "Evidencia",
+   "body": "<p>Cada hallazgo cita <code>archivo:línea</code>. Los cinco P1 de seguridad y las afirmaciones más delicadas de documentación fueron verificadas leyendo el código directamente, no aceptando el reporte del subagente.</p>"
+  },
+  {
+   "title": "Baseline medido",
+   "body": "<p><code>ruff</code>, <code>mypy</code>, <code>tsc</code> y <code>prettier</code>: limpios. <code>pytest</code>: 711 passed, 1 skipped, 1.528 warnings. ESLint: 47 warnings, todos <code>no-explicit-any</code>. Causa raíz de la mayoría de las warnings: <b>51 usos de <code>datetime.utcnow()</code></b> en 18 archivos.</p>"
+  },
+  {
+   "title": "Límites",
+   "body": "<p>No se levantó la aplicación ni se inspeccionó en runtime: el juicio de UX se basa en código, specs e2e y tokens, no en capturas. No se introspeccionó PostgreSQL ni se midió cobertura real. No se validaron CVEs de dependencias ni la configuración de producción.</p>"
+  }
+ ],
+ "findings": [
+  {
+   "id": "FRONT-01",
+   "title": "Los totales suman ARS y USD a valor nominal",
+   "sev": "P1",
+   "impact": "5",
+   "prob": "5",
+   "size": "L",
+   "evidence": [
+    "Dashboard.tsx:459",
+    "src/backend/app/routers/dashboard.py:173"
+   ],
+   "why": "Un gasto de USD 100 puede consumir $100 de un presupuesto ARS y el \"Total gastado\" queda subestimado; decisiones de ahorro y deuda sobre números falsos",
+   "proposal": "Agrupar por moneda, convertir con tasa y fecha explícitas; nunca sumar `amount` de ARS y USD; presupuesto en ARS debe convertir o rechazar USD",
+   "area": "frontend",
+   "issue": 508,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/508"
+  },
+  {
+   "id": "FRONT-02",
+   "title": "\"Total\" de Gastos incluye ingresos y no coincide con el Dashboard",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "5",
+   "size": "M",
+   "evidence": [
+    "ExpensesPage.tsx:1086",
+    "src/backend/app/routers/expenses.py:854"
+   ],
+   "why": "Dos pantallas muestran totales distintos para el mismo mes y la dona llama \"gasto\" a un ingreso; el usuario deja de confiar en las cifras",
+   "proposal": "Excluir `is_income` de stats y breakdowns; rotular \"Gastos\" vs \"Ingresos\"; test de consistencia entre pantallas",
+   "area": "frontend",
+   "issue": 509,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/509"
+  },
+  {
+   "id": "FRONT-03",
+   "title": "Los drilldowns de KPIs y categorías pierden el filtro",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "5",
+   "size": "M",
+   "evidence": [
+    "Dashboard.tsx:555",
+    "Dashboard.tsx:564"
+   ],
+   "why": "\"Deuda tarjetas\" abre todos los gastos, una categoría de un mes pasado abre todos los meses y \"Ver comercio\" no busca nada; el usuario cree estar viendo un subconjunto que no es",
+   "proposal": "Un parser único de filtros con contrato tipado; tests de cada link; `month` como filtro de primera clase",
+   "area": "frontend",
+   "issue": 510,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/510"
+  },
+  {
+   "id": "FRONT-04",
+   "title": "MFA y force-change de Google OAuth quedan en callejón sin salida",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "OAuthCallbackPage.tsx:36-40",
+    "navigate(\"/login?mfa=1\", { state: { token } })",
+    "LoginPage.tsx:90-95"
+   ],
+   "why": "Quien tiene MFA no puede entrar con Google y quien debe cambiar contraseña la saltea o queda en el login; bloqueo total de la cuenta",
+   "proposal": "Un contrato único de callback; guardar token antes de navegar; manejar `force_change`; test e2e de ambos flujos",
+   "area": "frontend",
+   "issue": 514,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/514"
+  },
+  {
+   "id": "FRONT-05",
+   "title": "El callback de Telegram acepta un token por query y el frontend no valida <code>state</code>",
+   "sev": "P1",
+   "impact": "5",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "TelegramCallbackPage.tsx:21-23",
+    "LoginPage.tsx:196-204"
+   ],
+   "why": "Un enlace con el token de un atacante inicia sesión en la cuenta equivocada (session fixation) y deja el token en historial/referrer; riesgo directo sobre datos financieros",
+   "proposal": "Recibir el token por fragmento/cookie de un solo uso, validar `state` y caducidad, y no loguear la URL",
+   "area": "frontend",
+   "issue": 515,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/515"
+  },
+  {
+   "id": "FRONT-06",
+   "title": "Carga, error y vacío se muestran igual en las pantallas núcleo",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "5",
+   "size": "M",
+   "evidence": [
+    "Dashboard.tsx:160-164",
+    "Dashboard.tsx:459"
+   ],
+   "why": "Ante una caída de red la app muestra \"$ 0\", \"0 transacciones\" o \"No hay gastos\": el usuario cree que perdió datos o crea duplicados",
+   "proposal": "Estado por query con skeleton, error con \"Reintentar\" y vacío solo con dato resuelto; `ErrorBoundary` para render",
+   "area": "frontend",
+   "issue": 511,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/511"
+  },
+  {
+   "id": "FRONT-07",
+   "title": "Acciones admin destructivas sin re-auth ni confirmación",
+   "sev": "P1",
+   "impact": "5",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    "AdminPage.tsx:313",
+    ":319"
+   ],
+   "why": "Un admin distraído puede quitar un rol, impersonar o limpiar logs con un click; el daño es a otros usuarios y no se deshace",
+   "proposal": "Step-up de contraseña/MFA antes de rol, bloqueo, impersonación, flags y cleanup; confirmación con email; auditoría visible",
+   "area": "frontend",
+   "issue": 516,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/516"
+  },
+  {
+   "id": "FRONT-08",
+   "title": "Superficies clickeables no semánticas, inoperables por teclado",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "5",
+   "size": "M",
+   "evidence": [
+    "Dashboard.tsx:543-546",
+    "BudgetPage.tsx:109-112"
+   ],
+   "why": "Quien navega con teclado o lector de pantalla no puede abrir KPIs, categorías, eventos ni filas de gastos; pierde el flujo principal",
+   "proposal": "Usar `<button>`/`<Link>` o `role` + `tabIndex` + Enter/Espacio; acciones de fila con focus visible",
+   "area": "frontend",
+   "issue": 517,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/517"
+  },
+  {
+   "id": "FRONT-09",
+   "title": "Formularios y diálogos no cumplen el contrato de accesibilidad",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "5",
+   "size": "L",
+   "evidence": [
+    "ExpenseModals.tsx:479-497",
+    "LoginPage.tsx:300"
+   ],
+   "why": "El error de login no se anuncia, el campo de fecha no tiene nombre accesible y el teclado entra en un panel invisible; tareas básicas inaccesibles para lectores de pantalla",
+   "proposal": "`Field` con id/label/error/`aria-describedby`/`aria-invalid`; `Dialog` único con trap y restauración de foco; `inert`/`hidden` en drawers cerrados",
+   "area": "frontend",
+   "issue": 517,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/517"
+  },
+  {
+   "id": "FRONT-10",
+   "title": "El hilo del asistente sobrevive al logout en <code>localStorage</code>",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "useThread.ts:108-116",
+    "UserPanel.tsx:546-549"
+   ],
+   "why": "En una computadora compartida el siguiente usuario lee preguntas y respuestas con montos, categorías y deuda del anterior; fuga de datos financieros",
+   "proposal": "Borrar el hilo en logout/cambio de usuario, TTL corto y opt-in de persistencia; nunca guardar conversaciones con montos por defecto",
+   "area": "frontend",
+   "issue": 521,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/521"
+  },
+  {
+   "id": "FRONT-11",
+   "title": "Contraste insuficiente en colores de estado y texto atenuado",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "5",
+   "size": "S",
+   "evidence": [
+    "index.css:117",
+    ":118"
+   ],
+   "why": "Personas con baja visión no leen \"Cuidado\"/\"Alerta\" ni los labels de KPI; la app incumple WCAG 2.2 AA en las señales que avisan que se pasó del presupuesto",
+   "proposal": "Tokens `*-text` AA (>=4,5:1), no usar `dim-label` en texto <14 px, y estados con texto+ícono además de color",
+   "area": "frontend",
+   "issue": 518,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/518"
+  },
+  {
+   "id": "FRONT-12",
+   "title": "Borrado optimista escribe en una query key distinta de la activa",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    "ExpensesPage.tsx:232-235",
+    ":424-432"
+   ],
+   "why": "Al confirmar, la fila sigue visible y \"Deshacer\" no restaura nada; el feedback de una acción destructiva es incorrecto",
+   "proposal": "Extraer `expensesQueryKey(filters, visibleCount)` y usarla en query, optimista, undo y error; test de undo",
+   "area": "frontend",
+   "issue": 511,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/511"
+  },
+  {
+   "id": "FRONT-13",
+   "title": "<code>formatCurrency</code> duplica el símbolo en USD y convive con tres notaciones",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [
+    "utils/format.tsx:7-13",
+    "Assistant.tsx:45"
+   ],
+   "why": "El monto se lee mal y la app parece descuidada justo en el dato más sensible: cuánto dinero es",
+   "proposal": "Una sola función/format por moneda (`USD 1.234,50` o `US$ 1.234,50`), sin prefijo duplicado; snapshot test",
+   "area": "frontend",
+   "issue": 513,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/513"
+  },
+  {
+   "id": "FRONT-14",
+   "title": "El presupuesto tiene dos fuentes de \"presupuestado\"",
+   "sev": "P2",
+   "impact": "4",
+   "prob": "3",
+   "size": "M",
+   "evidence": [
+    "BudgetPage.tsx:1898-1900",
+    ":1993"
+   ],
+   "why": "\"Disponible\" puede decir una cosa y las filas otra; el usuario no sabe qué número mirar para decidir si puede gastar",
+   "proposal": "Un solo modelo: plan de grupos → límites por categoría reconciliados; etiquetar cada cifra (\"plan de ingresos\", \"límites por categoría\", \"comprometido\")",
+   "area": "frontend",
+   "issue": 513,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/513"
+  },
+  {
+   "id": "FRONT-15",
+   "title": "El 50/30/20 no explica su relación con ingresos, categorías ni moneda",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    "BudgetPage.tsx:2119-2153",
+    ":2155-2167",
+    ":1955"
+   ],
+   "why": "El usuario carga un ingreso sin saber para qué y después no encuentra esa relación; el modelo se percibe como una planilla arbitraria",
+   "proposal": "Onboarding que muestre ingresos → grupos → categorías con ejemplo y moneda; selector de mes; explicar 60/40 cuando Ahorro está apagado",
+   "area": "frontend",
+   "issue": 513,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/513"
+  },
+  {
+   "id": "FRONT-16",
+   "title": "No hay un período compartido entre pantallas",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "Dashboard.tsx:122-124",
+    "BudgetPage.tsx:1903"
+   ],
+   "why": "Dashboard muestra el mes, Gastos muestra todo el historial y Presupuesto el mes actual sin decirlo; comparar pantallas se vuelve imposible",
+   "proposal": "`PeriodContext` + `?month=` en todas las rutas; encabezado con el mes activo",
+   "area": "frontend",
+   "issue": 512,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/512"
+  },
+  {
+   "id": "FRONT-17",
+   "title": "El alta de gasto descarta cambios sin confirmar",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "ExpenseModals.tsx:115-119",
+    ":359"
+   ],
+   "why": "Un toque fuera del modal o Escape borra descripción, monto y cuotas recién tipeados; en mobile el backdrop es fácil de tocar",
+   "proposal": "Confirmar al cerrar con cambios; `ConfirmDialog` \"Descartar cambios\"; no cerrar por backdrop si está dirty",
+   "area": "frontend",
+   "issue": 513,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/513"
+  },
+  {
+   "id": "FRONT-18",
+   "title": "<code>Select</code> no es un combobox accesible y permite valores inválidos en filtros",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "ui/Select.tsx:199-220"
+   ],
+   "why": "Un lector de pantalla no entiende el desplegable y escribir texto libre en \"Categoría\" puede mandar <code>category_id=NaN</code>, dejando la lista vacía sin explicación",
+   "proposal": "`role=combobox/listbox` con `aria-*`, y `allowCustomValue={false}` en filtros; validar que el value sea una opción",
+   "area": "frontend",
+   "issue": 517,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/517"
+  },
+  {
+   "id": "FRONT-19",
+   "title": "263 coincidencias de texto de 9-11 px en datos financieros",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "M",
+   "evidence": [
+    "Dashboard.tsx:547",
+    "BudgetPage.tsx:390"
+   ],
+   "why": "Fechas, categorías, estados y montos se vuelven difíciles de leer en laptops y móviles; el usuario acerca la cara o se equivoca",
+   "proposal": "Escala mínima 12-14 px para datos, 16 px para montos; revisar densidad con `text-xs` como piso",
+   "area": "frontend",
+   "issue": 520,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/520"
+  },
+  {
+   "id": "FRONT-20",
+   "title": "20 clases CSS inválidas anidadas en Admin",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [
+    "AdminPage.tsx:63",
+    ":86",
+    ":175"
+   ],
+   "why": "Los textos del admin pierden su color y jerarquía; tablas y estados se leen planos y es más fácil confundir filas",
+   "proposal": "Reemplazar por `text-secondary`/`text-tertiary`; lint que detecte `var(--` dentro de `var(--`",
+   "area": "frontend",
+   "issue": 520,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/520"
+  },
+  {
+   "id": "FRONT-21",
+   "title": "Densidad y copy mezclado en la consola admin",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    "AdminPage.tsx:185-214",
+    ":291-329",
+    ":606"
+   ],
+   "why": "La consola se vuelve lenta de escanear y las acciones peligrosas quedan al lado de las inocuas; el mezclado de idioma resta confianza",
+   "proposal": "Reducir columnas, agrupar acciones en menú, unificar español (\"Configuración\", \"Indicadores\", \"fallos\")",
+   "area": "frontend",
+   "issue": 516,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/516"
+  },
+  {
+   "id": "FRONT-22",
+   "title": "<code>/x/:slug</code> no valida rol admin en el cliente",
+   "sev": "P2",
+   "impact": "4",
+   "prob": "3",
+   "size": "S",
+   "evidence": [
+    "App.tsx:512-519",
+    "<Route path=\"/x/:slug\" element={<RequireAuth><AdminPage /></RequireAuth>}>",
+    "AdminPage.tsx:159-160"
+   ],
+   "why": "Cualquier usuario logueado que adivine una URL ve la estructura del admin y una tabla vacía que parece un fallo; superficie de ingeniería social",
+   "proposal": "Gate por `currentUser.is_admin` y pantalla 403; no renderizar la consola si no es admin",
+   "area": "frontend",
+   "issue": 516,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/516"
+  },
+  {
+   "id": "FRONT-23",
+   "title": "La lista de transacciones del Dashboard se corta en 200 y filtra en cliente",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "Dashboard.tsx:173-179",
+    ":399-428",
+    ":770-782"
+   ],
+   "why": "En meses con más de 200 movimientos, una categoría puede parecer vacía o incompleta; el usuario concluye que no gastó",
+   "proposal": "Pedir al backend el filtro exacto o paginar; mostrar \"200 de N\"",
+   "area": "frontend",
+   "issue": 512,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/512"
+  },
+  {
+   "id": "FRONT-24",
+   "title": "La variación por categoría usa mes completo y el KPI usa MTD",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "Dashboard.tsx:467-476",
+    ":696-697"
+   ],
+   "why": "Dos porcentajes del mismo mes no coinciden; el usuario no sabe si gastó más o menos",
+   "proposal": "Usar el mismo `pickPrev` (MTD si el mes es actual) en leyenda y tooltip",
+   "area": "frontend",
+   "issue": 512,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/512"
+  },
+  {
+   "id": "FRONT-25",
+   "title": "El KPI de inversiones mezcla ARS y USD en dos cifras no equivalentes",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "Dashboard.tsx:341-353",
+    ":597-607"
+   ],
+   "why": "El patrimonio parece mayor/menor de lo que es y no se puede reconciliar con la pantalla de Inversiones",
+   "proposal": "Mostrar \"ARS X · USD Y\" por separado, o un total único con tasa y fecha; no usar \"≈\" para dos perímetros distintos",
+   "area": "frontend",
+   "issue": 508,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/508"
+  },
+  {
+   "id": "FRONT-26",
+   "title": "El orden y la paginación no cubren todo el filtro",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "M",
+   "evidence": [
+    "ExpensesPage.tsx:220",
+    ":232-235"
+   ],
+   "why": "Con 300 movimientos, ordenar por monto solo ordena los 100 visibles y \"Ver más\" agrega filas sin total; el usuario compara mal y la lista se vuelve pesada",
+   "proposal": "Sort server-side o sobre el dataset completo; virtualizar; paginación con total; `aria-sort`",
+   "area": "frontend",
+   "issue": 512,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/512"
+  },
+  {
+   "id": "FRONT-27",
+   "title": "Gráficos sin alternativa accesible",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    "Dashboard.tsx:647-670",
+    "ExpensesPage.tsx:1143-1188"
+   ],
+   "why": "Un lector de pantalla no puede leer la distribución por categoría ni la tendencia; la analítica queda reservada a quien ve el gráfico",
+   "proposal": "`role=img` + resumen textual, tabla de datos colapsable, y navegación por teclado en la leyenda",
+   "area": "frontend",
+   "issue": 519,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/519"
+  },
+  {
+   "id": "FRONT-28",
+   "title": "El asistente no anuncia respuestas y arrastra el scroll",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "AssistantShell.tsx:421-462",
+    ":88-90"
+   ],
+   "why": "Quien usa lector de pantalla no escucha la respuesta y quien relee una respuesta anterior es devuelto al final en cada chunk",
+   "proposal": "`role=log aria-live=polite`, anuncio por turno completo, autoscroll solo si el usuario está al final",
+   "area": "frontend",
+   "issue": 519,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/519"
+  },
+  {
+   "id": "FRONT-29",
+   "title": "Marca inconsistente entre auth, app y reset",
+   "sev": "P2",
+   "impact": "2",
+   "prob": "5",
+   "size": "S",
+   "evidence": [
+    "ResetPasswordPage.tsx:98",
+    "LoginPage.tsx:113-114",
+    "Sidebar.tsx:54-55"
+   ],
+   "why": "La pantalla de reset parece de otro producto y el logo cambia entre login y app; en un flujo sensible (recuperar cuenta) eso dispara desconfianza",
+   "proposal": "Un solo `BrandMark` con `APP_NAME` y monograma; usar en todas las superficies",
+   "area": "frontend",
+   "issue": 520,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/520"
+  },
+  {
+   "id": "FRONT-30",
+   "title": "La política de contraseña se descubre error por error",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "3",
+   "size": "S",
+   "evidence": [
+    "LoginPage.tsx:510-533",
+    ":621-623",
+    "ResetPasswordPage.tsx:57-75"
+   ],
+   "why": "El usuario prueba contraseñas a ciegas y abandona el registro o el reset; fricción evitable en un paso crítico",
+   "proposal": "Checklist en vivo (largo, mayúscula, minúscula, número, especial) y un solo submit",
+   "area": "frontend",
+   "issue": 514,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/514"
+  },
+  {
+   "id": "FRONT-31",
+   "title": "<code>Skeleton</code> no se usa y cada pantalla inventa su loading",
+   "sev": "P2",
+   "impact": "2",
+   "prob": "5",
+   "size": "S",
+   "evidence": [
+    "ui/Skeleton.tsx:13-23",
+    "ExpensesPage.tsx:1355-1379",
+    "BudgetPage.tsx:1929-1947"
+   ],
+   "why": "El layout salta entre pantallas y el usuario no sabe si la app está cargando o vacía; además hay código muerto que se mantiene",
+   "proposal": "Adoptar `Skeleton`/`SkeletonCard` en Dashboard, Expenses, Budget y Admin; unificar alturas",
+   "area": "frontend",
+   "issue": 520,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/520"
+  },
+  {
+   "id": "FRONT-32",
+   "title": "Strings hardcodeados y sin i18n",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "LoginPage.tsx:296",
+    "AdminPage.tsx:606"
+   ],
+   "why": "Impide corregir copy de forma consistente y traducir; cada texto nuevo se duplica entre pantallas",
+   "proposal": "Extraer catálogo de mensajes y helper `t()`; empezar por auth y admin",
+   "area": "frontend",
+   "issue": 520,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/520"
+  },
+  {
+   "id": "FRONT-33",
+   "title": "Export CSV sin progreso, error ni aviso de truncado",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "ExpensesPage.tsx:702-708"
+   ],
+   "why": "Si la exportación falla o se corta, el usuario cree que tiene todos sus datos y toma decisiones sobre un archivo incompleto",
+   "proposal": "Loading en el botón, toast de error y aviso \"se exportaron 10.000 de N\"",
+   "area": "frontend",
+   "issue": 512,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/512"
+  },
+  {
+   "id": "FRONT-34",
+   "title": "Cualquier URL desconocida cae en el Dashboard",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "App.tsx:531-538"
+   ],
+   "why": "Un link roto o un typo se ve como si la app hubiera ignorado la intención; el usuario no puede distinguir \"no existe\" de \"no tengo permiso\"",
+   "proposal": "Página 404 con enlace a Inicio/Gastos, o redirect explícito conservando la ruta",
+   "area": "frontend",
+   "issue": 511,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/511"
+  },
+  {
+   "id": "FRONT-35",
+   "title": "Borrado individual permite undo y el masivo dice que no se puede",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "ExpensesPage.tsx:447-465",
+    ":1921-1931"
+   ],
+   "why": "El usuario aprende que el borrado es reversible y después pierde 30 gastos sin red; la confianza en la acción se rompe",
+   "proposal": "Undo también para bulk (o confirmación más fuerte y copy consistente)",
+   "area": "frontend",
+   "issue": 511,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/511"
+  },
+  {
+   "id": "FRONT-36",
+   "title": "Admin inaccesible en mobile/tablet",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "AdminPage.tsx:60-68"
+   ],
+   "why": "Un admin que necesita desbloquear una cuenta desde el teléfono no puede; el mensaje además no reacciona a un resize",
+   "proposal": "Vista mobile de solo lectura (usuarios, logs, health) o mensaje con acción",
+   "area": "frontend",
+   "issue": 516,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/516"
+  },
+  {
+   "id": "BACK-01",
+   "title": "El token parcial de MFA es un access token pleno",
+   "sev": "P1",
+   "impact": "5",
+   "prob": "5",
+   "size": "S",
+   "evidence": [
+    "routers/auth.py:190-196",
+    ":200-206",
+    "services/auth.py:51-56"
+   ],
+   "why": "MFA deja de proteger nada: con la contraseña filtrada se entra igual, 5 minutos por login, renovables",
+   "proposal": "Agregar claim `scope` (`mfa_pending`, `pwd_change`) y exigir `scope == \"access\"` en `get_current_user`; rechazar tokens parciales en todos los endpoints menos `/auth/login/mfa` y `/auth/force-change-password`",
+   "area": "backend",
+   "advisory": "GHSA-x54h-5rqj-mh63",
+   "advisoryLabel": "bypass de MFA",
+   "advisoryUrl": "https://github.com/cheloim/perExp/security/advisories/GHSA-x54h-5rqj-mh63"
+  },
+  {
+   "id": "BACK-02",
+   "title": "Seed de administrador con password por defecto en el arranque",
+   "sev": "P1",
+   "impact": "5",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "main.py:97-105"
+   ],
+   "why": "Toma de control total de la plataforma si <code>SEED_USER_EMAIL</code>/<code>SEED_USER_PASSWORD</code> no están seteadas en el deploy",
+   "proposal": "Eliminar el seed del lifespan; crear admins por CLI/seed idempotente que exija `SEED_USER_PASSWORD` no vacía y `APP_ENV != production`",
+   "area": "backend",
+   "advisory": "GHSA-p86h-c2xv-j859",
+   "advisoryLabel": "admin por defecto",
+   "advisoryUrl": "https://github.com/cheloim/perExp/security/advisories/GHSA-p86h-c2xv-j859"
+  },
+  {
+   "id": "BACK-03",
+   "title": "Dedupe de gastos global, sin <code>user_id</code>",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "services/import_utils.py:79-105",
+    ":158-166",
+    "routers/expenses.py:215"
+   ],
+   "why": "Un usuario no puede cargar un gasto igual al de otro (409 o fila salteada) y puede deducir transacciones ajenas",
+   "proposal": "Recibir `user_id` (o `uid_list`) y filtrar en las tres ramas; agregar unique `(user_id, transaction_id)`",
+   "area": "backend",
+   "advisory": "GHSA-gwvx-c53m-33h4",
+   "advisoryLabel": "fuga entre tenants",
+   "advisoryUrl": "https://github.com/cheloim/perExp/security/advisories/GHSA-gwvx-c53m-33h4"
+  },
+  {
+   "id": "BACK-04",
+   "title": "El import trunca a 20.000 caracteres sin avisar",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    "services/smart_import_core.py:232",
+    ":470-475"
+   ],
+   "why": "Resúmenes largos se importan incompletos y el usuario cree que están todos sus consumos",
+   "proposal": "Chunkear el texto por páginas/bloques con solapamiento y merge de resultados; rechazar si `len(raw_text) > LIMIT` y el chunking falla",
+   "area": "backend",
+   "issue": 522,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/522"
+  },
+  {
+   "id": "BACK-05",
+   "title": "SSE de notificaciones retiene una conexión DB por cliente y consulta 2 veces/segundo",
+   "sev": "P1",
+   "impact": "5",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    "routers/notifications.py:346-380",
+    ":375",
+    "database.py:10-18"
+   ],
+   "why": "Con ~30 pestañas abiertas se agota el pool: el resto de la API empieza a dar 500 por <code>pool_timeout</code>",
+   "proposal": "Cambiar a notificaciones por Redis pub/sub (o LISTEN/NOTIFY) y abrir sesión sólo al publicar; si se mantiene el polling, patrón \"abrir-consultar-cerrar\" y ≥5 s",
+   "area": "backend",
+   "advisory": "GHSA-3p3m-cw22-v8wp",
+   "advisoryLabel": "agotamiento del pool",
+   "advisoryUrl": "https://github.com/cheloim/perExp/security/advisories/GHSA-3p3m-cw22-v8wp"
+  },
+  {
+   "id": "BACK-06",
+   "title": "Búsqueda de gastos descifra y materializa todos los registros del grupo",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "L",
+   "evidence": [
+    "services/expense_filters.py:138-152"
+   ],
+   "why": "Tipear en el buscador con 20k gastos tarda segundos y consume CPU/RAM del API",
+   "proposal": "Columna `description_norm`/`tsvector` con `pg_trgm` sobre HMAC o cifrado determinístico para búsqueda; o índice invertido externo",
+   "area": "backend",
+   "issue": 523,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/523"
+  },
+  {
+   "id": "BACK-07",
+   "title": "Dashboard carga historial completo sin cota y categorías de toda la tabla",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    "routers/dashboard.py:426-430",
+    ":1753-1761",
+    ":2200-2213"
+   ],
+   "why": "Primer render del dashboard lento y picos de memoria en usuarios grandes",
+   "proposal": "Reemplazar por `GROUP BY` en SQL para lo que se pueda y acotar la ventana de cuotas a 12-18 meses",
+   "area": "backend",
+   "issue": 523,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/523"
+  },
+  {
+   "id": "BACK-08",
+   "title": "<code>total_amount</code> mezcla ARS y USD; <code>by_period</code>/<code>trend</code> incluyen ingresos",
+   "sev": "P2",
+   "impact": "4",
+   "prob": "3",
+   "size": "M",
+   "evidence": [
+    "routers/dashboard.py:173",
+    ":186-197",
+    ":276-282"
+   ],
+   "why": "Números inconsistentes entre tarjetas del mismo dashboard y total inflado para quien gasta en USD",
+   "proposal": "Definir un único \"gasto\" (excluye ingresos, separa por moneda o convierte con TC explícita) en un servicio compartido y usarlo en summary/trend/analysis",
+   "area": "backend",
+   "issue": 508,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/508"
+  },
+  {
+   "id": "BACK-09",
+   "title": "Confirmación de import asigna categorías de otros tenants",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "routers/import_jobs.py:280",
+    ":299-301",
+    "services/smart_import_core.py:300"
+   ],
+   "why": "Gasto clasificado en la categoría de otra persona (nombre ajeno visible) y reportes propios mal agrupados",
+   "proposal": "Filtrar `Category.user_id == user.id` en ambas consultas y mapear por nombre sólo dentro del tenant",
+   "area": "backend",
+   "issue": 524,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/524"
+  },
+  {
+   "id": "BACK-10",
+   "title": "Escrituras que aceptan FKs de otro tenant (bulk update y presupuesto)",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "routers/expenses.py:651-679",
+    ":692-711",
+    "routers/budgets.py:258-261"
+   ],
+   "why": "Referencias cruzadas entre tenants y nombres de categorías ajenas en la respuesta",
+   "proposal": "Aplicar la misma validación de pertenencia que ya usa `update_expense_checked` (`services/expense_update.py:131-140`) a todo write con FK",
+   "area": "backend",
+   "issue": 524,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/524"
+  },
+  {
+   "id": "BACK-11",
+   "title": "Rate limit evitable con <code>X-Forwarded-For</code>",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [
+    "routers/auth.py:90-94",
+    "docker/nginx/nginx.conf:147",
+    "src/frontend/nginx.conf:27"
+   ],
+   "why": "Fuerza bruta de contraseñas y abuso de registro sin límite real",
+   "proposal": "Usar `request.client.host` o el último hop de XFF confiando sólo en el proxy; o `ProxyHeadersMiddleware` con lista de proxies",
+   "area": "backend",
+   "issue": 530,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/530"
+  },
+  {
+   "id": "BACK-12",
+   "title": "Rate limit sin timeout ni fail-open: Redis caído rompe el login",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "3",
+   "size": "S",
+   "evidence": [
+    "services/rate_limit.py:15",
+    ":32-52",
+    "services/cache.py:85-91"
+   ],
+   "why": "Si Redis tiene un hipo, nadie puede entrar a la app",
+   "proposal": "`socket_timeout`/`socket_connect_timeout`, try/except que loguee y permita (fail-open documentado) igual que el cache",
+   "area": "backend",
+   "issue": 530,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/530"
+  },
+  {
+   "id": "BACK-13",
+   "title": "JWT de 7 días no revocable (password reset y logout no invalidan)",
+   "sev": "P2",
+   "impact": "4",
+   "prob": "3",
+   "size": "M",
+   "evidence": [
+    "services/auth.py:51-56",
+    ":68-90",
+    "routers/auth.py:1129-1131"
+   ],
+   "why": "Token robado sigue sirviendo una semana aunque la víctima cambie la contraseña",
+   "proposal": "`token_version` en `User` incluida como claim; incrementarla en reset/change/logout-all; access token corto (15-60 min) + refresh",
+   "area": "backend",
+   "issue": 536,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/536"
+  },
+  {
+   "id": "BACK-14",
+   "title": "Sin rate limit ni cuota por usuario en endpoints LLM",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "routers/analysis.py:217",
+    "routers/categories.py:158-171",
+    "routers/import_jobs.py:33"
+   ],
+   "why": "Un usuario (o un script) agota el presupuesto mensual de IA y deja sin asistente a todos",
+   "proposal": "Agregar tipos `analysis`, `import`, `suggest` con límites por usuario y un budget por usuario además del global",
+   "area": "backend",
+   "issue": 525,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/525"
+  },
+  {
+   "id": "BACK-15",
+   "title": "El adaptador de Gemini ignora el timeout configurado",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "3",
+   "size": "S",
+   "evidence": [
+    "services/llm/google_adapter.py:32-34",
+    "services/llm/client.py:34",
+    ":389"
+   ],
+   "why": "Requests colgados, workers ocupados y timeouts del proxy en producción con Google",
+   "proposal": "Pasar `HttpOptions(timeout=...)` a `genai.Client` o envolver toda llamada en `asyncio.wait_for` en el cliente",
+   "area": "backend",
+   "issue": 525,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/525"
+  },
+  {
+   "id": "BACK-16",
+   "title": "Logs de aplicación con PII persistidos en claro",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    "telegram_bot.py:104",
+    ":368",
+    "services/categorization.py:371"
+   ],
+   "why": "Descripciones de compras, montos y emails quedan en una tabla sin cifrar y en logs del host",
+   "proposal": "Bajar a DEBUG, redactar descripción/monto/email antes de loguear y excluir `platform_logs` de los niveles con contenido de usuario",
+   "area": "backend",
+   "issue": 526,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/526"
+  },
+  {
+   "id": "BACK-17",
+   "title": "Import encolado por <code>BackgroundTasks</code> → Celery sin garantía",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "3",
+   "size": "S",
+   "evidence": [
+    "routers/import_jobs.py:66",
+    "tasks/import_processor.py:148-153",
+    "celery_app.py:10-29"
+   ],
+   "why": "Importaciones que quedan \"procesando\" para siempre si el broker falla o el worker no está",
+   "proposal": "Publicar directo a Celery desde el request con manejo de error (502 al usuario) y `autoretry_for` + backoff en la tarea; barrido que marque `FAILED` los `PROCESSING` viejos",
+   "area": "backend",
+   "issue": 522,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/522"
+  },
+  {
+   "id": "BACK-18",
+   "title": "Webhook WhatsApp sin idempotencia y con firma opcional",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    "routers/whatsapp_webhook.py:37-39",
+    ":108",
+    ":136-157"
+   ],
+   "why": "Gastos duplicados por reintentos de Meta y, sin secreto, cualquiera puede inyectar webhooks",
+   "proposal": "Exigir `WHATSAPP_APP_SECRET` en producción (fallar al arrancar), persistir `message_id` procesados con TTL y encolar en Celery en vez de `create_task`",
+   "area": "backend",
+   "issue": 529,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/529"
+  },
+  {
+   "id": "BACK-19",
+   "title": "<code>analysis</code> y <code>suggestions</code> no comparten la definición de \"mis gastos\"",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [
+    "routers/analysis.py:222",
+    "routers/expenses.py:125",
+    "routers/dashboard.py:153"
+   ],
+   "why": "El asistente responde con datos parciales en cuentas familiares y contradice el dashboard",
+   "proposal": "Un helper `scoped_user_ids(current_user, db)` usado por todos los endpoints de lectura",
+   "area": "backend",
+   "issue": 509,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/509"
+  },
+  {
+   "id": "BACK-20",
+   "title": "Tareas Celery sin lock distribuido (<code>acks_late</code> + <code>time_limit=600</code>)",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "3",
+   "size": "M",
+   "evidence": [
+    "celery_app.py:17",
+    ":25-26",
+    "tasks/scheduled_expenses.py:15-128"
+   ],
+   "why": "Reportes semanales/mensuales duplicados y cuotas ejecutadas dos veces si el worker muere a mitad",
+   "proposal": "Lock por tarea en Redis (o `celery_once`), `SELECT ... FOR UPDATE SKIP LOCKED` en cuotas, idempotency key por (usuario, período)",
+   "area": "backend",
+   "issue": 529,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/529"
+  },
+  {
+   "id": "BACK-21",
+   "title": "Confirmación de import no idempotente (sin lock de fila)",
+   "sev": "P3",
+   "impact": "3",
+   "prob": "2",
+   "size": "S",
+   "evidence": [
+    "routers/import_jobs.py:213-214",
+    ":287-462"
+   ],
+   "why": "Doble click = gastos duplicados",
+   "proposal": "`SELECT ... FOR UPDATE` del `ImportJob` y transición de estado antes de insertar",
+   "area": "backend",
+   "issue": 522,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/522"
+  },
+  {
+   "id": "BACK-22",
+   "title": "<code>except Exception</code> silencioso en 65 sitios; sólo 6 con traceback",
+   "sev": "P2",
+   "impact": "2",
+   "prob": "5",
+   "size": "M",
+   "evidence": [
+    "routers/auth.py:328-333"
+   ],
+   "why": "Fallas invisibles: el usuario ve datos incompletos y nadie se entera",
+   "proposal": "Regla de lint: `except` debe loguear con `logger.exception` o re-lanzar; silencios permitidos sólo con comentario y métrica",
+   "area": "backend",
+   "issue": 526,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/526"
+  },
+  {
+   "id": "BACK-23",
+   "title": "Migraciones inexistentes: <code>create_all</code> + índices al arrancar",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "3",
+   "size": "L",
+   "evidence": [
+    "main.py:68",
+    "add_indices.py:84-97"
+   ],
+   "why": "Esquema distinto entre ambientes, imposible revertir un deploy, DDL bloqueante al arrancar",
+   "proposal": "Adoptar Alembic en el deploy (una revisión baseline con el esquema real) y sacar `create_all`/`add_indices` del entrypoint",
+   "area": "backend",
+   "issue": 527,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/527"
+  },
+  {
+   "id": "BACK-24",
+   "title": "Sin versionado de API (<code>/v1</code>) ni exception handler global",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "3",
+   "size": "M",
+   "evidence": [
+    "main.py:152-188",
+    ":221-243",
+    "src/frontend/nginx.conf:24-25"
+   ],
+   "why": "Cambiar el contrato rompe a todos los clientes (web, bots, MiniApp) a la vez",
+   "proposal": "Prefijar `/v1` (nginx puede mantener `/api` como alias) y handler que devuelva `{code, message}` sin stack",
+   "area": "backend",
+   "issue": 527,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/527"
+  },
+  {
+   "id": "BACK-25",
+   "title": "Validación de email con DNS MX en el request path",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "3",
+   "size": "S",
+   "evidence": [
+    "app/schemas/common.py:57-58",
+    "schemas/auth.py:23-31"
+   ],
+   "why": "<code>forgot-password</code> (sin auth) puede colgarse segundos por request y saturar el threadpool",
+   "proposal": "Validación de formato en el request; MX/verificación en tarea de background",
+   "area": "backend",
+   "issue": 523,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/523"
+  },
+  {
+   "id": "BACK-26",
+   "title": "PII/secreto en artefactos de repo",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "3",
+   "size": "S",
+   "evidence": [
+    "tests/conftest.py:12"
+   ],
+   "why": "Credencial de Postgres de desarrollo/CI expuesta a cualquiera con acceso al repo",
+   "proposal": "Mover a variable de entorno sin default y rotar la credencial",
+   "area": "backend",
+   "advisory": "GHSA-9mpx-qm3j-6836",
+   "advisoryLabel": "credencial commiteada",
+   "advisoryUrl": "https://github.com/cheloim/perExp/security/advisories/GHSA-9mpx-qm3j-6836"
+  },
+  {
+   "id": "BACK-27",
+   "title": "Métricas Prometheus etiquetadas por <code>user_id</code> y recalculadas con full-scan",
+   "sev": "P2",
+   "impact": "2",
+   "prob": "5",
+   "size": "S",
+   "evidence": [
+    "metrics.py:42-54",
+    ":155-178",
+    "routers/expenses.py:496"
+   ],
+   "why": "<code>/metrics</code> crece sin límite (cardinalidad) y cada scrape recorre tablas enteras",
+   "proposal": "Reemplazar por agregados (`expenses_total` sin label de usuario) y contar por evento",
+   "area": "backend",
+   "issue": 526,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/526"
+  },
+  {
+   "id": "BACK-28",
+   "title": "<code>metrics</code> de negocio: solo se emiten algunos eventos",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "routers/expenses.py:496",
+    "services/llm/metrics.py:81-121"
+   ],
+   "why": "Decisiones de producto a ciegas sobre adopción de IA/import",
+   "proposal": "Cubrir imports, análisis y errores por feature con el mismo patrón",
+   "area": "backend",
+   "issue": 526,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/526"
+  },
+  {
+   "id": "BACK-29",
+   "title": "<code>openapi.generated.yaml</code> desactualizado (3 operaciones)",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "4",
+   "size": "S",
+   "evidence": [],
+   "why": "Cliente generado y docs divergen del código sin que el gate lo note",
+   "proposal": "Regenerar en CI y fallar si difiere, o no versionar el generado",
+   "area": "backend",
+   "issue": 527,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/527"
+  },
+  {
+   "id": "BACK-30",
+   "title": "God modules y lógica de negocio en routers",
+   "sev": "P2",
+   "impact": "2",
+   "prob": "5",
+   "size": "L",
+   "evidence": [],
+   "why": "Cada feature nueva toca archivos de miles de líneas: conflictos, regresiones y tests imposibles",
+   "proposal": "Extraer servicios por caso de uso (import, summary, notificaciones) e inyectar sesión/repositorio en los handlers del bot",
+   "area": "backend",
+   "issue": 528,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/528"
+  },
+  {
+   "id": "BACK-31",
+   "title": "Doble poller de Telegram por default y estado de WhatsApp en memoria",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "3",
+   "size": "M",
+   "evidence": [
+    "main.py:129-137",
+    "docker/docker-compose.platform.yml:43",
+    "whatsapp_bot.py:45-46"
+   ],
+   "why": "Un entorno sin <code>TELEGRAM_BOT_ENABLED=false</code> compite por updates con el bot real; un deploy pierde conversaciones de WhatsApp a medias",
+   "proposal": "Alinear el default a `false` (el bot ya tiene su contenedor) y mover el estado de conversación de WhatsApp a Redis",
+   "area": "backend",
+   "issue": 529,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/529"
+  },
+  {
+   "id": "BACK-32",
+   "title": "Importes parseados con <code>float(\"1.234,56\")</code> → fila descartada",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "3",
+   "size": "S",
+   "evidence": [
+    "services/smart_import_core.py:266-273",
+    ":309-315",
+    "routers/import_jobs.py:315-321"
+   ],
+   "why": "Transacciones que desaparecen del import sin mensaje",
+   "proposal": "Normalizador único de importes (es-AR/en-US, separador de miles) con tests de tabla",
+   "area": "backend",
+   "issue": 522,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/522"
+  },
+  {
+   "id": "BACK-33",
+   "title": "Tope de página ausente y sin total en <code>/expenses</code>",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "routers/expenses.py:121",
+    ":159"
+   ],
+   "why": "Clientes piden todo; p95 y memoria impredecibles",
+   "proposal": "`limit: int = Query(200, le=500)` y envelope `{items, total}`",
+   "area": "backend",
+   "issue": 534,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/534"
+  },
+  {
+   "id": "BACK-34",
+   "title": "<code>POST /import-jobs</code> guarda hasta 10 MB en la fila y los retiene si falla",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "routers/import_jobs.py:43-62",
+    "models/imports.py:32",
+    "tasks/import_processor.py:97"
+   ],
+   "why": "Crecimiento de la tabla y backups lentos",
+   "proposal": "Guardar en object storage o en `/tmp` con TTL y borrar en `finally`",
+   "area": "backend",
+   "issue": 534,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/534"
+  },
+  {
+   "id": "BACK-35",
+   "title": "Chequeos de unicidad globales fuera del tenant",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "3",
+   "size": "S",
+   "evidence": [
+    "routers/cards.py:203-209",
+    "routers/accounts.py:181-187"
+   ],
+   "why": "Mensajes de error que revelan configuración de otras cuentas",
+   "proposal": "Agregar `user_id` a esos filtros",
+   "area": "backend",
+   "issue": 524,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/524"
+  },
+  {
+   "id": "BACK-36",
+   "title": "Token de impersonation declarado pero inexistente",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "3",
+   "size": "S",
+   "evidence": [
+    "main.py:201",
+    "models/admin.py:58"
+   ],
+   "why": "Superficie de confusión: parece existir un mecanismo de suplantación que no está implementado",
+   "proposal": "Eliminar el header del CORS y la columna, o implementar el flujo con consentimiento y TTL",
+   "area": "backend",
+   "issue": 516,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/516"
+  },
+  {
+   "id": "BACK-37",
+   "title": "<code>suggestions.approve</code> no verifica que el gasto sea del usuario",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "2",
+   "size": "S",
+   "evidence": [
+    "routers/suggestions.py:106-109"
+   ],
+   "why": "Defensa en profundidad: si una sugerencia quedara mal referenciada, escribe sobre datos ajenos",
+   "proposal": "`filter(Expense.id == ..., Expense.user_id == current_user.id)`",
+   "area": "backend",
+   "issue": 524,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/524"
+  },
+  {
+   "id": "BACK-38",
+   "title": "Dedupe por igualdad de <code>Float</code> y ausencia de unique en DB",
+   "sev": "P3",
+   "impact": "3",
+   "prob": "2",
+   "size": "M",
+   "evidence": [
+    "models/financial.py:75",
+    "services/import_utils.py:160-163"
+   ],
+   "why": "Duplicados imposibles de detectar por redondeo y por concurrencia",
+   "proposal": "`Numeric(12,2)` + unique `(user_id, transaction_id)` parcial",
+   "area": "backend",
+   "issue": 200,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/200"
+  },
+  {
+   "id": "DEBT-01",
+   "title": "Estrategia de migraciones inexistente: <code>create_all</code> + Alembic no-op + scripts ad-hoc",
+   "sev": "P1",
+   "impact": "5",
+   "prob": "5",
+   "size": "L",
+   "evidence": [
+    "main.py:68",
+    "alembic/versions/000000000001_baseline.py:1-27",
+    "migrations.yml:51-140"
+   ],
+   "why": "",
+   "proposal": "Elegir un solo mecanismo (Alembic real), crear baseline desde el esquema actual, prohibir `create_all` en prod, documentar expand/contract y rollback",
+   "area": "debt",
+   "issue": 527,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/527"
+  },
+  {
+   "id": "DEBT-02",
+   "title": "Drift documental sin gate: solo OpenAPI y Roadmap se validan",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "5",
+   "size": "M",
+   "evidence": [
+    "ci.yml:175-228"
+   ],
+   "why": "",
+   "proposal": "Agregar checks de links, paths citados, status de specs y docs “vigente/verificado”; unificar fuente por tema",
+   "area": "debt",
+   "issue": 531,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/531"
+  },
+  {
+   "id": "DEBT-03",
+   "title": "Autorización dispersa y scoping de grupo duplicado con semántica distinta",
+   "sev": "P1",
+   "impact": "5",
+   "prob": "4",
+   "size": "L",
+   "evidence": [
+    "group_helpers.py:22-40",
+    "budget_helpers.py:39-50"
+   ],
+   "why": "",
+   "proposal": "Extraer un `access.py`/policy layer, un solo `get_group_user_ids`, tests de ownership por router",
+   "area": "debt",
+   "issue": 524,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/524"
+  },
+  {
+   "id": "DEBT-04",
+   "title": "Módulos monolíticos",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "5",
+   "size": "L",
+   "evidence": [],
+   "why": "",
+   "proposal": "Partir por caso de uso; mover queries a servicios; límite de tamaño en review",
+   "area": "debt",
+   "issue": 528,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/528"
+  },
+  {
+   "id": "DEBT-05",
+   "title": "<code>except Exception</code> como patrón (175 casos)",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "4",
+   "size": "M",
+   "evidence": [],
+   "why": "",
+   "proposal": "Excepciones específicas + logging con contexto; `ruff` BLE001 obligatorio; tests de caminos de error",
+   "area": "debt",
+   "issue": 526,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/526"
+  },
+  {
+   "id": "DEBT-06",
+   "title": "Cobertura backend insuficiente y sin medición",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "5",
+   "size": "L",
+   "evidence": [],
+   "why": "",
+   "proposal": "Priorizar MFA, imports, WhatsApp, authz; agregar coverage con umbral por área",
+   "area": "debt",
+   "issue": 535,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/535"
+  },
+  {
+   "id": "DEBT-07",
+   "title": "Pirámide de tests invertida: 8 e2e para ~26 rutas y 22 unit tests frontend para 317 archivos",
+   "sev": "P1",
+   "impact": "4",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    "App.tsx:433-532"
+   ],
+   "why": "",
+   "proposal": "E2E de humo por flujo crítico (login, import, gasto, budget, grupo); unit tests de páginas y hooks",
+   "area": "debt",
+   "issue": 535,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/535"
+  },
+  {
+   "id": "DEBT-08",
+   "title": "Specs de features como mapa de implementación podrido",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "M",
+   "evidence": [],
+   "why": "",
+   "proposal": "Separar “comportamiento” de “archivos”; validar `path:` en CI; archivar specs obsoletas o actualizarlas",
+   "area": "debt",
+   "issue": 532,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/532"
+  },
+  {
+   "id": "DEBT-09",
+   "title": "<code>API-Reference.md</code> manual duplica y contradice a OpenAPI",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "",
+   "proposal": "Generar la referencia desde `openapi.yaml` o eliminar el doc y enlazar Swagger/Redoc",
+   "area": "debt",
+   "issue": 532,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/532"
+  },
+  {
+   "id": "DEBT-10",
+   "title": "Onboarding roto: <code>.env.example</code> y script de migración inexistentes; pytest no está en requirements",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [
+    "README.md:75,81",
+    "Deployment.md:19,63",
+    "ci.yml:101-102"
+   ],
+   "why": "",
+   "proposal": "Crear `.env.example`, script de bootstrap real, incluir `requirements-dev.txt`",
+   "area": "debt",
+   "issue": 532,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/532"
+  },
+  {
+   "id": "DEBT-11",
+   "title": "Dependencias parcialmente sin pin y doc de versiones desactualizada",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "M",
+   "evidence": [
+    ":6,8-17,25-27"
+   ],
+   "why": "",
+   "proposal": "Lock de Python (`uv`/`pip-tools`), pin exacto, actualizar `tech-stack.md` desde los manifests",
+   "area": "debt",
+   "issue": 534,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/534"
+  },
+  {
+   "id": "DEBT-12",
+   "title": "Supresiones de lint/tipos que tapan deuda",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "M",
+   "evidence": [],
+   "why": "",
+   "proposal": "Reducir supresiones por área; activar códigos mypy gradualmente; registrar cada `noqa` con motivo",
+   "area": "debt",
+   "issue": 534,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/534"
+  },
+  {
+   "id": "DEBT-13",
+   "title": "Cliente API generado muerto y duplicado",
+   "sev": "P2",
+   "impact": "2",
+   "prob": "5",
+   "size": "M",
+   "evidence": [],
+   "why": "",
+   "proposal": "Borrar `client-generated.ts` + `types/generated` o migrar el frontend al cliente generado; no mantener ambos",
+   "area": "debt",
+   "issue": 532,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/532"
+  },
+  {
+   "id": "DEBT-14",
+   "title": "Artefactos generados y estado de runtime commiteados",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "4",
+   "size": "S",
+   "evidence": [],
+   "why": "",
+   "proposal": "`git rm --cached` de schedules; agregar `celerybeat-schedule*` a `.gitignore`; acotar `*.txt`",
+   "area": "debt",
+   "issue": 531,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/531"
+  },
+  {
+   "id": "DEBT-15",
+   "title": "Dos schedulers y calendario de feriados con vencimiento",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "4",
+   "size": "S",
+   "evidence": [
+    "scheduler.py:95-116",
+    "celery_schedule.py:22-80",
+    "scheduler.py:21-59"
+   ],
+   "why": "",
+   "proposal": "Unificar en Celery; calendario configurable o fuente externa; test de frontera de año",
+   "area": "debt",
+   "issue": 529,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/529"
+  },
+  {
+   "id": "DEBT-16",
+   "title": "Ambigüedad de fuente de verdad documental",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "3",
+   "size": "M",
+   "evidence": [],
+   "why": "",
+   "proposal": "Matriz de autoridad (tema → doc canónico → owner), redirects para docs históricos",
+   "area": "debt",
+   "issue": 531,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/531"
+  },
+  {
+   "id": "DEBT-17",
+   "title": "Scripts legacy y one-off sin inventario",
+   "sev": "P3",
+   "impact": "2",
+   "prob": "3",
+   "size": "S",
+   "evidence": [],
+   "why": "",
+   "proposal": "`docs/scripts.md` con owner, vigencia y comando; mover one-offs a `scripts/archive/`",
+   "area": "debt",
+   "issue": 534,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/534"
+  },
+  {
+   "id": "DOCS-01",
+   "title": "Referencia de configuración y entornos (<code>.env.example</code>, matriz de variables, secretos Podman)",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "El quickstart no se puede seguir; 12 secretos y decenas de env vars dispersas",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 531,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/531"
+  },
+  {
+   "id": "DOCS-02",
+   "title": "Política de migraciones y schema (expand/contract, backfill, rollback, ventanas)",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "Hoy conviven <code>create_all</code>, Alembic no-op y scripts propios; riesgo de drift irrecuperable",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 527,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/527"
+  },
+  {
+   "id": "DOCS-03",
+   "title": "Threat model + mapa de datos personales",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "Hay cifrado de campos y borrado de cuenta, pero no modelo de atacante, límites ni retención",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 533,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/533"
+  },
+  {
+   "id": "DOCS-04",
+   "title": "ADRs (decisiones de arquitectura)",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "Decisiones clave viven en comentarios de código e issues; no hay registro ni índice",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 531,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/531"
+  },
+  {
+   "id": "DOCS-05",
+   "title": "Runbook de incidentes / rollback / restauración",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "<code>Deployment.md</code> explica restaurar un dump, pero no qué hacer si falla DB, Redis, Celery, deploy o secreto",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 533,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/533"
+  },
+  {
+   "id": "DOCS-06",
+   "title": "SLO/SLI, error budget y ownership de alertas",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "Monitoring lista métricas y alertas, pero no objetivos ni quién responde",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 533,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/533"
+  },
+  {
+   "id": "DOCS-07",
+   "title": "Design system / guía UI",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "Los tokens y reglas de contraste viven solo en <code>index.css</code>; no hay inventario de componentes ni guía de uso",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 520,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/520"
+  },
+  {
+   "id": "DOCS-08",
+   "title": "Guía de accesibilidad general",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "Solo existe el contrato del asistente; no hay WCAG objetivo ni checklist para el resto de la app",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 517,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/517"
+  },
+  {
+   "id": "DOCS-09",
+   "title": "<code>CONTRIBUTING.md</code>, <code>CODEOWNERS</code>, <code>SECURITY.md</code>",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "No hay proceso de contribución, ownership por área ni canal de reporte de seguridad",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 531,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/531"
+  },
+  {
+   "id": "DOCS-10",
+   "title": "Referencia de modelo de datos generada",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "Dos ERD manuales incompletos; el esquema real son 28 tablas",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 532,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/532"
+  },
+  {
+   "id": "DOCS-11",
+   "title": "Referencia de API generada desde OpenAPI",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "<code>API-Reference.md</code> manual tiene 23/90 endpoints falsos; el contrato OpenAPI ya es exacto",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 532,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/532"
+  },
+  {
+   "id": "DOCS-12",
+   "title": "Proceso de release/changelog",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "Los cambios de usuario viven en <code>data/changes.ts</code>; no hay política de versionado, release notes ni migración de “what’s new”",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 532,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/532"
+  },
+  {
+   "id": "DOCS-13",
+   "title": "Guía de observabilidad de negocio y costo LLM",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "<code>AI-Integration.md</code> y <code>Monitoring.md</code> tienen piezas, pero no un runbook de métricas/costos",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 533,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/533"
+  },
+  {
+   "id": "DOCS-14",
+   "title": "Docs de dominio faltantes",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "No hay doc de Tags/Clasificación, Notifications, Recurring, Capture/Voice, Admin/Impersonation",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 532,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/532"
+  },
+  {
+   "id": "DOCS-15",
+   "title": "Política de privacidad/datos y DSAR",
+   "sev": "P2",
+   "impact": "3",
+   "prob": "5",
+   "size": "S",
+   "evidence": [],
+   "why": "Hay borrado de cuenta y callback de Meta, pero no retención, exportación ni base legal",
+   "proposal": "Crear el documento faltante y enlazarlo desde la matriz de autoridad.",
+   "area": "docs",
+   "issue": 533,
+   "issueUrl": "https://github.com/cheloim/perExp/issues/533"
+  }
+ ]
+}
+</script>
+<script>
+  (function () {
+    const node = document.getElementById("audit-data");
+    try { window.__AUDIT__ = JSON.parse(node.textContent); } catch (e) { console.error("audit data", e); }
+    DATA = window.__AUDIT__;
+    F = DATA.findings || [];
+    // re-render with real data
+    document.querySelectorAll("#kpis, #executive, #themes, #uxFindings, #backendFindings, #debtFindings, #docsContent, #docsFindings, #planContent, #method, #footer").forEach(n => n.innerHTML = "");
+    boot();
+  })();
+</script>
+</body>
+</html>

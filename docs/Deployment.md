@@ -16,7 +16,7 @@ git clone https://github.com/cheloim/perExp.git
 cd perExp
 
 # Create secrets
-cp .env.example .env
+cp .env.example .env   # y luego ./scripts/setup-secrets.sh <env>
 # Edit .env with your values
 
 # Start all services
@@ -43,7 +43,7 @@ podman-compose up -d
 Both backend and frontend support hot reload via volume mounts:
 
 ```yaml
-# Backend: ./backend/app:/app/app
+# Backend: ./src/backend/app:/app/app
 # Frontend: ./frontend/src:/app/src
 ```
 
@@ -60,6 +60,7 @@ podman-compose restart backend_dev
 podman-compose build backend_dev && podman-compose up -d backend_dev
 
 # Run migrations
+# El esquema se crea al arrancar (create_all). Para migraciones formales ver docs/Migrations.md
 podman-compose exec backend_dev alembic upgrade head
 
 # Access database
@@ -258,8 +259,8 @@ repo: 13 reglas cargadas, contact point y política raíz correctos, sin errores
 | ---------------------- | ----------------------------- | ------------------------------------ |
 | Daily 2:00 AM UTC      | `execute_due_installments`    | Execute pending scheduled expenses   |
 | Daily 3:30 AM UTC      | `cleanup_expired_import_jobs` | Delete import jobs older than 24h    |
-| Sunday 23:00 UTC       | `send_weekly_reports`         | Generate weekly spending reports     |
-| 1st of month 23:00 UTC | `generate_monthly_reports`    | Generate previous month reports      |
+| Monday 01:30 UTC       | `send_weekly_reports`         | Generate weekly spending reports     |
+| 1st of month 03:00 UTC | `generate_monthly_reports`    | Generate previous month reports      |
 | Hourly                 | `reconcile_grafana_admins`    | Grafana users follow the `is_admin` flag |
 
 ### Report Failure Handling
