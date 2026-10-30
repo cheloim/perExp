@@ -73,6 +73,14 @@ Track credit card billing cycles:
 
 ## AI Features
 
+### Voice Input — en implementación
+
+Transcribe audio corto al composer para que la persona revise el texto antes de enviarlo.
+
+### Escaneo de comprobantes — en implementación
+
+Extrae un borrador de gasto desde una imagen de un único pago completado, para revisar antes de guardar.
+
 ### Financial Analysis Chat
 
 Chat with AI about your expenses:

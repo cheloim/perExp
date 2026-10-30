@@ -1,0 +1,104 @@
+feature: expense-image-capture
+domain: Expense Capture
+type: full
+version: "1.0"
+status: planned
+owner: full-stack
+created: 2026-10-30
+updated: 2026-10-30
+github_issue: 499
+
+description: >
+  Extracts a single completed expense from a receipt, bank notification,
+  transaction detail, or wallet payment image and returns a user-reviewable draft.
+
+requirements:
+  functional:
+    - id: FR-1
+      requirement: Extract amount, currency, merchant, date, source type, confidence, and card hint when visible
+      priority: must
+    - id: FR-2
+      requirement: Accept a receipt with many line items when it has one clear final total
+      priority: must
+    - id: FR-3
+      requirement: Reject lists without payment proof, multiple transactions, credits, pending payments, and balance-only screens
+      priority: must
+    - id: FR-4
+      requirement: Return a draft only; saving requires an explicit user action
+      priority: must
+  non_functional:
+    - id: NFR-1
+      requirement: Accept JPEG, PNG, and WebP up to 8 MB, 20 megapixels, and 1600 pixels per side; reject HEIC in v1
+      priority: must
+    - id: NFR-2
+      requirement: Strip EXIF and never persist image bytes or content in database, filesystem, or logs
+      priority: must
+
+pre_evaluation:
+  dependencies:
+    - OpenAI vision capability and configured LLM_API_KEY
+    - Pillow for in-memory normalization
+  api_changes:
+    - POST /capture/expense-image (authenticated multipart upload)
+  ui_changes:
+    - Receipt scan action, rejection banner, and expense form prefill
+  migration_needed: false
+  risks:
+    - A visible account balance could be mistaken for a transaction amount
+    - Screens with several payments must not silently select one of them
+
+users:
+  - role: authenticated_user
+    can: [request_receipt_extraction, review_expense_draft, save_expense]
+
+endpoints:
+  - method: POST
+    path: /capture/expense-image
+    auth: required
+    request: multipart file and optional hint
+    response: "{status, draft, reason, message}"
+    errors: [400, 401, 413, 429, 502, 503]
+
+business_rules:
+  - name: Single completed debit
+    description: Only one completed expense transaction with one final paid total can produce a draft.
+  - name: Multiple receipt items
+    description: Many line items are valid when there is one unambiguous final total; multiple transactions or candidate totals are rejected.
+  - name: Transaction amount versus balance
+    description: Extract the transaction amount, never an account balance, limit, subtotal, or savings amount.
+  - name: Reject non-expenses
+    description: Credits, incoming transfers, pending, rejected, failed, or unpaid QR payments are rejected.
+  - name: Transient image
+    description: Images are normalized in memory, sent to OpenAI, and never stored by the application.
+
+integrations:
+  - name: OpenAI Vision API
+    type: llm
+    description: Extracts structured payment-proof data through the existing LLM facade.
+    config:
+      provider: openai
+      model_env: LLM_VISION_MODEL
+      model_default: LLM_MODEL_NAME
+      api_key_env: LLM_API_KEY
+
+migrations: []
+
+tests:
+  - name: Single-total supermarket receipt is accepted
+    type: unit
+    expected: Many receipt items plus one final total produce a draft for that total.
+  - name: Multiple transactions are rejected
+    type: unit
+    expected: No payment is selected when the image contains several transactions or tickets.
+  - name: Credit and incomplete payments are rejected
+    type: unit
+    expected: Incoming transfers, pending payments, failed payments, and unpaid QR codes do not produce drafts.
+  - name: Balance-only content is rejected
+    type: unit
+    expected: An account balance or limit is never returned as an expense amount.
+
+documentation:
+  - type: api
+    description: Capture endpoint and response taxonomy are defined in OpenAPI.
+  - type: privacy
+    description: Images are transient and are not stored by the application.

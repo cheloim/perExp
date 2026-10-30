@@ -157,6 +157,7 @@ Implementation: **Redis-based** (custom, not slowapi)
 | `register`       | 3           | 300s     |
 | `forgot_password`| 3           | 300s     |
 | `mfa`            | 5           | 300s     |
+| `capture`        | 60          | 3600s    |
 
 Key format: `rate_limit:{type}:{identifier}` (identifier = IP for login/register, `user:{id}` for MFA)
 
@@ -201,9 +202,9 @@ Secrets are mounted into containers at `/run/secrets/` by Podman.
 |---------------------------------------|--------------------------------|
 | `SECRET_KEY`                          | JWT signing + Fernet key derivation + HMAC |
 | `POSTGRES_PASSWORD`                   | Database password              |
-| `LLM_API_KEY`                         | Gemini API for expense parsing |
-| `INVESTMENTS_LLM_API_KEY`             | Gemini API for investment analysis |
-| `MESSAGES_BOT_LLM_API_KEY`            | Gemini API for bot messages    |
+| `LLM_API_KEY`                         | OpenAI text, vision, and audio capture |
+| `INVESTMENTS_LLM_API_KEY`             | Investment analysis LLM key   |
+| `MESSAGES_BOT_LLM_API_KEY`            | Telegram/WhatsApp text LLM key |
 | `TELEGRAM_BOT_TOKEN`                  | Telegram Bot API token         |
 | `GOOGLE_CLIENT_ID`                    | Google OAuth client            |
 | `GOOGLE_CLIENT_SECRET`                | Google OAuth secret            |
@@ -211,6 +212,15 @@ Secrets are mounted into containers at `/run/secrets/` by Podman.
 | `WHATSAPP_TOKEN`                      | WhatsApp Cloud API token       |
 | `WHATSAPP_PHONE_ID`                   | WhatsApp phone number ID       |
 | `WHATSAPP_VERIFY_TOKEN`               | WhatsApp webhook verify token  |
+
+### Transient capture media
+
+Voice transcription and receipt extraction send user-selected audio or images
+to OpenAI. Files are size/type/duration validated and processed in memory;
+image EXIF is removed before the provider call. The application does not write
+the media to its database or filesystem and does not log media content. Capture
+requests are limited to 60 per user per hour (fail-open if Redis is unavailable)
+and remain subject to the monthly LLM budget.
 
 ### Audit Logging
 

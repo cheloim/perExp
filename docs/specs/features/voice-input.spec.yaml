@@ -1,0 +1,98 @@
+feature: voice-input
+domain: Expense Capture
+type: full
+version: "1.0"
+status: planned
+owner: full-stack
+created: 2026-10-30
+updated: 2026-10-30
+github_issue: 498
+
+description: >
+  Lets users speak an expense instead of typing it. Web audio is transcribed into
+  the assistant composer for the user to review and send; Telegram voice messages
+  are transcribed and handled as text after an echo confirmation.
+
+requirements:
+  functional:
+    - id: FR-1
+      requirement: Transcribe supported audio in Spanish and return text, duration, and unclear status
+      priority: must
+    - id: FR-2
+      requirement: In web, place the transcript in the composer without sending it automatically
+      priority: must
+    - id: FR-3
+      requirement: In Telegram, process the transcript as a text expense after echoing it to the user
+      priority: must
+    - id: FR-4
+      requirement: Mark empty, punctuation-only, or too-short transcripts unclear and ask the user to repeat
+      priority: must
+  non_functional:
+    - id: NFR-1
+      requirement: Accept only OGG, WebM, MP3, M4A, and WAV up to 10 MB and 120 seconds
+      priority: must
+    - id: NFR-2
+      requirement: Never persist audio bytes or transcript input files in the database, filesystem, or content logs
+      priority: must
+
+pre_evaluation:
+  dependencies:
+    - OpenAI audio transcription capability and configured LLM_API_KEY
+    - Existing LLM monthly budget and metrics
+  api_changes:
+    - POST /capture/transcribe (authenticated multipart upload)
+  ui_changes:
+    - Voice recording control in the assistant composer
+  migration_needed: false
+  risks:
+    - Background noise or silence may produce an unusable transcript
+    - Provider capability may be unavailable when a text-only alternative is configured
+
+users:
+  - role: authenticated_user
+    can: [transcribe_voice_input, review_transcript, submit_transcript]
+
+endpoints:
+  - method: POST
+    path: /capture/transcribe
+    auth: required
+    request: multipart file and optional duration_seconds
+    response: "{text, duration_seconds, unclear}"
+    errors: [400, 401, 413, 429, 502, 503]
+
+business_rules:
+  - name: User review on web
+    description: The web transcript fills the composer but is not submitted automatically.
+  - name: Telegram echo
+    description: Telegram confirms the recognized text before processing it as an expense message.
+  - name: Transient media
+    description: Audio is sent to OpenAI for transcription and is not stored by the application.
+
+integrations:
+  - name: OpenAI Audio API
+    type: llm
+    description: Spanish transcription through the existing LLM facade.
+    config:
+      provider: openai
+      model_env: LLM_AUDIO_MODEL
+      model_default: whisper-1
+      api_key_env: LLM_API_KEY
+
+migrations: []
+
+tests:
+  - name: Unclear audio asks for a retry
+    type: unit
+    expected: Empty, punctuation-only, and short transcripts return unclear=true.
+  - name: Web transcript remains user-controlled
+    type: integration
+    expected: Transcription populates the composer and does not submit a message.
+  - name: Audio validation rejects oversized and unsupported input
+    type: unit
+    expected: Files above 10 MB or with unsupported magic bytes are rejected before provider calls.
+
+documentation:
+  - type: api
+    description: Capture endpoint and multipart fields are defined in OpenAPI.
+  - type: privacy
+    description: Audio is transient and is not stored by the application.

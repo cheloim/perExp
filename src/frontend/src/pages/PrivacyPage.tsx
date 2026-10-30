@@ -71,13 +71,18 @@ export default function PrivacyPage() {
                 <strong>Telegram:</strong> bot para registro rápido de gastos y notificaciones.
               </li>
               <li>
-                <strong>Google Gemini:</strong> procesamiento de lenguaje natural para
-                categorización de gastos.
+                <strong>OpenAI:</strong> procesamiento de lenguaje natural, transcripción de audio y
+                extracción de datos de comprobantes.
               </li>
               <li>
                 <strong>Linode:</strong> alojamiento de la infraestructura del servidor.
               </li>
             </ul>
+            <p className="mt-2 text-sm">
+              Si elegís transcribir una nota de voz o escanear un comprobante, el audio o la imagen
+              se envían a OpenAI para procesarlos. No almacenamos esos archivos en nuestra base de
+              datos ni en el disco, y no registramos su contenido en logs.
+            </p>
           </Section>
           <Section title="5. Tus derechos">
             <ul className="list-disc pl-5 mt-2 space-y-1">
