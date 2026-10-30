@@ -48,6 +48,7 @@ const AdminPage = lazy(() => import("./pages/AdminPage"));
 const ChangesPage = lazy(() => import("./pages/ChangesPage"));
 const GuidePage = lazy(() => import("./pages/GuidePage"));
 import { LATEST_VERSION } from "./data/changes";
+import { WHATS_NEW_LOCAL_KEY, shouldShowWhatsNew } from "./utils/whatsNew";
 
 const TABS = [
   { path: "/", label: "Inicio", icon: "home", exact: true, tour: "sidebar-home" },
@@ -226,7 +227,11 @@ function MainLayout() {
   }, []);
 
   // Get current user for admin check
-  const { data: currentUser } = useQuery({
+  const {
+    data: currentUser,
+    isPending: currentUserPending,
+    isError: currentUserError,
+  } = useQuery({
     queryKey: ["me"],
     queryFn: getMe,
     staleTime: 60000,
@@ -270,25 +275,47 @@ function MainLayout() {
 
   // Check if we should show What's New modal (only on /)
   useEffect(() => {
+    // Wait for /auth/me before deciding. Scheduling on the first render — when
+    // currentUser is still undefined — used to leave a 1.5s timer alive that
+    // fired even after the server said the release was dismissed, so every
+    // new device showed the modal again.
+    if (currentUserPending || currentUserError) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     const checkWhatsNew = async () => {
       try {
-        if (location.pathname !== "/") return;
         const { SHOW_WHATS_NEW } = await import("./components/WhatsNewModal");
-        if (!SHOW_WHATS_NEW) return;
-        if (currentUser && !currentUser.onboarding_completed) return;
-        const dontRemindLocal = localStorage.getItem("whats_new_dont_remind_version");
-        if (dontRemindLocal === LATEST_VERSION) return;
+        if (cancelled || !SHOW_WHATS_NEW) return;
+
+        const localDismissed = localStorage.getItem(WHATS_NEW_LOCAL_KEY);
         if (currentUser?.whats_new_dismissed_version === LATEST_VERSION) {
-          localStorage.setItem("whats_new_dont_remind_version", LATEST_VERSION);
-          return;
+          // Mirror the server decision so this device stops asking before the
+          // next navigation, even if it never had the local key.
+          localStorage.setItem(WHATS_NEW_LOCAL_KEY, LATEST_VERSION);
         }
-        setTimeout(() => setShowWhatsNew(true), 1500);
+
+        const show = shouldShowWhatsNew({
+          pathname: location.pathname,
+          user: currentUser,
+          latestVersion: LATEST_VERSION,
+          localDismissedVersion: localDismissed,
+        });
+        if (!show) return;
+
+        timer = setTimeout(() => setShowWhatsNew(true), 1500);
       } catch {
         // Ignore errors
       }
     };
-    checkWhatsNew();
-  }, [location.pathname, currentUser]);
+    void checkWhatsNew();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [location.pathname, currentUser, currentUserPending, currentUserError]);
 
   // Scroll to top on navigation
   useEffect(() => {
@@ -521,14 +548,18 @@ function MainLayout() {
               <WhatsNewModal
                 onClose={(dontRemind) => {
                   setShowWhatsNew(false);
-                  if (dontRemind) {
-                    dismissWhatsNew(LATEST_VERSION)
-                      .then(() => {
-                        localStorage.setItem("whats_new_dont_remind_version", LATEST_VERSION);
-                        queryClient.invalidateQueries({ queryKey: ["me"] });
-                      })
-                      .catch(() => {});
-                  }
+                  if (!dontRemind) return;
+
+                  // Honour the choice on this device even if the sync fails:
+                  // the user asked not to see this version again.
+                  localStorage.setItem(WHATS_NEW_LOCAL_KEY, LATEST_VERSION);
+                  dismissWhatsNew(LATEST_VERSION)
+                    .then((updatedUser) => {
+                      queryClient.setQueryData(["me"], updatedUser);
+                    })
+                    .catch((err) => {
+                      console.warn("[whats-new] Could not sync the dismissal", err);
+                    });
                 }}
               />
             </Suspense>

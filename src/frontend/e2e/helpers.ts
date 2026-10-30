@@ -48,15 +48,22 @@ export const DEFAULT_MOCKS: Record<string, unknown> = {
   "/groups/my-invite-code": { invite_code: "ABCD-EFGH" },
   "/notifications/unread-count": { count: 0 },
   "/dashboard": { total: 0, expenses: [], categories: [] },
+  "/scheduled-summary": { installments: [], manual: [] },
 };
 
 /** Route everything under /api so no request ever reaches the Vite proxy. */
-export async function mockBackend(page: Page, overrides: Record<string, unknown> = {}) {
+export async function mockBackend(
+  page: Page,
+  overrides: Record<string, unknown> = {},
+  delays: Record<string, number> = {},
+) {
   const table = { ...DEFAULT_MOCKS, ...overrides };
   await page.route(isBackendPath, async (route) => {
     const url = new URL(route.request().url());
     const key = url.pathname.replace(/^\/api/, "");
     const body = table[key];
+    const delay = delays[key] ?? 0;
+    if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
 
     // Known object endpoints come from the table; anything else defaults to a
     // list, which is the safer of the two for query consumers.
@@ -87,10 +94,15 @@ const STALE_KEYS = Object.values(LEGACY_STORAGE).flatMap((keys) => [keys.session
  */
 export async function seedAuth(
   page: Page,
-  opts: { drawerOpen?: boolean; thread?: unknown[] } = {},
+  opts: {
+    drawerOpen?: boolean;
+    thread?: unknown[];
+    /** Version this device remembers dismissing. Defaults to a never-matching one. */
+    whatsNewDismissedVersion?: string;
+  } = {},
 ) {
   await page.addInitScript(
-    ({ token, drawerOpen, thread, threadKey, staleKeys }) => {
+    ({ token, drawerOpen, thread, threadKey, staleKeys, whatsNewDismissedVersion }) => {
       window.localStorage.setItem("auth_token", token);
       // Always set the flag explicitly. Pages in one context share
       // localStorage, so a previous run that opened the drawer would otherwise
@@ -100,7 +112,7 @@ export async function seedAuth(
       // trigger the one-time migration against stale keys from a previous run.
       window.localStorage.setItem(threadKey, JSON.stringify(thread ?? []));
       for (const key of staleKeys) window.localStorage.removeItem(key);
-      window.localStorage.setItem("whats_new_dont_remind_version", "999.0.0");
+      window.localStorage.setItem("whats_new_dont_remind_version", whatsNewDismissedVersion);
     },
     {
       token,
@@ -108,6 +120,7 @@ export async function seedAuth(
       thread: opts.thread,
       threadKey: SHARED_STORAGE.thread,
       staleKeys: STALE_KEYS,
+      whatsNewDismissedVersion: opts.whatsNewDismissedVersion ?? "999.0.0",
     },
   );
 }
