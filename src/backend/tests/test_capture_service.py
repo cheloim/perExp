@@ -1,4 +1,5 @@
 import io
+import wave
 
 import pytest
 from PIL import Image
@@ -32,6 +33,16 @@ def _jpeg_with_exif(comment: bytes) -> bytes:
     return out.getvalue()
 
 
+def _wav(seconds: int) -> bytes:
+    output = io.BytesIO()
+    with wave.open(output, "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(8000)
+        audio.writeframes(b"\x00\x00" * (8000 * seconds))
+    return output.getvalue()
+
+
 def test_rejects_fake_audio_by_magic_bytes():
     metric = capture.CAPTURE_REQUESTS.labels("audio", "rejected", "unsupported_media")
     before = metric._value.get()
@@ -46,26 +57,72 @@ def test_marks_silence_as_unclear(monkeypatch):
             return LLMResult(text="", duration_seconds=3.0)
 
     monkeypatch.setattr(capture, "get_client", lambda **_: _FakeClient())
-    result = transcribe_audio(b"OggS....", filename="v.ogg", mime_type="audio/ogg")
+    result = transcribe_audio(_wav(3), filename="v.wav", mime_type="audio/wav")
     assert result.unclear is True
 
 
 def test_rejects_audio_over_limit():
+    audio_over_limit = _wav(1) + b"x" * (MAX_AUDIO_BYTES + 1)
     with pytest.raises(MediaTooLargeError):
         transcribe_audio(
-            b"OggS" + b"x" * (MAX_AUDIO_BYTES + 1),
-            filename="v.ogg",
-            mime_type="audio/ogg",
+            audio_over_limit,
+            filename="v.wav",
+            mime_type="audio/wav",
         )
 
 
-def test_rejects_audio_duration_hint_over_limit():
+def test_rejects_121_second_wav_before_getting_client(monkeypatch):
+    def _unexpected_client(**_):
+        raise AssertionError("provider client must not be created for long audio")
+
+    monkeypatch.setattr(capture, "get_client", _unexpected_client)
     with pytest.raises(MediaTooLongError):
         transcribe_audio(
-            b"OggS...",
-            filename="v.ogg",
-            mime_type="audio/ogg",
-            duration_hint=121,
+            _wav(121),
+            filename="long.wav",
+            mime_type="audio/wav",
+        )
+
+
+def test_uses_parsed_wav_duration_instead_of_shorter_hint(monkeypatch):
+    received = {}
+
+    class _FakeClient:
+        def transcribe(self, *a, **kwargs):
+            received.update(kwargs)
+            return LLMResult(text="supermercado", duration_seconds=None)
+
+    monkeypatch.setattr(capture, "get_client", lambda **_: _FakeClient())
+    result = transcribe_audio(_wav(3), filename="v.wav", mime_type="audio/wav", duration_hint=1)
+    assert received["duration_hint"] == 3.0
+    assert result.duration_seconds == 3.0
+
+
+def test_garbage_audio_with_hint_rejects_before_getting_client(monkeypatch):
+    def _unexpected_client(**_):
+        raise AssertionError("provider client must not be created for invalid bytes")
+
+    monkeypatch.setattr(capture, "get_client", _unexpected_client)
+    with pytest.raises(UnsupportedMediaError):
+        transcribe_audio(
+            b"garbage bytes",
+            filename="v.wav",
+            mime_type="audio/wav",
+            duration_hint=3,
+        )
+
+
+def test_rejects_webm_with_conversion_guidance_before_getting_client(monkeypatch):
+    def _unexpected_client(**_):
+        raise AssertionError("provider client must not be created for WebM")
+
+    monkeypatch.setattr(capture, "get_client", _unexpected_client)
+    with pytest.raises(UnsupportedMediaError, match="Convertí el audio a WAV, OGG, MP3 o M4A"):
+        transcribe_audio(
+            b"\x1a\x45\xdf\xa3webm bytes",
+            filename="v.webm",
+            mime_type="audio/webm",
+            duration_hint=3,
         )
 
 
@@ -75,7 +132,7 @@ def test_transcription_cleans_text_and_marks_short_text_unclear(monkeypatch):
             return LLMResult(text="  eh! ", duration_seconds=2)
 
     monkeypatch.setattr(capture, "get_client", lambda **_: _FakeClient())
-    result = transcribe_audio(b"OggS...", filename="v.ogg", mime_type="audio/ogg")
+    result = transcribe_audio(_wav(3), filename="v.wav", mime_type="audio/wav")
     assert result.text == "eh!"
     assert result.unclear is True
     assert result.duration_seconds == 2

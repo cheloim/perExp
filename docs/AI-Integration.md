@@ -137,7 +137,7 @@ those candidates, in batches of 25, via `CATEGORY_REVIEW_PROMPT`:
 
 ### 9. Voice transcription and payment-proof extraction
 
-`POST /capture/transcribe` sends supported audio (OGG, WebM, MP3, M4A, WAV; up to
+`POST /capture/transcribe` sends supported audio (WAV, OGG, MP3, M4A; up to
 10 MB / 120 seconds) to OpenAI Audio using `LLM_AUDIO_MODEL` (default
 `whisper-1`). Transcription cost is estimated at USD 0.006 per audio minute and
 is recorded in the existing LLM budget metrics. Unclear audio returns a retry
@@ -151,8 +151,10 @@ review and save it. A receipt with many line items is valid when it has one
 clear final total, while multiple transactions, credits, balances, and pending
 payments are rejected. HEIC is not supported in v1.
 
-Audio and image bytes are processed in memory only: the application does not
-persist them in the database or filesystem and does not log their content.
+Audio and image bytes are not stored persistently by the application and are
+not logged. Starlette may spool a multipart upload to a temporary file during
+the request and removes it when the request ends. The service itself processes
+the bounded data in memory.
 OpenAI calls remain subject to the existing monthly budget. The Google adapter
 supports text only; capture explicitly returns unavailable when configured with
 Google rather than silently dropping media.

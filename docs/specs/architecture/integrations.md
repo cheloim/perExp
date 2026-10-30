@@ -108,13 +108,15 @@ with `LLMUnsupportedCapabilityError` when Google is selected.
 
 ### Capture media
 
-`POST /capture/transcribe` sends OGG, WebM, MP3, M4A, or WAV audio up to 10 MB
+`POST /capture/transcribe` sends OGG, MP3, M4A, or WAV audio up to 10 MB
 and 120 seconds to OpenAI Audio. `POST /capture/expense-image` sends JPEG, PNG,
 or WebP images up to 8 MB / 20 MP to OpenAI Vision after EXIF stripping and
 in-memory resize to 1600 px. Audio is priced at USD 0.006 per minute; vision
 uses the configured model's token pricing and the existing monthly LLM budget.
-Neither audio nor image content is persisted or logged. Google supports text
-calls only and cannot serve either capture endpoint.
+Neither audio nor image content is stored persistently or logged. Multipart
+parsing may use a temporary file during the request; the framework removes it
+when the request ends. Google supports text calls only and cannot serve either
+capture endpoint.
 
 ### Call sites
 

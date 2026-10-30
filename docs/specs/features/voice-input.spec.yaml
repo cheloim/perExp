@@ -29,10 +29,10 @@ requirements:
       priority: must
   non_functional:
     - id: NFR-1
-      requirement: Accept only OGG, WebM, MP3, M4A, and WAV up to 10 MB and 120 seconds
+      requirement: Accept only OGG, MP3, M4A, and WAV up to 10 MB and 120 seconds; reject WebM with conversion guidance
       priority: must
     - id: NFR-2
-      requirement: Never persist audio bytes or transcript input files in the database, filesystem, or content logs
+      requirement: Do not store audio persistently in the database or filesystem or log content; multipart parsing may use a temporary file during the request and remove it afterward
       priority: must
 
 pre_evaluation:
@@ -69,7 +69,7 @@ business_rules:
     description: Audio is sent to OpenAI for transcription and is not stored by the application.
 
 integrations:
-  - name: OpenAI Audio API
+    - name: OpenAI Audio API
     type: llm
     description: Spanish transcription through the existing LLM facade.
     config:
@@ -89,10 +89,10 @@ tests:
     expected: Transcription populates the composer and does not submit a message.
   - name: Audio validation rejects oversized and unsupported input
     type: unit
-    expected: Files above 10 MB or with unsupported magic bytes are rejected before provider calls.
+    expected: Files above 10 MB, over 120 seconds by parsed duration, or with unsupported/unparseable media are rejected before provider calls.
 
 documentation:
   - type: api
     description: Capture endpoint and multipart fields are defined in OpenAPI.
   - type: privacy
-    description: Audio is transient and is not stored by the application.
+    description: Audio is not stored persistently; multipart parsing may use a temporary file during the request that the framework removes afterward.

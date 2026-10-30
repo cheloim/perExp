@@ -143,6 +143,36 @@ def _audio_format(data: bytes) -> str | None:
     return None
 
 
+def _audio_duration(data: bytes, audio_format: str) -> float | None:
+    """Read authoritative media duration from the uploaded bytes, in memory."""
+    from mutagen.mp3 import MP3
+    from mutagen.mp4 import MP4
+    from mutagen.oggopus import OggOpus
+    from mutagen.oggvorbis import OggVorbis
+    from mutagen.wave import WAVE
+
+    parser_types = {
+        "ogg": (OggOpus, OggVorbis),
+        "wav": (WAVE,),
+        "mp3": (MP3,),
+        "m4a": (MP4,),
+    }.get(audio_format, ())
+    for parser_type in parser_types:
+        try:
+            parsed = parser_type(io.BytesIO(data))
+        except Exception:
+            continue
+        duration = getattr(getattr(parsed, "info", None), "length", None)
+        if duration is not None:
+            try:
+                duration = float(duration)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(duration) and duration >= 0:
+                return duration
+    return None
+
+
 def _transcribe_audio(
     data: bytes,
     *,
@@ -153,16 +183,19 @@ def _transcribe_audio(
 ) -> TranscriptionResult:
     if len(data) > MAX_AUDIO_BYTES:
         raise MediaTooLargeError("El audio supera el límite de 10 MB.")
-    if duration_hint is not None and (
-        not math.isfinite(duration_hint) or duration_hint < 0 or duration_hint > MAX_AUDIO_SECONDS
-    ):
-        raise MediaTooLongError("El audio no puede durar más de 120 segundos.")
     detected = _audio_format(data)
     if detected is None:
         raise UnsupportedMediaError("El formato de audio no es compatible.")
+    if detected == "webm":
+        raise UnsupportedMediaError("Convertí el audio a WAV, OGG, MP3 o M4A antes de subirlo.")
     normalized_mime = mime_type.lower().split(";", maxsplit=1)[0].strip()
     if normalized_mime not in _AUDIO_MIMES[detected]:
         raise UnsupportedMediaError("El formato del audio no coincide con el archivo.")
+    parsed_duration = _audio_duration(data, detected)
+    if parsed_duration is None:
+        raise UnsupportedMediaError("No pude determinar la duración del audio. Revisá el archivo.")
+    if parsed_duration > MAX_AUDIO_SECONDS:
+        raise MediaTooLongError("El audio no puede durar más de 120 segundos.")
 
     client = get_client(capability="audio", api_key_env=api_key_env)
     result = client.transcribe(
@@ -171,13 +204,13 @@ def _transcribe_audio(
         mime_type=mime_type,
         feature="voice_transcription",
         language="es",
-        duration_hint=duration_hint,
+        duration_hint=parsed_duration,
     )
     text = " ".join((result.text or "").split()).strip()
     unclear = len(re.sub(r"[^\w]", "", text, flags=re.UNICODE)) < 3
-    duration = result.duration_seconds or duration_hint
+    duration = result.duration_seconds or parsed_duration
     if duration is not None and (not math.isfinite(duration) or duration < 0):
-        duration = duration_hint
+        duration = parsed_duration
     if duration is not None and duration > MAX_AUDIO_SECONDS:
         raise MediaTooLongError("El audio no puede durar más de 120 segundos.")
     return TranscriptionResult(
@@ -359,7 +392,6 @@ def transcribe_audio(
             api_key_env=api_key_env,
         )
     except Exception as exc:
-        _observe_duration(duration_hint)
         CAPTURE_REQUESTS.labels(
             "audio",
             "rejected" if isinstance(exc, CaptureError) else "error",

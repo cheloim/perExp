@@ -54,6 +54,23 @@ def test_transcribe_records_audio_cost(monkeypatch):
     assert recorded["cost_usd"] == pytest.approx(0.006)
 
 
+def test_transcribe_estimates_positive_cost_without_duration(monkeypatch):
+    client = OpenAIClient(api_key="sk-test", model="whisper-1", timeout=5)
+    client._transcribe = lambda *a, **k: LLMResult(text="hola")
+    monkeypatch.setattr(client, "_check_budget", lambda *a, **k: None)
+    recorded = {}
+    monkeypatch.setattr(client, "_record", lambda *a, **k: recorded.update(k))
+
+    client.transcribe(
+        b"non-empty audio",
+        filename="v.wav",
+        mime_type="audio/wav",
+        feature="voice_transcription",
+    )
+
+    assert recorded["cost_usd"] > 0
+
+
 def test_google_audio_is_explicitly_unsupported():
     with pytest.raises(LLMUnsupportedCapabilityError) as exc:
         GoogleClient(api_key="g", model="gemini", timeout=5).transcribe(

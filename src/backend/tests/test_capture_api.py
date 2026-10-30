@@ -1,4 +1,5 @@
 import io
+import wave
 from types import SimpleNamespace
 
 import pytest
@@ -40,6 +41,16 @@ def _png() -> bytes:
     return output.getvalue()
 
 
+def _wav(seconds: int = 1) -> bytes:
+    output = io.BytesIO()
+    with wave.open(output, "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(8000)
+        audio.writeframes(b"\x00\x00" * (8000 * seconds))
+    return output.getvalue()
+
+
 def test_capture_requires_auth(unauthenticated_client):
     response = unauthenticated_client.post(
         "/capture/transcribe", files={"file": ("v.ogg", b"x", "audio/ogg")}
@@ -48,7 +59,7 @@ def test_capture_requires_auth(unauthenticated_client):
 
 
 def test_rejects_oversized_audio(client, auth_headers):
-    big = b"OggS" + b"x" * (MAX_AUDIO_BYTES + 1)
+    big = _wav() + b"x" * (MAX_AUDIO_BYTES + 1)
     response = client.post(
         "/capture/transcribe",
         files={"file": ("v.ogg", big, "audio/ogg")},
@@ -84,7 +95,7 @@ def test_returns_503_when_provider_lacks_capability(client, auth_headers, monkey
     monkeypatch.setattr(capture_router, "transcribe_audio", _raise)
     response = client.post(
         "/capture/transcribe",
-        files={"file": ("v.ogg", b"OggS", "audio/ogg")},
+        files={"file": ("v.wav", _wav(), "audio/wav")},
         headers=auth_headers,
     )
     assert response.status_code == 503
@@ -94,7 +105,7 @@ def test_returns_429_when_rate_limited(client, auth_headers, monkeypatch):
     monkeypatch.setattr(capture_router, "check_rate_limit", lambda *_: (False, 30))
     response = client.post(
         "/capture/transcribe",
-        files={"file": ("v.ogg", b"OggS", "audio/ogg")},
+        files={"file": ("v.wav", _wav(), "audio/wav")},
         headers=auth_headers,
     )
     assert response.status_code == 429

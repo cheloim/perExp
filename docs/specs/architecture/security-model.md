@@ -217,10 +217,11 @@ Secrets are mounted into containers at `/run/secrets/` by Podman.
 
 Voice transcription and receipt extraction send user-selected audio or images
 to OpenAI. Files are size/type/duration validated and processed in memory;
-image EXIF is removed before the provider call. The application does not write
-the media to its database or filesystem and does not log media content. Capture
-requests are limited to 60 per user per hour (fail-open if Redis is unavailable)
-and remain subject to the monthly LLM budget.
+image EXIF is removed before the provider call. Media is not stored persistently
+by the application and content is not logged. Multipart parsing may use a
+temporary file during the request; the framework removes it when the request
+ends. Capture requests are limited to 60 per user per hour (fail-open if Redis
+is unavailable) and remain subject to the monthly LLM budget.
 
 ### Audit Logging
 

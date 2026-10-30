@@ -229,6 +229,14 @@ class LLMClient:
                 if duration_hint is not None and math.isfinite(duration_hint) and duration_hint >= 0
                 else None
             )
+        if duration is None or (duration <= 0 and audio):
+            duration = len(audio) / 2000 if audio else duration
+        if duration is not None and (
+            result.duration_seconds is None
+            or not math.isfinite(result.duration_seconds)
+            or result.duration_seconds < 0
+            or (result.duration_seconds == 0 and audio)
+        ):
             result.duration_seconds = duration
         cost = estimate_audio_cost_usd(self.model, duration or 0)
         self._record(feature, start, "ok", result, cost_usd=cost)

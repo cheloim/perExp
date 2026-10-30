@@ -31,7 +31,7 @@ requirements:
       requirement: Accept JPEG, PNG, and WebP up to 8 MB, 20 megapixels, and 1600 pixels per side; reject HEIC in v1
       priority: must
     - id: NFR-2
-      requirement: Strip EXIF and never persist image bytes or content in database, filesystem, or logs
+      requirement: Strip EXIF and do not store images persistently in the database or filesystem or log content; multipart parsing may use a temporary file during the request and remove it afterward
       priority: must
 
 pre_evaluation:
@@ -69,7 +69,7 @@ business_rules:
   - name: Reject non-expenses
     description: Credits, incoming transfers, pending, rejected, failed, or unpaid QR payments are rejected.
   - name: Transient image
-    description: Images are normalized in memory, sent to OpenAI, and never stored by the application.
+    description: Images are normalized in memory and sent to OpenAI; the application does not store them persistently, and multipart temporary files are removed after the request.
 
 integrations:
   - name: OpenAI Vision API
