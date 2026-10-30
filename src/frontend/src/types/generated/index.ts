@@ -58,6 +58,7 @@ export * from "./budgetResponse.ts";
 export * from "./budgetSummaryParams.ts";
 export * from "./budgetSummaryResponse.ts";
 export * from "./budgetSummaryResponseCategoriesItem.ts";
+export * from "./bulkAcceptBody.ts";
 export * from "./bulkCategoryExpenses200.ts";
 export * from "./bulkCategoryExpensesBody.ts";
 export * from "./bulkDeleteExpenses200.ts";
