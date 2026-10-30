@@ -142,9 +142,12 @@ those candidates, in batches of 25, via `CATEGORY_REVIEW_PROMPT`:
 `gpt-4o-mini-transcribe`). The deployed OpenAI project grants
 `gpt-4o-mini-transcribe` and `gpt-6-luna`; it does not grant `whisper-1`, so the
 default and the deployment env point at the granted model. `LLM_AUDIO_MODEL`
-can override it when a project grants a different transcription model.
-Transcription cost is estimated at USD 0.003 per audio minute for the default
-model and is recorded in the existing LLM budget metrics. Unclear audio returns a retry
+can override it when a project grants a different transcription model. The
+deployed project grants the audio model to the bot key and not to
+`LLM_API_KEY`; the web capture route therefore uses `LLM_AUDIO_API_KEY` when it
+is set and falls back to `MESSAGES_BOT_LLM_API_KEY`. `LLM_API_KEY` remains the
+text/vision key. Transcription cost is estimated at USD 0.003 per audio minute
+for the default model and is recorded in the existing LLM budget metrics. Unclear audio returns a retry
 signal instead of an empty expense. The server parses media duration with
 `mutagen` before contacting the provider; a client-supplied duration is not used
 to enforce the limit or estimate cost. Browser recordings in WebM are converted

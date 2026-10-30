@@ -76,7 +76,7 @@ integrations:
       provider: openai
       model_env: LLM_AUDIO_MODEL
       model_default: gpt-4o-mini-transcribe
-      api_key_env: LLM_API_KEY
+      api_key_env: LLM_AUDIO_API_KEY (falls back to MESSAGES_BOT_LLM_API_KEY)
 
 migrations: []
 

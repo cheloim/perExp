@@ -1,6 +1,7 @@
 """Authenticated, transient capture endpoints for voice and receipts."""
 
 import logging
+import os
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
@@ -22,6 +23,16 @@ from app.services.rate_limit import check_rate_limit
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/capture", tags=["capture"])
+
+
+def _audio_key_env() -> str:
+    """The deployed project grants audio to the bot key.
+
+    ``LLM_AUDIO_API_KEY`` is the clean override when a project has a dedicated
+    audio key. Otherwise the bot key is the only one with transcription access;
+    the web route must use it too, or the browser voice feature gets a 403.
+    """
+    return "LLM_AUDIO_API_KEY" if os.getenv("LLM_AUDIO_API_KEY") else "MESSAGES_BOT_LLM_API_KEY"
 
 
 def _rate_limit(user: User) -> None:
@@ -78,6 +89,7 @@ def transcribe(
             filename=file.filename or "voice-audio",
             mime_type=file.content_type or "application/octet-stream",
             duration_hint=duration_seconds,
+            api_key_env=_audio_key_env(),
         )
     except Exception as exc:
         raise _map_capture_error(exc) from exc

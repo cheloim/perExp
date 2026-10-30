@@ -51,6 +51,13 @@ def _wav(seconds: int = 1) -> bytes:
     return output.getvalue()
 
 
+def test_audio_key_env_prefers_dedicated_then_bot(monkeypatch):
+    monkeypatch.delenv("LLM_AUDIO_API_KEY", raising=False)
+    assert capture_router._audio_key_env() == "MESSAGES_BOT_LLM_API_KEY"
+    monkeypatch.setenv("LLM_AUDIO_API_KEY", "dedicated-audio-key")
+    assert capture_router._audio_key_env() == "LLM_AUDIO_API_KEY"
+
+
 def test_capture_requires_auth(unauthenticated_client):
     response = unauthenticated_client.post(
         "/capture/transcribe", files={"file": ("v.ogg", b"x", "audio/ogg")}
