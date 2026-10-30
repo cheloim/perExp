@@ -39,8 +39,20 @@ import {
 } from "../api/client";
 import type { AdminUser, AuditLogEntry, LoginErrorsResponse, PlatformLog } from "../types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import CategorizationReviewTab from "./admin/CategorizationReviewTab";
 
-type Tab = "users" | "logs" | "reports" | "system" | "metrics";
+type Tab = "users" | "logs" | "reports" | "system" | "metrics" | "categorization";
+
+const TAB_LABELS: Record<Tab, string> = {
+  users: "Usuarios",
+  logs: "Logs & Seguridad",
+  reports: "Reportes",
+  system: "Sistema",
+  metrics: "Métricas",
+  categorization: "Categorización",
+};
+
+const TABS = Object.keys(TAB_LABELS) as Tab[];
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("users");
@@ -64,7 +76,7 @@ export default function AdminPage() {
       </div>
 
       <nav className="flex gap-1 border-b border-[var(--border-color)]">
-        {(["users", "logs", "reports", "system", "metrics"] as Tab[]).map((t) => (
+        {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -74,15 +86,7 @@ export default function AdminPage() {
                 : "border-transparent text-[var(--text-[var(--text-tertiary)])] hover:text-[var(--text-[var(--text-secondary)])]"
             }`}
           >
-            {t === "users"
-              ? "Usuarios"
-              : t === "logs"
-                ? "Logs & Seguridad"
-                : t === "reports"
-                  ? "Reportes"
-                  : t === "system"
-                    ? "Sistema"
-                    : "Métricas"}
+            {TAB_LABELS[t]}
           </button>
         ))}
       </nav>
@@ -92,6 +96,7 @@ export default function AdminPage() {
       {tab === "reports" && <ReportsTab />}
       {tab === "system" && <SystemTab />}
       {tab === "metrics" && <MetricsTab />}
+      {tab === "categorization" && <CategorizationReviewTab />}
     </div>
   );
 }

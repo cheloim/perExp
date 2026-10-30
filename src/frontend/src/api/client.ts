@@ -27,6 +27,10 @@ import type {
   CardsMapping,
   Tag,
   TagSummary,
+  CategorizationReviewDetail,
+  CategorizationReviewsResponse,
+  BulkAcceptResult,
+  ReviewFilters,
 } from "../types";
 
 // Token storage: Using localStorage for persistence across sessions.
@@ -966,6 +970,49 @@ export const getMetricsUsage = () => api.get("/admin/metrics/usage").then((r) =>
 export const getMetricsSystem = () => api.get("/admin/metrics/system").then((r) => r.data);
 
 export const getTaskStatus = () => api.get("/admin/system/tasks").then((r) => r.data);
+
+// ── Admin: categorization reviews (issue #466) ─────────────────────
+// Internal review of miscategorized expenses. Admin-only; nothing here is
+// user-facing. Filters only select what is displayed: they never scan.
+
+export const getCategorizationReviews = (params?: ReviewFilters) =>
+  api
+    .get<CategorizationReviewsResponse>("/admin/categorization-reviews", { params })
+    .then((r) => r.data);
+
+export const getCategorizationReview = (id: number) =>
+  api.get<CategorizationReviewDetail>(`/admin/categorization-reviews/${id}`).then((r) => r.data);
+
+export const acceptCategorizationReview = (id: number, categoryId?: number) =>
+  api
+    .post<CategorizationReviewDetail>(`/admin/categorization-reviews/${id}/accept`, {
+      category_id: categoryId ?? null,
+    })
+    .then((r) => r.data);
+
+export const rejectCategorizationReview = (id: number) =>
+  api
+    .post<CategorizationReviewDetail>(`/admin/categorization-reviews/${id}/reject`)
+    .then((r) => r.data);
+
+export const investigateCategorizationReview = (id: number) =>
+  api
+    .post<CategorizationReviewDetail>(`/admin/categorization-reviews/${id}/investigate`)
+    .then((r) => r.data);
+
+export const bulkAcceptCategorizationReviews = (body: {
+  min_score: number;
+  user_id?: number;
+  max_items?: number;
+  dry_run?: boolean;
+}) =>
+  api.post<BulkAcceptResult>("/admin/categorization-reviews/bulk-accept", body).then((r) => r.data);
+
+export const scanCategorizationReviews = (body: {
+  user_id?: number;
+  use_llm?: boolean;
+  persist?: boolean;
+}) => api.post("/admin/categorization-reviews/scan", body).then((r) => r.data);
 
 export const getAdminSettings = () => api.get("/admin/system/settings").then((r) => r.data);
 
