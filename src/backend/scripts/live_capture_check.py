@@ -89,6 +89,38 @@ def _audio() -> bytes:
         path.unlink(missing_ok=True)
 
 
+def _probe_chat_audio(wav: bytes) -> dict:
+    """Probe whether the text model accepts audio through chat input_audio."""
+    import base64
+
+    from openai import OpenAI
+
+    key = os.getenv("MESSAGES_BOT_LLM_API_KEY") or os.getenv("LLM_API_KEY")
+    client = OpenAI(api_key=key)
+    response = client.chat.completions.create(
+        model=os.getenv("LLM_MODEL_NAME", "gpt-6-luna"),
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Transcribí este audio textualmente en español. Devolvé solo el texto.",
+                    },
+                    {
+                        "type": "input_audio",
+                        "input_audio": {
+                            "data": base64.b64encode(wav).decode(),
+                            "format": "wav",
+                        },
+                    },
+                ],
+            }
+        ],
+    )
+    return {"text": (response.choices[0].message.content or "").strip()}
+
+
 def _ok(result, *, amount: float) -> bool:
     return (
         result.status == "ok"
@@ -193,9 +225,10 @@ def main() -> int:
     }
     failures: list[str] = []
 
+    wav = _audio()
     try:
         audio = transcribe_audio(
-            _audio(),
+            wav,
             filename="voice.wav",
             mime_type="audio/wav",
             duration_hint=None,
@@ -216,6 +249,13 @@ def main() -> int:
             "detail": str(exc)[:300],
         }
         failures.append("audio_provider_unavailable")
+        try:
+            summary["audio_chat_fallback"] = _probe_chat_audio(wav)
+        except Exception as fallback_exc:
+            summary["audio_chat_fallback"] = {
+                "error": type(fallback_exc).__name__,
+                "detail": str(fallback_exc)[:300],
+            }
 
     for name, (image, expectation) in cases.items():
         result = extract_expense_from_image(image, mime_type="image/png")
