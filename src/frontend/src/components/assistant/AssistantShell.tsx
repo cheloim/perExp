@@ -8,6 +8,7 @@ import { RemoteError } from "./streamTo";
 import { useAssistantChat } from "./useAssistantChat";
 import { useThread } from "./useThread";
 import type { AssistantConfig, AssistantDomain, Message } from "./types";
+import { useVoiceInput } from "../../hooks/useVoiceInput";
 
 const MAX_INPUT_LENGTH = 2000;
 
@@ -54,6 +55,12 @@ export function AssistantShell({
    * append two bubbles.
    */
   const busyRef = useRef(false);
+
+  const handleTranscript = useCallback((text: string) => {
+    setInput((current) => (current ? `${current} ${text}` : text).slice(0, MAX_INPUT_LENGTH));
+    inputRef.current?.focus();
+  }, []);
+  const voiceInput = useVoiceInput({ onTranscript: handleTranscript });
 
   const lastMessage = messages[messages.length - 1];
   const hasError = lastMessage?.error === true;
@@ -523,6 +530,77 @@ export function AssistantShell({
                 />
               </div>
 
+              {voiceInput.supported && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Grabar mensaje de voz"
+                    aria-pressed={voiceInput.state === "recording"}
+                    aria-live="polite"
+                    disabled={
+                      streaming ||
+                      ["requesting", "recording", "transcribing"].includes(voiceInput.state)
+                    }
+                    onClick={() => void voiceInput.start()}
+                    className="flex items-center justify-center w-9 h-9 rounded-full border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-surface)] disabled:opacity-40 flex-shrink-0"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect x="9" y="2" width="6" height="12" rx="3" />
+                      <path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8" />
+                    </svg>
+                  </button>
+                  {voiceInput.state === "recording" && (
+                    <>
+                      <span
+                        className="flex items-center gap-1 text-xs text-danger whitespace-nowrap"
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full bg-danger animate-pulse"
+                          aria-hidden="true"
+                        />
+                        Grabando {voiceInput.elapsed}s
+                      </span>
+                      <button
+                        type="button"
+                        onClick={voiceInput.stop}
+                        className="text-xs text-[var(--accent-color)] underline whitespace-nowrap"
+                      >
+                        Terminar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={voiceInput.cancel}
+                        className="text-xs text-secondary underline whitespace-nowrap"
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  )}
+                  {voiceInput.state === "transcribing" && (
+                    <span className="text-xs text-[var(--text-tertiary)]" aria-live="polite">
+                      Transcribiendo…
+                    </span>
+                  )}
+                  {voiceInput.state === "requesting" && (
+                    <span className="text-xs text-[var(--text-tertiary)]" aria-live="polite">
+                      Esperando permiso del micrófono…
+                    </span>
+                  )}
+                </>
+              )}
+
               <button
                 type="submit"
                 onClick={
@@ -568,7 +646,17 @@ export function AssistantShell({
                 {input.length} / {MAX_INPUT_LENGTH}
               </span>
               {error && <span className="text-danger">{error}</span>}
+              {voiceInput.error && (
+                <span className="text-danger" role="status" aria-live="polite">
+                  {voiceInput.error}
+                </span>
+              )}
             </div>
+            {voiceInput.supported && (
+              <p className="mt-1 px-1 text-[10px] text-[var(--text-tertiary)]">
+                Se procesa con IA; no se guarda.
+              </p>
+            )}
           </div>
         </div>
       </div>
