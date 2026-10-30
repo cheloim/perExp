@@ -46,6 +46,22 @@ export type ListReviewsAdminCategorizationReviewsGetParams = {
   /**
    * @nullable
    */
+  max_score?: number | null;
+  /**
+   * @nullable
+   */
+  date_from?: string | null;
+  /**
+   * @nullable
+   */
+  date_to?: string | null;
+  /**
+   * @nullable
+   */
+  search?: string | null;
+  /**
+   * @nullable
+   */
   signal?: string | null;
   page?: number;
   per_page?: number;

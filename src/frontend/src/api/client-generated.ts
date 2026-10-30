@@ -65,6 +65,7 @@ import type {
   BudgetResponse,
   BudgetSummaryParams,
   BudgetSummaryResponse,
+  BulkAcceptBody,
   BulkCategoryExpenses200,
   BulkCategoryExpensesBody,
   BulkDeleteExpenses200,
@@ -21415,6 +21416,105 @@ export function useListReviewsAdminCategorizationReviewsGet<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+/**
+ * Bulk resolution for the admin UI. Only pending reviews with a suggested category are considered; reviews already resolved are never touched. Bulk acceptances are flagged so they do not feed the manual precision.
+ * @summary Accept every pending review above a score threshold
+ */
+export const bulkAcceptAdminCategorizationReviewsBulkAcceptPost = (
+  bulkAcceptBody: BodyType<BulkAcceptBody>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>(
+    {
+      url: `/admin/categorization-reviews/bulk-accept`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: bulkAcceptBody,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getBulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationKey = () =>
+  ["bulkAcceptAdminCategorizationReviewsBulkAcceptPost"] as const;
+
+export const getBulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkAcceptAdminCategorizationReviewsBulkAcceptPost>>,
+    TError,
+    BulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkAcceptAdminCategorizationReviewsBulkAcceptPost>>,
+  TError,
+  BulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getBulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkAcceptAdminCategorizationReviewsBulkAcceptPost>>,
+    BulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkAcceptAdminCategorizationReviewsBulkAcceptPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkAcceptAdminCategorizationReviewsBulkAcceptPost>>
+>;
+export type BulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationBody =
+  BodyType<BulkAcceptBody>;
+export type BulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationError = ErrorType<unknown>;
+export type BulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationVariables = {
+  data: BodyType<BulkAcceptBody>;
+};
+
+/**
+ * @summary Accept every pending review above a score threshold
+ */
+export const useBulkAcceptAdminCategorizationReviewsBulkAcceptPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof bulkAcceptAdminCategorizationReviewsBulkAcceptPost>>,
+      TError,
+      BulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof bulkAcceptAdminCategorizationReviewsBulkAcceptPost>>,
+  TError,
+  BulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getBulkAcceptAdminCategorizationReviewsBulkAcceptPostMutationOptions(options),
+    queryClient,
+  );
+};
 
 /**
  * Return the review plus the signals and LLM verdict behind the score.

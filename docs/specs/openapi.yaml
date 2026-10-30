@@ -4119,6 +4119,36 @@ paths:
             title: Min Score
             type: number
             nullable: true
+        - name: max_score
+          in: query
+          required: false
+          schema:
+            title: Max Score
+            type: number
+            nullable: true
+        - name: date_from
+          in: query
+          required: false
+          schema:
+            title: Date From
+            type: string
+            format: date
+            nullable: true
+        - name: date_to
+          in: query
+          required: false
+          schema:
+            title: Date To
+            type: string
+            format: date
+            nullable: true
+        - name: search
+          in: query
+          required: false
+          schema:
+            title: Search
+            type: string
+            nullable: true
         - name: signal
           in: query
           required: false
@@ -4143,6 +4173,22 @@ paths:
       responses:
         '200':
           description: List miscategorization reviews
+  /admin/categorization-reviews/bulk-accept:
+    post:
+      tags:
+        - admin
+      summary: Accept every pending review above a score threshold
+      description: Bulk resolution for the admin UI. Only pending reviews with a suggested category are considered; reviews already resolved are never touched. Bulk acceptances are flagged so they do not feed the manual precision.
+      operationId: bulk_accept_admin_categorization_reviews_bulk_accept_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkAcceptBody'
+        required: true
+      responses:
+        '200':
+          description: Accept every pending review above a score threshold
   /admin/categorization-reviews/{review_id}:
     get:
       tags:
@@ -5396,6 +5442,26 @@ components:
           default: true
       type: object
       title: ScanBody
+    BulkAcceptBody:
+      properties:
+        min_score:
+          title: Min Score
+          type: number
+          default: 0.8
+        user_id:
+          title: User Id
+          type: integer
+          nullable: true
+        max_items:
+          title: Max Items
+          type: integer
+          default: 50
+        dry_run:
+          type: boolean
+          title: Dry Run
+          default: false
+      type: object
+      title: BulkAcceptBody
     OAuthRequest:
       properties:
         code:

@@ -237,6 +237,7 @@ makes the daily scan idempotent.
 | `evidence`             | Text (JSON)| Signals, merchant key, category stats, LLM verdict |
 | `detector_version`     | String     | Scoring version that produced the row              |
 | `status`               | String     | `pending` \| `accepted` \| `rejected` \| `investigated` |
+| `bulk_applied`         | Boolean    | Accepted from the UI bulk action (excluded from `manual_precision`) |
 | `reviewed_by`          | Integer FK | Admin who resolved it                              |
 | `reviewed_at`          | DateTime   | When it was resolved                               |
 

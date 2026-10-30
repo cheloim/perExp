@@ -107,6 +107,97 @@ export interface Category {
   budget_group?: string;
 }
 
+// ── Internal categorization review (issue #466, admin-only) ──────────
+
+export type CategorizationReviewStatus = "pending" | "accepted" | "rejected" | "investigated";
+
+export interface CategorizationReview {
+  id: number;
+  expense_id: number;
+  user_id: number;
+  date: string | null;
+  description: string | null;
+  amount: number | null;
+  currency: string | null;
+  current_category_id: number | null;
+  current_category_name: string | null;
+  suggested_category_id: number | null;
+  suggested_category_name: string | null;
+  score: number;
+  source: "rules" | "rules+llm";
+  reason: string;
+  status: CategorizationReviewStatus;
+  detector_version: string;
+  created_at: string | null;
+  reviewed_at: string | null;
+}
+
+export interface ReviewSignal {
+  weight: number;
+  [key: string]: unknown;
+}
+
+export interface ReviewEvidence {
+  detector_version?: string;
+  merchant_key?: string;
+  current_category?: { id: number; name: string; keywords: string };
+  signals?: Record<string, ReviewSignal>;
+  llm?: {
+    is_mismatch: boolean;
+    confidence: number;
+    suggested_category_id: number | null;
+    reason: string | null;
+  };
+  suggested_category?: { id: number; name: string };
+}
+
+export interface CategorizationReviewDetail extends CategorizationReview {
+  evidence: ReviewEvidence;
+  available_categories: Category[];
+}
+
+export interface ReviewsSummary {
+  total: number;
+  by_status: Record<string, number>;
+  by_signal: Record<string, number>;
+  by_source: Record<string, number>;
+  observed_precision: number | null;
+  manual_precision?: number | null;
+  bulk_accepted?: number;
+}
+
+export interface CategorizationReviewsResponse {
+  items: CategorizationReview[];
+  total: number;
+  page: number;
+  per_page: number;
+  summary: ReviewsSummary;
+}
+
+export interface ReviewFilters {
+  status?: string;
+  user_id?: number;
+  min_score?: number;
+  max_score?: number;
+  date_from?: string;
+  date_to?: string;
+  search?: string;
+  signal?: string;
+  page?: number;
+  per_page?: number;
+}
+
+export interface BulkAcceptResult {
+  candidates: number;
+  accepted: number;
+  skipped_without_suggestion: number;
+  skipped_stale: number;
+  skipped_missing_category: number;
+  dry_run: boolean;
+  max_items: number;
+  min_score: number;
+}
+
 export interface Budget {
   id: number;
   category_id: number;
