@@ -1064,6 +1064,8 @@ async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYP
         from dataclasses import asdict, is_dataclass
 
         draft_data = asdict(draft) if is_dataclass(draft) else dict(draft)
+    draft_id = uuid.uuid4().hex[:10]
+    draft_data["draft_id"] = draft_id
     context.user_data["pending_expense_image"] = draft_data
 
     source_label = _EXPENSE_IMAGE_SOURCE_LABELS.get(source_type, "comprobante")
@@ -1085,9 +1087,9 @@ async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYP
     summary += "\n\nRevisalo antes de guardar."
     keyboard = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("✅ Guardar", callback_data="expenseimg:save")],
-            [InlineKeyboardButton("✏️ Editar", callback_data="expenseimg:edit")],
-            [InlineKeyboardButton("❌ Cancelar", callback_data="expenseimg:cancel")],
+            [InlineKeyboardButton("✅ Guardar", callback_data=f"expenseimg:{draft_id}:save")],
+            [InlineKeyboardButton("✏️ Editar", callback_data=f"expenseimg:{draft_id}:edit")],
+            [InlineKeyboardButton("❌ Cancelar", callback_data=f"expenseimg:{draft_id}:cancel")],
         ]
     )
     await msg.reply_text(summary, reply_markup=keyboard)
@@ -1099,10 +1101,19 @@ async def handle_expense_image_callback(update: Update, context: ContextTypes.DE
     await query.answer()
     if not await _validate_session(update, context):
         return ConversationHandler.END
-    action = (query.data or "").partition(":")[2]
+    parts = (query.data or "").split(":")
+    if len(parts) != 3 or parts[0] != "expenseimg" or not parts[1] or not parts[2]:
+        await query.edit_message_text("No pude reconocer esa opción. Mandame la imagen de nuevo.")
+        return ConversationHandler.END
+    _, draft_id, action = parts
     pending = context.user_data.get("pending_expense_image")
     if not pending:
         await query.edit_message_text("No hay un comprobante pendiente para revisar.")
+        return ConversationHandler.END
+    if pending.get("draft_id") != draft_id:
+        await query.edit_message_text(
+            "Este comprobante ya no está vigente. Mandá la imagen de nuevo."
+        )
         return ConversationHandler.END
 
     if action == "edit":

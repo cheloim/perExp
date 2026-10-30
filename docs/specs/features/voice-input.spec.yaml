@@ -69,7 +69,7 @@ business_rules:
     description: Audio is sent to OpenAI for transcription and is not stored by the application.
 
 integrations:
-    - name: OpenAI Audio API
+  - name: OpenAI Audio API
     type: llm
     description: Spanish transcription through the existing LLM facade.
     config:

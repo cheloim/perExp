@@ -7,7 +7,7 @@
  * ## Architecture
  * - **Backend**: FastAPI (Python) with PostgreSQL, Redis, and Celery
  * - **Frontend**: Vite + React SPA
- * - **Integrations**: Telegram Bot, WhatsApp Bot, Gemini Flash (AI), Yahoo Finance, IOL/PPI brokers
+ * - **Integrations**: Telegram Bot, WhatsApp Bot, OpenAI (AI), Yahoo Finance, IOL/PPI brokers
  *
  * ## Key Features
  * - Expense & income tracking with encrypted fields (AES-256)
@@ -15,7 +15,7 @@
  * - Hierarchical category system with auto-categorization
  * - Budget management with 50/30/20 rule support
  * - Investment portfolio tracking with auto price refresh
- * - AI-powered spending analysis (Gemini Flash)
+ * - AI-powered spending analysis (OpenAI)
  * - Smart CSV/PDF bank statement import
  * - Family group sharing
  * - Real-time SSE notifications
