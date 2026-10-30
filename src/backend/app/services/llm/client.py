@@ -19,6 +19,7 @@ no limit.
 from __future__ import annotations
 
 import logging
+import math
 import os
 import time
 from collections.abc import AsyncIterator, Iterator
@@ -222,6 +223,13 @@ class LLMClient:
             self._record(feature, start, "error")
             raise
         duration = result.duration_seconds if result.duration_seconds is not None else duration_hint
+        if duration is not None and (not math.isfinite(duration) or duration < 0):
+            duration = (
+                duration_hint
+                if duration_hint is not None and math.isfinite(duration_hint) and duration_hint >= 0
+                else None
+            )
+            result.duration_seconds = duration
         cost = estimate_audio_cost_usd(self.model, duration or 0)
         self._record(feature, start, "ok", result, cost_usd=cost)
         return result

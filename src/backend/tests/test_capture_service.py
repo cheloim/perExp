@@ -33,8 +33,11 @@ def _jpeg_with_exif(comment: bytes) -> bytes:
 
 
 def test_rejects_fake_audio_by_magic_bytes():
+    metric = capture.CAPTURE_REQUESTS.labels("audio", "rejected", "unsupported_media")
+    before = metric._value.get()
     with pytest.raises(UnsupportedMediaError):
         transcribe_audio(b"not audio", filename="x.mp3", mime_type="audio/mpeg")
+    assert metric._value.get() == before + 1
 
 
 def test_marks_silence_as_unclear(monkeypatch):

@@ -14,10 +14,12 @@ import warnings
 from typing import Literal
 
 from PIL import Image, ImageOps, UnidentifiedImageError
+from prometheus_client import Counter, Histogram
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.prompts import EXPENSE_IMAGE_PROMPT
 from app.services.llm import LLMMedia, LLMMessage, get_client
+from app.services.llm.client import LLMError, LLMUnsupportedCapabilityError
 
 MAX_AUDIO_BYTES = 10 * 1024 * 1024
 MAX_AUDIO_SECONDS = 120
@@ -32,6 +34,23 @@ _AUDIO_MIMES = {
     "m4a": {"audio/mp4", "audio/m4a", "audio/x-m4a"},
     "wav": {"audio/wav", "audio/x-wav", "audio/wave"},
 }
+
+CAPTURE_REQUESTS = Counter(
+    "oikonomia_capture_requests_total",
+    "Capture requests by media kind, state, and bounded reason",
+    ["kind", "status", "reason"],
+)
+CAPTURE_MEDIA_BYTES = Histogram(
+    "oikonomia_capture_media_bytes",
+    "Uploaded capture size in bytes",
+    ["kind"],
+    buckets=(1024, 32_768, 262_144, 1_048_576, 4_194_304, 8_388_608, 10_485_760),
+)
+CAPTURE_DURATION_SECONDS = Histogram(
+    "oikonomia_capture_audio_duration_seconds",
+    "Audio duration hint or provider-reported duration in seconds",
+    buckets=(1, 5, 15, 30, 60, 90, 120),
+)
 
 
 class CaptureError(ValueError):
@@ -124,7 +143,7 @@ def _audio_format(data: bytes) -> str | None:
     return None
 
 
-def transcribe_audio(
+def _transcribe_audio(
     data: bytes,
     *,
     filename: str,
@@ -134,7 +153,9 @@ def transcribe_audio(
 ) -> TranscriptionResult:
     if len(data) > MAX_AUDIO_BYTES:
         raise MediaTooLargeError("El audio supera el límite de 10 MB.")
-    if duration_hint is not None and duration_hint > MAX_AUDIO_SECONDS:
+    if duration_hint is not None and (
+        not math.isfinite(duration_hint) or duration_hint < 0 or duration_hint > MAX_AUDIO_SECONDS
+    ):
         raise MediaTooLongError("El audio no puede durar más de 120 segundos.")
     detected = _audio_format(data)
     if detected is None:
@@ -154,9 +175,14 @@ def transcribe_audio(
     )
     text = " ".join((result.text or "").split()).strip()
     unclear = len(re.sub(r"[^\w]", "", text, flags=re.UNICODE)) < 3
+    duration = result.duration_seconds or duration_hint
+    if duration is not None and (not math.isfinite(duration) or duration < 0):
+        duration = duration_hint
+    if duration is not None and duration > MAX_AUDIO_SECONDS:
+        raise MediaTooLongError("El audio no puede durar más de 120 segundos.")
     return TranscriptionResult(
         text=text,
-        duration_seconds=result.duration_seconds or duration_hint,
+        duration_seconds=duration,
         unclear=unclear,
     )
 
@@ -240,7 +266,7 @@ def _rejected(reason: str) -> ExpenseImageResult:
     )
 
 
-def extract_expense_from_image(
+def _extract_expense_from_image(
     data: bytes,
     *,
     mime_type: str,
@@ -294,3 +320,79 @@ def extract_expense_from_image(
         draft=draft,
         message="Listo, revisá los datos antes de guardar el gasto.",
     )
+
+
+def _capture_error_reason(exc: Exception) -> str:
+    if isinstance(exc, MediaTooLargeError):
+        return "too_large"
+    if isinstance(exc, MediaTooLongError):
+        return "too_long"
+    if isinstance(exc, UnsupportedMediaError):
+        return "unsupported_media"
+    if isinstance(exc, LLMUnsupportedCapabilityError):
+        return "unsupported_capability"
+    if isinstance(exc, LLMError):
+        return "provider_unavailable"
+    return "provider_error"
+
+
+def _observe_duration(duration: float | None) -> None:
+    if duration is not None and math.isfinite(duration) and duration >= 0:
+        CAPTURE_DURATION_SECONDS.observe(duration)
+
+
+def transcribe_audio(
+    data: bytes,
+    *,
+    filename: str,
+    mime_type: str,
+    duration_hint: float | None = None,
+    api_key_env: str = "LLM_API_KEY",
+) -> TranscriptionResult:
+    CAPTURE_MEDIA_BYTES.labels("audio").observe(len(data))
+    try:
+        result = _transcribe_audio(
+            data,
+            filename=filename,
+            mime_type=mime_type,
+            duration_hint=duration_hint,
+            api_key_env=api_key_env,
+        )
+    except Exception as exc:
+        _observe_duration(duration_hint)
+        CAPTURE_REQUESTS.labels(
+            "audio",
+            "rejected" if isinstance(exc, CaptureError) else "error",
+            _capture_error_reason(exc),
+        ).inc()
+        raise
+    _observe_duration(result.duration_seconds)
+    status = "unclear" if result.unclear else "ok"
+    CAPTURE_REQUESTS.labels("audio", status, "unclear" if result.unclear else "none").inc()
+    return result
+
+
+def extract_expense_from_image(
+    data: bytes,
+    *,
+    mime_type: str,
+    hint: str | None = None,
+    api_key_env: str = "LLM_API_KEY",
+) -> ExpenseImageResult:
+    CAPTURE_MEDIA_BYTES.labels("image").observe(len(data))
+    try:
+        result = _extract_expense_from_image(
+            data,
+            mime_type=mime_type,
+            hint=hint,
+            api_key_env=api_key_env,
+        )
+    except Exception as exc:
+        CAPTURE_REQUESTS.labels(
+            "image",
+            "rejected" if isinstance(exc, CaptureError) else "error",
+            _capture_error_reason(exc),
+        ).inc()
+        raise
+    CAPTURE_REQUESTS.labels("image", result.status, result.reason or "none").inc()
+    return result
