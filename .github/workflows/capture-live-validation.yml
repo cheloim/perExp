@@ -66,6 +66,32 @@ jobs:
                   print(f"{name}: error {type(exc).__name__}: {str(exc)[:200]}")
           PY
 
+      - name: Inspect project model permissions (read-only)
+        continue-on-error: true
+        env:
+          OPENAI_ADMIN_KEY: ${{ secrets.OPENAI_ADMIN_KEY }}
+          OPENAI_PROJECT_ID: proj_lWelmILL2gnV8NRqGSot2kTd
+        run: |
+          python - <<'PY'
+          import os
+          import requests
+
+          key = os.environ.get("OPENAI_ADMIN_KEY", "")
+          project = os.environ["OPENAI_PROJECT_ID"]
+          if not key:
+              print("OPENAI_ADMIN_KEY: missing")
+              raise SystemExit(0)
+          headers = {"Authorization": f"Bearer {key}"}
+          paths = (
+              f"/v1/organization/projects/{project}/model_permissions",
+              f"/v1/organization/projects/{project}",
+              "/v1/organization/projects",
+          )
+          for path in paths:
+              response = requests.get("https://api.openai.com" + path, headers=headers, timeout=20)
+              print(path, response.status_code, response.text[:1200])
+          PY
+
       - name: Run live capture validation
         working-directory: src/backend
         env:
