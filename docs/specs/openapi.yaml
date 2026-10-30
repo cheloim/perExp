@@ -67,6 +67,8 @@ tags:
     description: Aggregated spending summaries and KPIs
   - name: analysis
     description: AI-powered spending analysis (Gemini Flash)
+  - name: capture
+    description: AI voice transcription and payment-proof extraction
   - name: groups
     description: Family group management
   - name: notifications
@@ -4329,6 +4331,138 @@ paths:
       responses:
         '200':
           description: Meta data deletion callback
+  /capture/transcribe:
+    post:
+      tags: [capture]
+      summary: Transcribe a short audio recording
+      operationId: transcribeAudio
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                duration_seconds:
+                  type: number
+                  nullable: true
+      responses:
+        '200':
+          description: Audio transcript and clarity status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptionResponse'
+        '400':
+          description: Unsupported format or audio longer than 120 seconds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
+        '413':
+          description: Audio exceeds 10 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
+        '429':
+          description: Capture rate limit exceeded
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
+        '502':
+          description: Capture provider failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
+        '503':
+          description: Capture capability is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
+  /capture/expense-image:
+    post:
+      tags: [capture]
+      summary: Extract one expense from a payment proof image
+      operationId: extractExpenseFromImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                hint:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Expense draft or a reason the image was rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseImageResponse'
+        '400':
+          description: Unsupported image format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
+        '413':
+          description: Image exceeds 8 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
+        '429':
+          description: Capture rate limit exceeded
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
+        '502':
+          description: Capture provider failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
+        '503':
+          description: Capture capability is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptureError'
 components:
   securitySchemes:
     bearerAuth:
@@ -4337,6 +4471,62 @@ components:
       bearerFormat: JWT
 
   schemas:
+    CaptureError:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+    TranscriptionResponse:
+      type: object
+      required: [text, duration_seconds, unclear]
+      properties:
+        text:
+          type: string
+        duration_seconds:
+          type: number
+          nullable: true
+        unclear:
+          type: boolean
+    ExpenseDraftResponse:
+      type: object
+      required: [amount, currency, description, date, confidence, source_type, card_hint]
+      properties:
+        amount:
+          type: number
+        currency:
+          type: string
+          enum: [ARS, USD]
+        description:
+          type: string
+        date:
+          type: string
+          format: date
+          nullable: true
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        source_type:
+          type: string
+        card_hint:
+          type: string
+          nullable: true
+    ExpenseImageResponse:
+      type: object
+      required: [status, draft, reason, message]
+      properties:
+        status:
+          type: string
+          enum: [ok, rejected]
+        draft:
+          allOf:
+            - $ref: '#/components/schemas/ExpenseDraftResponse'
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        message:
+          type: string
     # ─── AUTH ─────────────────────────────────────────────────
     RegisterRequest:
       type: object
