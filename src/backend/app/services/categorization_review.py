@@ -759,6 +759,7 @@ def accept_review(
     review_id: int,
     category_id: int | None = None,
     reviewer_id: int | None = None,
+    bulk: bool = False,
 ) -> CategorizationReview:
     """Apply the suggested (or given) category to the expense."""
     review = get_review(db, review_id)
@@ -783,6 +784,7 @@ def accept_review(
     review.suggested_category_id = target
     review.reviewed_by = reviewer_id
     review.reviewed_at = datetime.utcnow()
+    review.bulk_applied = bulk
     db.commit()
     return review
 
@@ -837,10 +839,17 @@ def summary(db: Session, user_id: int | None = None) -> dict:
             by_signal[signal] += 1
 
     resolved = by_status["accepted"] + by_status["rejected"]
+    bulk_accepted = sum(1 for row in rows if row.status == "accepted" and row.bulk_applied)
+    manual_accepted = by_status["accepted"] - bulk_accepted
+    resolved_manual = manual_accepted + by_status["rejected"]
     return {
         "total": len(rows),
         "by_status": dict(by_status),
         "by_signal": dict(by_signal),
         "by_source": dict(by_source),
         "observed_precision": (round(by_status["accepted"] / resolved, 2) if resolved else None),
+        "manual_precision": (
+            round(manual_accepted / resolved_manual, 2) if resolved_manual else None
+        ),
+        "bulk_accepted": bulk_accepted,
     }

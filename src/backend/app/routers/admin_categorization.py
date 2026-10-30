@@ -5,16 +5,17 @@ expenses) is a different feature and is not touched here. These endpoints are
 the analyst interface of the detection pipeline while it is being validated.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.models import CategorizationReview, User
+from app.models import CategorizationReview, Category, Expense, User
 from app.services import categorization_review as review_service
 from app.services.auth import get_current_admin
+from app.services.expense_search import expense_matches
 
 router = APIRouter(prefix="/admin/categorization-reviews", tags=["admin"])
 
@@ -43,12 +44,27 @@ class ReviewItem(BaseModel):
     reviewed_at: str | None = None
 
 
+class CategoryOption(BaseModel):
+    id: int
+    name: str
+    color: str = "#6366f1"
+    parent_id: int | None = None
+
+
 class ReviewDetail(ReviewItem):
     evidence: dict = {}
+    available_categories: list[CategoryOption] = []
 
 
 class AcceptBody(BaseModel):
     category_id: int | None = None
+
+
+class BulkAcceptBody(BaseModel):
+    min_score: float = 0.8
+    user_id: int | None = None
+    max_items: int = 50
+    dry_run: bool = False
 
 
 class ScanBody(BaseModel):
@@ -131,13 +147,22 @@ def list_reviews(
     status: str = "pending",
     user_id: int | None = None,
     min_score: float | None = None,
+    max_score: float | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    search: str | None = None,
     signal: str | None = None,
     page: int = 1,
     per_page: int = 50,
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ):
-    """`status`: pending | accepted | rejected | investigated | all."""
+    """`status`: pending | accepted | rejected | investigated | all.
+
+    Every new filter is optional and additive: without them the response is the
+    same one the internal API returned before the admin UI existed. Filters only
+    select what is displayed, they never trigger a scan nor touch an expense.
+    """
     if page < 1 or per_page < 1 or per_page > 200:
         raise HTTPException(status_code=400, detail="paginación inválida")
     query = db.query(CategorizationReview).options(
@@ -151,19 +176,18 @@ def list_reviews(
         query = query.filter(CategorizationReview.user_id == user_id)
     if min_score is not None:
         query = query.filter(CategorizationReview.score >= min_score)
+    if max_score is not None:
+        query = query.filter(CategorizationReview.score <= max_score)
+    if date_from is not None or date_to is not None:
+        query = query.join(Expense, Expense.id == CategorizationReview.expense_id)
+        if date_from is not None:
+            query = query.filter(Expense.date >= date_from)
+        if date_to is not None:
+            query = query.filter(Expense.date <= date_to)
 
     rows = query.order_by(CategorizationReview.score.desc()).all()
-    if signal:
-        import json
-
-        def has_signal(row: CategorizationReview) -> bool:
-            try:
-                evidence = json.loads(row.evidence or "{}")
-            except ValueError:
-                return False
-            return signal in (evidence.get("signals") or {})
-
-        rows = [row for row in rows if has_signal(row)]
+    if signal or search:
+        rows = [row for row in rows if _row_matches(row, signal=signal, search=search)]
 
     total = len(rows)
     start = (page - 1) * per_page
@@ -175,6 +199,30 @@ def list_reviews(
         "per_page": per_page,
         "summary": review_service.summary(db, user_id=user_id),
     }
+
+
+def _row_matches(
+    row: CategorizationReview, signal: str | None = None, search: str | None = None
+) -> bool:
+    """Application-level filters: evidence is JSON and descriptions are encrypted.
+
+    Both need the row in memory, so they run after the SQL filters and before
+    pagination keeps the page boundaries honest.
+    """
+    import json
+
+    if signal:
+        try:
+            evidence = json.loads(row.evidence or "{}")
+        except ValueError:
+            return False
+        if signal not in (evidence.get("signals") or {}):
+            return False
+    if search:
+        description = row.expense.description if row.expense else None
+        if not expense_matches(search, description):
+            return False
+    return True
 
 
 @router.get(
@@ -189,7 +237,24 @@ def get_review_detail(
     admin: User = Depends(get_current_admin),
 ):
     review = _load(db, review_id)
-    return ReviewDetail(**_serialize(review, with_evidence=True))
+    categories = (
+        db.query(Category)
+        .filter(Category.user_id == review.user_id)
+        .order_by(Category.name.asc())
+        .all()
+    )
+    return ReviewDetail(
+        **_serialize(review, with_evidence=True),
+        available_categories=[
+            CategoryOption(
+                id=category.id,
+                name=category.name,
+                color=category.color or "#6366f1",
+                parent_id=category.parent_id,
+            )
+            for category in categories
+        ],
+    )
 
 
 @router.post(
@@ -252,6 +317,65 @@ def investigate(
     except review_service.ReviewNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return _serialize(_load(db, review.id), with_evidence=True)
+
+
+@router.post(
+    "/bulk-accept",
+    summary="Accept every pending review above a score threshold",
+    description=(
+        "Bulk resolution for the admin UI. Only pending reviews with a suggested "
+        "category are considered: reviews already resolved are never touched. Bulk "
+        "acceptances are flagged so they do not feed the manual precision."
+    ),
+)
+def bulk_accept(
+    body: BulkAcceptBody,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    if not 0.0 <= body.min_score <= 1.0:
+        raise HTTPException(status_code=400, detail="min_score debe estar entre 0 y 1")
+    if not 1 <= body.max_items <= 200:
+        raise HTTPException(status_code=400, detail="max_items inválido")
+
+    base = db.query(CategorizationReview).filter(
+        CategorizationReview.status == "pending",
+        CategorizationReview.score >= body.min_score,
+    )
+    if body.user_id is not None:
+        base = base.filter(CategorizationReview.user_id == body.user_id)
+
+    without_suggestion = base.filter(CategorizationReview.suggested_category_id.is_(None)).count()
+    candidates = (
+        base.filter(CategorizationReview.suggested_category_id.isnot(None))
+        .order_by(CategorizationReview.score.desc())
+        .limit(body.max_items)
+        .all()
+    )
+
+    accepted = 0
+    stale = 0
+    missing = 0
+    if not body.dry_run:
+        for review in candidates:
+            try:
+                review_service.accept_review(db, review.id, reviewer_id=admin.id, bulk=True)
+                accepted += 1
+            except review_service.StaleReviewError:
+                stale += 1
+            except review_service.MissingCategoryError:
+                missing += 1
+
+    return {
+        "candidates": len(candidates),
+        "accepted": accepted,
+        "skipped_without_suggestion": without_suggestion,
+        "skipped_stale": stale,
+        "skipped_missing_category": missing,
+        "dry_run": body.dry_run,
+        "max_items": body.max_items,
+        "min_score": body.min_score,
+    }
 
 
 @router.post(

@@ -8,6 +8,7 @@ miscategorized. It never reaches the end user (issue #414).
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -17,6 +18,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import relationship
 
@@ -111,6 +113,7 @@ class CategorizationReview(Base):
     evidence = Column(Text, default="{}")  # JSON: signals, merchant_key, llm verdict
     detector_version = Column(String, nullable=False)
     status = Column(String, default="pending")  # pending | accepted | rejected | investigated
+    bulk_applied = Column(Boolean, default=False, nullable=False, server_default=text("false"))
     reviewed_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

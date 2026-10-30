@@ -13,8 +13,10 @@ from fastapi import HTTPException
 from app.models import CategorizationReview, Category, Expense
 from app.routers.admin_categorization import (
     AcceptBody,
+    BulkAcceptBody,
     ScanBody,
     accept,
+    bulk_accept,
     get_review_detail,
     investigate,
     list_reviews,
@@ -103,6 +105,264 @@ def test_list_sin_resultados_para_otro_estado(db, setup):
     result = list_reviews(status="rejected", db=db, admin=setup["admin"])
     assert result["total"] == 0
     assert result["items"] == []
+
+
+def _add_review(
+    db,
+    user,
+    category,
+    *,
+    description="FARMACIA DEL PUEBLO",
+    amount=15000.0,
+    expense_date=date(2026, 10, 20),
+    score=0.6,
+    evidence='{"signals": {"history_conflict": {"weight": 0.4}}}',
+    suggested=None,
+    status="pending",
+):
+    expense = Expense(
+        date=expense_date,
+        description=description,
+        description_hmac=compute_hmac(description),
+        amount=amount,
+        user_id=user.id,
+        category_id=category.id,
+        is_income=False,
+    )
+    db.add(expense)
+    db.flush()
+    review = CategorizationReview(
+        expense_id=expense.id,
+        user_id=user.id,
+        current_category_id=category.id,
+        suggested_category_id=(suggested or category).id,
+        score=score,
+        source="rules",
+        reason="test",
+        evidence=evidence,
+        detector_version=review_service.DETECTOR_VERSION,
+        status=status,
+    )
+    db.add(review)
+    db.flush()
+    return review
+
+
+def test_list_sin_filtros_devuelve_lo_mismo_que_antes(db, setup):
+    """The new filters are additive: omitting them must not change the response."""
+    base = list_reviews(status="pending", db=db, admin=setup["admin"])
+    explicit = list_reviews(
+        status="pending",
+        max_score=None,
+        date_from=None,
+        date_to=None,
+        search=None,
+        db=db,
+        admin=setup["admin"],
+    )
+    assert base == explicit
+
+
+def test_list_filtra_por_score_maximo(db, setup):
+    admin = setup["admin"]
+    _add_review(db, admin, setup["accesorios"], score=0.9)
+
+    result = list_reviews(status="pending", max_score=0.8, db=db, admin=admin)
+
+    assert result["total"] == 1
+    assert result["items"][0]["score"] == 0.75
+
+
+def test_list_filtra_por_rango_de_fechas(db, setup):
+    admin = setup["admin"]
+    _add_review(db, admin, setup["accesorios"], expense_date=date(2026, 10, 20))
+
+    from_only = list_reviews(status="pending", date_from=date(2026, 10, 15), db=db, admin=admin)
+    to_only = list_reviews(status="pending", date_to=date(2026, 10, 15), db=db, admin=admin)
+    full_range = list_reviews(
+        status="pending",
+        date_from=date(2026, 10, 1),
+        date_to=date(2026, 10, 31),
+        db=db,
+        admin=admin,
+    )
+
+    assert from_only["total"] == 1
+    assert from_only["items"][0]["description"] == "FARMACIA DEL PUEBLO"
+    assert to_only["total"] == 1
+    assert to_only["items"][0]["description"] == "YENNY TORTUGAS OPEN MALL"
+    assert full_range["total"] == 2
+
+
+def test_list_busca_por_comercio_descifrado(db, setup):
+    admin = setup["admin"]
+    _add_review(db, admin, setup["accesorios"])
+
+    assert list_reviews(status="pending", search="farmacia", db=db, admin=admin)["total"] == 1
+    assert list_reviews(status="pending", search="tortugas", db=db, admin=admin)["total"] == 1
+    # tokenize_description normalizes case and accents
+    assert list_reviews(status="pending", search="TÓRTUGAS", db=db, admin=admin)["total"] == 1
+    assert list_reviews(status="pending", search="inexistente", db=db, admin=admin)["total"] == 0
+
+
+def test_list_search_vacio_no_filtra(db, setup):
+    admin = setup["admin"]
+    _add_review(db, admin, setup["accesorios"])
+
+    assert list_reviews(status="pending", search="", db=db, admin=admin)["total"] == 2
+    assert list_reviews(status="pending", search="   ", db=db, admin=admin)["total"] == 2
+
+
+def test_list_combina_busqueda_senal_y_paginacion(db, setup):
+    admin = setup["admin"]
+    _add_review(db, admin, setup["accesorios"], score=0.6)
+    _add_review(db, admin, setup["accesorios"], score=0.9)
+
+    first = list_reviews(
+        status="pending",
+        signal="history_conflict",
+        min_score=0.6,
+        page=1,
+        per_page=1,
+        db=db,
+        admin=admin,
+    )
+    second = list_reviews(
+        status="pending",
+        signal="history_conflict",
+        min_score=0.6,
+        page=2,
+        per_page=1,
+        db=db,
+        admin=admin,
+    )
+
+    assert first["total"] == 2
+    assert second["total"] == 2
+    assert first["items"][0]["id"] != second["items"][0]["id"]
+
+
+def test_detalle_incluye_categorias_del_usuario(db, setup):
+    from app.models import User
+
+    stranger = User(email="ajena@test.com", full_name="Ajena", hashed_password="x")
+    db.add(stranger)
+    db.flush()
+    db.add(Category(name="Ropa", user_id=stranger.id))
+    db.flush()
+
+    detail = get_review_detail(setup["review"].id, db=db, admin=setup["admin"])
+
+    names = [category.name for category in detail.available_categories]
+    assert names == ["Accesorios", "Electricidad & Gas"]
+    assert "Ropa" not in names
+
+
+def test_detalle_sin_categorias_devuelve_lista_vacia(db, setup):
+    from app.models import User
+
+    other = User(email="sin-cats@test.com", full_name="Sin Cats", hashed_password="x")
+    db.add(other)
+    db.flush()
+    review = _add_review(db, other, setup["accesorios"], suggested=setup["accesorios"])
+    review.current_category_id = None
+    db.flush()
+
+    detail = get_review_detail(review.id, db=db, admin=setup["admin"])
+
+    assert detail.available_categories == []
+
+
+def test_bulk_respeta_el_umbral(db, setup):
+    admin = setup["admin"]
+
+    below = bulk_accept(BulkAcceptBody(min_score=0.8), db=db, admin=admin)
+    above = bulk_accept(BulkAcceptBody(min_score=0.7), db=db, admin=admin)
+
+    assert below["candidates"] == 0
+    assert above["accepted"] == 1
+    assert setup["review"].status == "accepted"
+    assert setup["review"].bulk_applied is True
+
+
+def test_bulk_dry_run_no_escribe(db, setup):
+    result = bulk_accept(BulkAcceptBody(min_score=0.5, dry_run=True), db=db, admin=setup["admin"])
+
+    assert result["candidates"] == 1
+    assert result["accepted"] == 0
+    assert setup["review"].status == "pending"
+
+
+def test_bulk_no_toca_reviews_ya_resueltas(db, setup):
+    admin = setup["admin"]
+    setup["review"].status = "rejected"
+    pending = _add_review(db, admin, setup["accesorios"], score=0.9)
+    db.flush()
+
+    result = bulk_accept(BulkAcceptBody(min_score=0.5), db=db, admin=admin)
+
+    assert result["candidates"] == 1
+    assert result["accepted"] == 1
+    assert setup["review"].status == "rejected"
+    assert pending.status == "accepted"
+
+
+def test_bulk_respeta_max_items(db, setup):
+    admin = setup["admin"]
+    _add_review(db, admin, setup["accesorios"], score=0.9)
+
+    result = bulk_accept(BulkAcceptBody(min_score=0.5, max_items=1), db=db, admin=admin)
+
+    assert result["candidates"] == 1
+    assert result["accepted"] == 1
+    assert db.query(CategorizationReview).filter_by(status="pending").count() == 1
+
+
+def test_bulk_cuenta_las_obsoletas_y_sigue(db, setup):
+    admin = setup["admin"]
+    setup["expense"].category_id = setup["accesorios"].id  # makes the fixture review stale
+    _add_review(db, admin, setup["accesorios"], score=0.9)
+    db.flush()
+
+    result = bulk_accept(BulkAcceptBody(min_score=0.5), db=db, admin=admin)
+
+    assert result["candidates"] == 2
+    assert result["accepted"] == 1
+    assert result["skipped_stale"] == 1
+
+
+def test_bulk_saltea_reviews_sin_categoria_sugerida(db, setup):
+    admin = setup["admin"]
+    no_suggestion = _add_review(db, admin, setup["accesorios"], score=0.9)
+    no_suggestion.suggested_category_id = None
+    db.flush()
+
+    result = bulk_accept(BulkAcceptBody(min_score=0.5), db=db, admin=admin)
+
+    assert result["skipped_without_suggestion"] == 1
+    assert result["candidates"] == 1
+    assert result["accepted"] == 1
+
+
+def test_bulk_valida_parametros(db, setup):
+    admin = setup["admin"]
+    for body in (BulkAcceptBody(min_score=1.5), BulkAcceptBody(min_score=0.5, max_items=0)):
+        with pytest.raises(HTTPException) as exc:
+            bulk_accept(body, db=db, admin=admin)
+        assert exc.value.status_code == 400
+
+
+def test_la_precision_manual_no_cuenta_las_aceptadas_en_bulk(db, setup):
+    admin = setup["admin"]
+    _add_review(db, admin, setup["accesorios"], score=0.9)
+    _add_review(db, admin, setup["accesorios"], score=0.8, status="rejected")
+    bulk_accept(BulkAcceptBody(min_score=0.7), db=db, admin=admin)
+
+    summary = review_service.summary(db)
+
+    assert summary["bulk_accepted"] == 2
+    assert summary["observed_precision"] == 0.67
+    assert summary["manual_precision"] == 0.0
 
 
 def test_detalle_incluye_evidencia(db, setup):
