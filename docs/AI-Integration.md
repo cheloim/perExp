@@ -139,8 +139,12 @@ those candidates, in batches of 25, via `CATEGORY_REVIEW_PROMPT`:
 
 `POST /capture/transcribe` sends supported audio (WAV, OGG, MP3, M4A; up to
 10 MB / 120 seconds) to OpenAI Audio using `LLM_AUDIO_MODEL` (default
-`whisper-1`). Transcription cost is estimated at USD 0.006 per audio minute and
-is recorded in the existing LLM budget metrics. Unclear audio returns a retry
+`gpt-4o-mini-transcribe`). The deployed OpenAI project grants
+`gpt-4o-mini-transcribe` and `gpt-6-luna`; it does not grant `whisper-1`, so the
+default and the deployment env point at the granted model. `LLM_AUDIO_MODEL`
+can override it when a project grants a different transcription model.
+Transcription cost is estimated at USD 0.003 per audio minute for the default
+model and is recorded in the existing LLM budget metrics. Unclear audio returns a retry
 signal instead of an empty expense. The server parses media duration with
 `mutagen` before contacting the provider; a client-supplied duration is not used
 to enforce the limit or estimate cost. Browser recordings in WebM are converted
@@ -165,7 +169,9 @@ Google rather than silently dropping media.
 Capture production configuration is `LLM_PROVIDER=openai` and
 `LLM_MODEL_NAME=gpt-6-luna`. Vision uses `LLM_VISION_MODEL` when configured and
 otherwise inherits `LLM_MODEL_NAME`; audio uses `LLM_AUDIO_MODEL` and defaults to
-`whisper-1`. Audio is estimated at USD 0.006 per minute. Image inference is
+`gpt-4o-mini-transcribe`. Audio is estimated at USD 0.003 per minute for the
+default model; `whisper-1` and `gpt-4o-transcribe` are priced at USD 0.006 per
+minute in the pricing table when a project grants them. Image inference is
 charged according to the selected vision model's image/token pricing and usage;
 there is no fixed per-image price in the application, and it remains within the
 existing monthly LLM budget.
@@ -200,7 +206,7 @@ All prompts are defined in `backend/app/prompts.py`:
 ## Cost Optimization
 
 - **Token reduction**: Prompts optimized from 10,800 → 3,669 chars (66% reduction)
-- **Model choice**: OpenAI `gpt-6-luna` for production text; vision inherits `LLM_MODEL_NAME` unless `LLM_VISION_MODEL` is set; audio defaults to `whisper-1`
+- **Model choice**: OpenAI `gpt-6-luna` for production text; vision inherits `LLM_MODEL_NAME` unless `LLM_VISION_MODEL` is set; audio defaults to `gpt-4o-mini-transcribe`
 - **Caching**: Analysis history saved to avoid re-analysis
 - **Batch processing**: Import processes all transactions in one LLM call
 

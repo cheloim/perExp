@@ -75,7 +75,7 @@ integrations:
     config:
       provider: openai
       model_env: LLM_AUDIO_MODEL
-      model_default: whisper-1
+      model_default: gpt-4o-mini-transcribe
       api_key_env: LLM_API_KEY
 
 migrations: []

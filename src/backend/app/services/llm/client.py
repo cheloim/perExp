@@ -99,7 +99,7 @@ def resolve_model(provider: str, model: str | None = None, capability: str = "te
             or ("gpt-6-luna" if provider == "openai" else "gemini-flash-latest")
         )
     if capability == "audio":
-        return os.getenv("LLM_AUDIO_MODEL", "").strip() or "whisper-1"
+        return os.getenv("LLM_AUDIO_MODEL", "").strip() or "gpt-4o-mini-transcribe"
     env_model = os.getenv("LLM_MODEL_NAME", "").strip()
     if env_model:
         return env_model

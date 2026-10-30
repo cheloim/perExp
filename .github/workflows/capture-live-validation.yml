@@ -73,7 +73,7 @@ jobs:
           SECRET_KEY: "test-secret-key-that-is-at-least-32-chars-long-for-testing"
           LLM_PROVIDER: openai
           LLM_MODEL_NAME: gpt-6-luna
-          LLM_AUDIO_MODEL: whisper-1
+          LLM_AUDIO_MODEL: gpt-4o-mini-transcribe
           LLM_VISION_MODEL: gpt-6-luna
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           MESSAGES_BOT_LLM_API_KEY: ${{ secrets.MESSAGES_BOT_LLM_API_KEY }}

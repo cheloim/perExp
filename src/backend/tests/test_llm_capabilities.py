@@ -20,7 +20,7 @@ def test_message_keeps_media_without_text():
 
 def test_audio_capability_defaults_to_whisper(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "openai")
-    assert resolve_model("openai", capability="audio") == "whisper-1"
+    assert resolve_model("openai", capability="audio") == "gpt-4o-mini-transcribe"
 
 
 def test_get_client_rejects_unsupported_provider_capability(monkeypatch):
@@ -81,3 +81,4 @@ def test_google_audio_is_explicitly_unsupported():
 
 def test_audio_cost_is_per_minute():
     assert estimate_audio_cost_usd("whisper-1", 60) == pytest.approx(0.006)
+    assert estimate_audio_cost_usd("gpt-4o-mini-transcribe", 60) == pytest.approx(0.003)

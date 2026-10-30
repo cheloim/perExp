@@ -28,8 +28,12 @@ PRICES: dict[str, dict[str, float]] = {
 #: Conservative stand-in for an unknown model.
 DEFAULT_PRICE = {"input": 10.00, "output": 50.00}
 
-# USD per minute. Whisper transcription is priced by audio duration.
-AUDIO_PRICES_PER_MINUTE: dict[str, float] = {"whisper-1": 0.006}
+# USD per minute. Transcription is priced by audio duration.
+AUDIO_PRICES_PER_MINUTE: dict[str, float] = {
+    "whisper-1": 0.006,
+    "gpt-4o-transcribe": 0.006,
+    "gpt-4o-mini-transcribe": 0.003,
+}
 
 
 def price_for(model: str) -> dict[str, float]:
