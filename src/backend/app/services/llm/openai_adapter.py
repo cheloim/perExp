@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import base64
 import logging
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
-from .client import LLMClient
+from .client import LLMClient, LLMUnsupportedCapabilityError
 from .types import LLMMessage, LLMResult
 
 logger = logging.getLogger(__name__)
@@ -41,8 +42,37 @@ class OpenAIClient(LLMClient):
     def _payload(
         self, messages: list[LLMMessage], temperature: float | None, json_mode: bool
     ) -> dict[str, Any]:
-        turns = [{"role": m.role, "content": m.text} for m in messages]
-        if json_mode and not any("json" in t["content"].lower() for t in turns):
+        turns: list[dict[str, Any]] = []
+        for message in messages:
+            if not message.media:
+                turns.append({"role": message.role, "content": message.text})
+                continue
+            parts: list[dict[str, Any]] = []
+            if message.text:
+                parts.append({"type": "text", "text": message.text})
+            for media in message.media:
+                if media.kind != "image":
+                    raise LLMUnsupportedCapabilityError("audio", "openai")
+                encoded = base64.b64encode(media.data).decode("ascii")
+                parts.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{media.mime_type};base64,{encoded}"},
+                    }
+                )
+            turns.append({"role": message.role, "content": parts})
+        has_json = any(
+            "json"
+            in (
+                " ".join(
+                    part.get("text", "") for part in turn["content"] if part.get("type") == "text"
+                )
+                if isinstance(turn["content"], list)
+                else turn["content"]
+            ).lower()
+            for turn in turns
+        )
+        if json_mode and not has_json:
             turns.append({"role": "user", "content": _JSON_HINT})
 
         payload: dict[str, Any] = {"model": self.model, "messages": turns}
@@ -85,6 +115,30 @@ class OpenAIClient(LLMClient):
     def _complete(self, messages, temperature, json_mode) -> LLMResult:
         payload = self._payload(messages, temperature, json_mode)
         return self._result(self._create(self._sync.chat.completions.create, payload))
+
+    def _transcribe(self, audio, *, filename, mime_type, language, duration_hint) -> LLMResult:
+        create = self._sync.audio.transcriptions.create
+        kwargs = {
+            "file": (filename, audio, mime_type),
+            "model": self.model,
+            "language": language,
+            "response_format": "verbose_json",
+        }
+        try:
+            response = create(**kwargs)
+        except Exception as exc:
+            message = str(exc).lower()
+            if "verbose_json" not in message and "response_format" not in message:
+                raise
+            kwargs["response_format"] = "json"
+            response = create(**kwargs)
+        duration = getattr(response, "duration", None)
+        return LLMResult(
+            text=(getattr(response, "text", "") or "").strip(),
+            model=getattr(response, "model", "") or self.model,
+            duration_seconds=float(duration) if duration is not None else duration_hint,
+            raw=response,
+        )
 
     async def _acomplete(self, messages, temperature, json_mode) -> LLMResult:
         payload = self._payload(messages, temperature, json_mode)
