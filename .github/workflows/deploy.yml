@@ -1105,7 +1105,10 @@ jobs:
 
   deploy-monitoring:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, detect-changes]
+    # El chequeo final resuelve `landing` desde nginx. Sin esta dependencia,
+    # monitoring corre en paralelo con deploy-landing y el chequeo falla por
+    # una carrera (landing todavía no arrancó), no porque falte el alias.
+    needs: [deploy-infra, deploy-landing, detect-changes]
     # `migrate-only` no corre migraciones (eso es migrations.yml) y no debería
     # reiniciar nada: era una trampa que se veía como "correr migraciones" y
     # terminaba reiniciando journald y alloy.
@@ -1327,7 +1330,19 @@ jobs:
             NGINX_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_nginx_' | head -1 || true)
             if [ -n "$NGINX_CONTAINER" ]; then
               for UPSTREAM in grafana landing; do
-                if podman exec "$NGINX_CONTAINER" getent hosts "$UPSTREAM" >/dev/null 2>&1; then
+                RESOLVED=0
+                # Podman DNS puede tardar unos segundos en registrar el alias
+                # después de `up -d`; 15 intentos x 2s absorben el arranque sin
+                # tapar un alias realmente ausente.
+                for ATTEMPT in $(seq 1 15); do
+                  if podman exec "$NGINX_CONTAINER" getent hosts "$UPSTREAM" >/dev/null 2>&1; then
+                    RESOLVED=1
+                    break
+                  fi
+                  echo "  $UPSTREAM todavía no resuelve (intento $ATTEMPT/15)"
+                  sleep 2
+                done
+                if [ "$RESOLVED" = "1" ]; then
                   echo "  $UPSTREAM resuelve OK"
                 else
                   echo "::error::nginx no resuelve '$UPSTREAM': el alias no está en la red compartida"
