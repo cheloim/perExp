@@ -1,0 +1,106 @@
+name: Capture live validation
+
+# Runs the real provider against synthetic audio and payment-proof images.
+# Secrets are read from the repository secrets and never printed.
+on:
+  push:
+    branches: [integration/capture-inputs]
+    paths:
+      - ".github/workflows/capture-live-validation.yml"
+      - "src/backend/scripts/live_capture_check.py"
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: |
+      github.event_name != 'pull_request' || (
+        github.event.label.name == 'live-validation' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: src/backend/requirements.txt
+
+      - name: Install system tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y espeak-ng fonts-dejavu-core
+
+      - name: Install backend dependencies
+        run: pip install -r src/backend/requirements.txt
+
+      - name: List accessible models per key
+        working-directory: src/backend
+        continue-on-error: true
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          MESSAGES_BOT_LLM_API_KEY: ${{ secrets.MESSAGES_BOT_LLM_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          from openai import OpenAI
+
+          for name in ("LLM_API_KEY", "MESSAGES_BOT_LLM_API_KEY"):
+              key = os.environ.get(name)
+              if not key:
+                  print(f"{name}: missing")
+                  continue
+              try:
+                  ids = sorted(model.id for model in OpenAI(api_key=key).models.list().data)
+                  audio = [i for i in ids if any(k in i for k in ("audio", "transcribe", "whisper"))]
+                  print(f"{name} models:", ids)
+                  print(f"{name} audio:", audio or "(none)")
+              except Exception as exc:
+                  print(f"{name}: error {type(exc).__name__}: {str(exc)[:200]}")
+          PY
+
+      - name: Inspect project model permissions (read-only)
+        continue-on-error: true
+        env:
+          OPENAI_ADMIN_KEY: ${{ secrets.OPENAI_ADMIN_KEY }}
+          OPENAI_PROJECT_ID: proj_lWelmILL2gnV8NRqGSot2kTd
+        run: |
+          python - <<'PY'
+          import os
+          import requests
+
+          key = os.environ.get("OPENAI_ADMIN_KEY", "")
+          project = os.environ["OPENAI_PROJECT_ID"]
+          if not key:
+              print("OPENAI_ADMIN_KEY: missing")
+              raise SystemExit(0)
+          headers = {"Authorization": f"Bearer {key}"}
+          paths = (
+              f"/v1/organization/projects/{project}/model_permissions",
+              f"/v1/organization/projects/{project}",
+              "/v1/organization/projects",
+          )
+          for path in paths:
+              response = requests.get("https://api.openai.com" + path, headers=headers, timeout=20)
+              print(path, response.status_code, response.text[:1200])
+          PY
+
+      - name: Run live capture validation
+        working-directory: src/backend
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src/backend
+          SECRET_KEY: "test-secret-key-that-is-at-least-32-chars-long-for-testing"
+          LLM_PROVIDER: openai
+          LLM_MODEL_NAME: gpt-6-luna
+          LLM_AUDIO_MODEL: gpt-4o-mini-transcribe
+          LLM_VISION_MODEL: gpt-6-luna
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          MESSAGES_BOT_LLM_API_KEY: ${{ secrets.MESSAGES_BOT_LLM_API_KEY }}
+        run: python scripts/live_capture_check.py

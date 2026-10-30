@@ -16,12 +16,22 @@ Role = Literal["system", "user", "assistant"]
 
 
 @dataclass(frozen=True)
+class LLMMedia:
+    """A short-lived media attachment; callers own its lifetime."""
+
+    kind: Literal["image", "audio"]
+    mime_type: str
+    data: bytes
+
+
+@dataclass(frozen=True)
 class LLMMessage:
     """One conversation turn. `role` is the OpenAI vocabulary; the Google
     adapter maps `assistant` onto its `model` role."""
 
     role: Role
-    text: str
+    text: str = ""
+    media: tuple[LLMMedia, ...] = ()
 
 
 @dataclass
@@ -34,6 +44,7 @@ class LLMResult:
     output_tokens: int = 0
     cached_input_tokens: int = 0
     finish_reason: str | None = None
+    duration_seconds: float | None = None
     raw: Any = field(default=None, repr=False)
 
 

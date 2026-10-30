@@ -89,22 +89,34 @@ Library: **openai** (default) or **google-genai** (fallback), selected per call.
 
 | File | Responsibility |
 |------|----------------|
-| `app/services/llm/types.py` | `LLMMessage`, `LLMResult`, `parse_json_block` |
-| `app/services/llm/client.py` | The facade: `complete` / `complete_json` / `stream`, plus async variants |
-| `app/services/llm/openai_adapter.py` | OpenAI: chat completions, JSON mode, streaming + usage |
-| `app/services/llm/google_adapter.py` | Gemini: `generate_content`, `system_instruction`, streaming |
-| `app/services/llm/pricing.py` | USD per 1M tokens, for the cost metric |
+| `app/services/llm/types.py` | `LLMMessage`, transient `LLMMedia`, `LLMResult`, `parse_json_block` |
+| `app/services/llm/client.py` | The facade: text, vision, audio transcription, streaming, and capability resolution |
+| `app/services/llm/openai_adapter.py` | OpenAI: chat completions, image input, audio transcription, JSON mode, streaming + usage |
+| `app/services/llm/google_adapter.py` | Google: text `generate_content`, `system_instruction`, and streaming |
+| `app/services/llm/pricing.py` | USD per 1M tokens and per audio minute, for cost metrics |
 | `app/services/llm/metrics.py` | Usage accounting → Prometheus |
 
 ### Provider selection
 
-`LLM_PROVIDER` wins when set (`openai` | `google`). Otherwise the provider is
-inferred from the key shape: `sk-...` is OpenAI, anything else is Google. That
-is what makes replacing the value of `LLM_API_KEY` enough to move providers.
+Production uses `LLM_PROVIDER=openai`. Google remains an explicitly configured
+text-only alternative; capture vision and audio capabilities fail explicitly
+with `LLMUnsupportedCapabilityError` when Google is selected.
 
-`LLM_MODEL_NAME` defaults to `gpt-6-luna` (OpenAI) or `gemini-flash-latest`
-(Google). Note that Google's `-latest` aliases are floating and move without
-notice; OpenAI and Anthropic have no equivalent, so upgrades there are manual.
+`LLM_MODEL_NAME` defaults to `gpt-6-luna` for OpenAI. Capture uses
+`LLM_VISION_MODEL` (defaulting to `LLM_MODEL_NAME`) and `LLM_AUDIO_MODEL`
+(default `whisper-1`).
+
+### Capture media
+
+`POST /capture/transcribe` sends OGG, MP3, M4A, or WAV audio up to 10 MB
+and 120 seconds to OpenAI Audio. `POST /capture/expense-image` sends JPEG, PNG,
+or WebP images up to 8 MB / 20 MP to OpenAI Vision after EXIF stripping and
+in-memory resize to 1600 px. Audio is priced at USD 0.006 per minute; vision
+uses the configured model's token pricing and the existing monthly LLM budget.
+Neither audio nor image content is stored persistently or logged. Multipart
+parsing may use a temporary file during the request; the framework removes it
+when the request ends. Google supports text calls only and cannot serve either
+capture endpoint.
 
 ### Call sites
 
@@ -124,6 +136,8 @@ Every call passes a `feature` label — that is how the dashboard attributes cos
 | `dashboard_trends` | Trends and projections (JSON) | `app/routers/dashboard.py` |
 | `weekly_summary` | Weekly report analysis | `app/tasks/weekly_summary.py` |
 | `monthly_report` | Monthly report analysis (JSON) | `app/tasks/monthly_report.py` |
+| `voice_transcription` | Audio transcription | `app/services/capture.py` |
+| `expense_image_extract` | Payment-proof image extraction | `app/services/capture.py` |
 
 Conversation history is turned into provider-neutral turns by
 `app/services/chat_context.to_llm_messages`, which also caps how much of a
@@ -250,6 +264,7 @@ Library: **redis-py**
 | Use Case            | Key Pattern                        | TTL        |
 |---------------------|------------------------------------|------------|
 | Rate limiting       | `rate_limit:{type}:{key}`          | 60-300s    |
+| Capture rate limiting | `rate_limit:capture:{user_id}`   | 3600s      |
 | Account lockout     | `lockout:{user_id}`                | 900s       |
 | Failed login count  | `failed_login:{user_id}`           | 900s       |
 | Celery broker       | (default DB 0)                     |            |

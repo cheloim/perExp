@@ -2,7 +2,7 @@
 
 ## Overview
 
-NikoFin uses **Google Gemini Flash** (`gemini-flash-latest`) via the `google-genai` SDK for multiple AI-powered features. Three separate API keys are used for different purposes.
+NikoFin uses **OpenAI** in production through the provider-neutral `app/services/llm` layer. `LLM_PROVIDER=openai` and `LLM_MODEL_NAME=gpt-6-luna` are the production defaults; Google remains available for text-only compatibility. Three separate API keys are used for different purposes.
 
 ## API Keys
 
@@ -18,7 +18,7 @@ NikoFin uses **Google Gemini Flash** (`gemini-flash-latest`) via the `google-gen
 
 **File**: `services/smart_import_core.py`
 
-Sends extracted PDF text (or CSV/XLSX content) to Gemini with `SMART_IMPORT_PROMPT`. The LLM:
+Sends extracted PDF text (or CSV/XLSX content) to the configured text model with `SMART_IMPORT_PROMPT`. The LLM:
 
 - Parses Argentine bank statement formats
 - Extracts transactions (date, description, amount, currency, card_header, transaction_id)
@@ -62,7 +62,7 @@ prompt = CARD_EXTRACT_PROMPT.format(raw_input=user_input, card_type=card_type)
 
 **File**: `routers/analysis.py`
 
-Formats expense data into structured text and sends to Gemini:
+Formats expense data into structured text and sends to the configured text model:
 
 ```python
 prompt = f"""{ANALYSIS_SYSTEM_PROMPT}
@@ -90,7 +90,7 @@ Summarizes a conversation for session resume:
 
 **File**: `routers/dashboard.py`
 
-Structured prompt `AI_TRENDS_PROMPT` asks Gemini to return JSON:
+Structured prompt `AI_TRENDS_PROMPT` asks the configured text model to return JSON:
 
 ```json
 {
@@ -135,6 +135,61 @@ those candidates, in batches of 25, via `CATEGORY_REVIEW_PROMPT`:
 - Nothing is auto-applied: the verdict only feeds an internal review
 - A failed batch falls back to the rule score, never to per-expense calls
 
+### 9. Voice transcription and payment-proof extraction
+
+`POST /capture/transcribe` sends supported audio (WAV, OGG, MP3, M4A; up to
+10 MB / 120 seconds) to OpenAI Audio using `LLM_AUDIO_MODEL` (default
+`gpt-4o-mini-transcribe`). The deployed OpenAI project grants
+`gpt-4o-mini-transcribe` and `gpt-6-luna`; it does not grant `whisper-1`, so the
+default and the deployment env point at the granted model. `LLM_AUDIO_MODEL`
+can override it when a project grants a different transcription model. The
+deployed project grants the audio model to the bot key and not to
+`LLM_API_KEY`; the web capture route therefore uses `LLM_AUDIO_API_KEY` when it
+is set and falls back to `MESSAGES_BOT_LLM_API_KEY`. `LLM_API_KEY` remains the
+text/vision key. Transcription cost is estimated at USD 0.003 per audio minute
+for the default model and is recorded in the existing LLM budget metrics. Unclear audio returns a retry
+signal instead of an empty expense. The server parses media duration with
+`mutagen` before contacting the provider; a client-supplied duration is not used
+to enforce the limit or estimate cost. Browser recordings in WebM are converted
+to WAV by the client; the server rejects WebM sent directly.
+
+`POST /capture/expense-image` accepts JPEG, PNG, or WebP (up to 8 MB / 20 MP);
+Pillow strips EXIF and downsizes images to at most 1600 px per side before
+OpenAI Vision receives them. `LLM_VISION_MODEL` defaults to `LLM_MODEL_NAME`.
+The model returns a single-expense draft or a rejection reason; the user must
+review and save it. A receipt with many line items is valid when it has one
+clear final total, while multiple transactions, credits, balances, and pending
+payments are rejected. HEIC is not supported in v1.
+
+Audio and image bytes are not stored persistently by the application and are
+not logged. Starlette may spool a multipart upload to a temporary file during
+the request and removes it when the request ends. The service itself processes
+the bounded data in memory.
+OpenAI calls remain subject to the existing monthly budget. The Google adapter
+supports text only; capture explicitly returns unavailable when configured with
+Google rather than silently dropping media.
+
+Capture production configuration is `LLM_PROVIDER=openai` and
+`LLM_MODEL_NAME=gpt-6-luna`. Vision uses `LLM_VISION_MODEL` when configured and
+otherwise inherits `LLM_MODEL_NAME`; audio uses `LLM_AUDIO_MODEL` and defaults to
+`gpt-4o-mini-transcribe`. Audio is estimated at USD 0.003 per minute for the
+default model; `whisper-1` and `gpt-4o-transcribe` are priced at USD 0.006 per
+minute in the pricing table when a project grants them. Image inference is
+charged according to the selected vision model's image/token pricing and usage;
+there is no fixed per-image price in the application, and it remains within the
+existing monthly LLM budget.
+
+Telegram accepts voice messages and image photos/documents as transient inputs.
+Voice is transcribed for review before entering the existing text-expense flow.
+An image produces a draft that must be explicitly saved; unsupported or rejected
+proofs do not create expenses. Neither input media nor its content is retained by
+the application after processing.
+
+The app uses hand-written multipart wrappers in `frontend/src/api/client.ts`
+for these two operations because Orval's generated functions set
+`Content-Type: multipart/form-data` themselves. The wrappers leave that header
+unset so the browser can add the required multipart boundary.
+
 ## Prompt Templates
 
 All prompts are defined in `backend/app/prompts.py`:
@@ -149,11 +204,12 @@ All prompts are defined in `backend/app/prompts.py`:
 | `CATEGORY_SUGGEST_PROMPT`| Category suggestion (single expense) |
 | `BATCH_CATEGORY_PROMPT`  | Category suggestion (batch of uncategorized expenses) |
 | `CATEGORY_REVIEW_PROMPT` | Miscategorization review (internal, issue #414) |
+| `EXPENSE_IMAGE_PROMPT` | Single payment-proof extraction with rejection taxonomy |
 
 ## Cost Optimization
 
 - **Token reduction**: Prompts optimized from 10,800 → 3,669 chars (66% reduction)
-- **Model choice**: Gemini Flash (fastest, cheapest)
+- **Model choice**: OpenAI `gpt-6-luna` for production text; vision inherits `LLM_MODEL_NAME` unless `LLM_VISION_MODEL` is set; audio defaults to `gpt-4o-mini-transcribe`
 - **Caching**: Analysis history saved to avoid re-analysis
 - **Batch processing**: Import processes all transactions in one LLM call
 

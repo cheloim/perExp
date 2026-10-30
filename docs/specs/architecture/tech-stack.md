@@ -21,7 +21,8 @@
 | **bcrypt** | 4.0+ | Password hashing | Industry standard, adaptive cost factor |
 | **pyotp** | 2.9+ | TOTP MFA | RFC 6238 compliant, Google Authenticator compatible |
 | **slowapi** | 0.1.9+ | API rate limiting | Prevents brute force, per-endpoint limits |
-| **google-genai** | 1.0+ | LLM integration (Gemini) | Expense analysis, category suggestions, AI chat |
+| **openai** | 1.0+ | Production LLM integration | Expense analysis, category suggestions, AI chat, vision and audio capture |
+| **google-genai** | 1.0+ | Optional text-only LLM adapter | Compatibility provider; not supported for capture vision/audio |
 | **ppi-client** | 1.2.4+ | PPI broker API | Investment price fetching for ARS market |
 | **Alembic** | 1.13+ | Database migrations | Version-controlled schema changes |
 | **pandas** | 2.2.3+ | Data processing | CSV/Excel parsing, data transformation for imports |

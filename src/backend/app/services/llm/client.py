@@ -19,13 +19,14 @@ no limit.
 from __future__ import annotations
 
 import logging
+import math
 import os
 import time
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from .metrics import get_budget_state, record_llm_call
-from .pricing import estimate_cost_usd
+from .pricing import estimate_audio_cost_usd, estimate_cost_usd
 from .types import LLMMessage, LLMResult, parse_json_block
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,23 @@ class LLMBudgetExceededError(LLMError):
     """Raised when the monthly LLM budget is spent and the call is blocked."""
 
 
+class LLMUnsupportedCapabilityError(LLMError):
+    """The configured provider cannot perform a requested operation."""
+
+    def __init__(self, capability: str, provider: str):
+        self.capability = capability
+        self.provider = provider
+        super().__init__(f"El proveedor {provider} no admite la capacidad {capability}.")
+
+
+SUPPORTED_CAPABILITIES = {
+    ("openai", "text"),
+    ("openai", "vision"),
+    ("openai", "audio"),
+    ("google", "text"),
+}
+
+
 def resolve_api_key(api_key: str | None = None, api_key_env: str = "LLM_API_KEY") -> str:
     """The key to use: explicit, then `api_key_env`, then `LLM_API_KEY`."""
     if api_key:
@@ -71,9 +89,17 @@ def resolve_provider(api_key: str) -> str:
     return "openai" if api_key.startswith("sk-") else "google"
 
 
-def resolve_model(provider: str, model: str | None = None) -> str:
+def resolve_model(provider: str, model: str | None = None, capability: str = "text") -> str:
     if model:
         return model
+    if capability == "vision":
+        return (
+            os.getenv("LLM_VISION_MODEL", "").strip()
+            or os.getenv("LLM_MODEL_NAME", "").strip()
+            or ("gpt-6-luna" if provider == "openai" else "gemini-flash-latest")
+        )
+    if capability == "audio":
+        return os.getenv("LLM_AUDIO_MODEL", "").strip() or "gpt-4o-mini-transcribe"
     env_model = os.getenv("LLM_MODEL_NAME", "").strip()
     if env_model:
         return env_model
@@ -91,14 +117,16 @@ def _as_messages(messages: Any, system: str | None = None) -> list[LLMMessage]:
     out.append(LLMMessage(role="system", text=system or DEFAULT_SYSTEM))
     for m in messages or []:
         if isinstance(m, LLMMessage):
-            out.append(m)
+            if m.text or m.media:
+                out.append(m)
             continue
         role = m.get("role", "user")
         if role not in ("system", "user", "assistant"):
             role = "user"
         text = str(m.get("text") or m.get("content") or "")
-        if text:
-            out.append(LLMMessage(role=role, text=text))
+        media = tuple(m.get("media") or ())
+        if text or media:
+            out.append(LLMMessage(role=role, text=text, media=media))
     return out
 
 
@@ -124,6 +152,11 @@ class LLMClient:
 
     def _astream(self, messages, temperature) -> AsyncIterator[Any]:  # pragma: no cover
         raise NotImplementedError
+
+    def _transcribe(
+        self, audio, *, filename, mime_type, language, duration_hint
+    ):  # pragma: no cover
+        raise LLMUnsupportedCapabilityError("audio", self.provider)
 
     # ── public, instrumented ─────────────────────────────────────────────
     def complete(
@@ -164,6 +197,49 @@ class LLMClient:
             self._record(feature, start, "error")
             raise
         self._record(feature, start, "ok", result)
+        return result
+
+    def transcribe(
+        self,
+        audio: bytes,
+        *,
+        filename: str,
+        mime_type: str,
+        feature: str,
+        language: str = "es",
+        duration_hint: float | None = None,
+    ) -> LLMResult:
+        self._check_budget(feature)
+        start = time.perf_counter()
+        try:
+            result = self._transcribe(
+                audio,
+                filename=filename,
+                mime_type=mime_type,
+                language=language,
+                duration_hint=duration_hint,
+            )
+        except Exception:
+            self._record(feature, start, "error")
+            raise
+        duration = result.duration_seconds if result.duration_seconds is not None else duration_hint
+        if duration is not None and (not math.isfinite(duration) or duration < 0):
+            duration = (
+                duration_hint
+                if duration_hint is not None and math.isfinite(duration_hint) and duration_hint >= 0
+                else None
+            )
+        if duration is None or (duration <= 0 and audio):
+            duration = len(audio) / 2000 if audio else duration
+        if duration is not None and (
+            result.duration_seconds is None
+            or not math.isfinite(result.duration_seconds)
+            or result.duration_seconds < 0
+            or (result.duration_seconds == 0 and audio)
+        ):
+            result.duration_seconds = duration
+        cost = estimate_audio_cost_usd(self.model, duration or 0)
+        self._record(feature, start, "ok", result, cost_usd=cost)
         return result
 
     def complete_json(self, messages: Any, *, feature: str, **kwargs: Any) -> Any:
@@ -261,7 +337,13 @@ class LLMClient:
         )
 
     def _record(
-        self, feature: str, start: float, status: str, result: LLMResult | None = None
+        self,
+        feature: str,
+        start: float,
+        status: str,
+        result: LLMResult | None = None,
+        *,
+        cost_usd: float | None = None,
     ) -> None:
         model = (result.model if result else "") or self.model
         input_tokens = result.input_tokens if result else 0
@@ -275,12 +357,17 @@ class LLMClient:
             output_tokens=output_tokens,
             cached_input_tokens=result.cached_input_tokens if result else 0,
             latency_seconds=time.perf_counter() - start,
-            cost_usd=estimate_cost_usd(model, input_tokens, output_tokens),
+            cost_usd=(
+                cost_usd
+                if cost_usd is not None
+                else estimate_cost_usd(model, input_tokens, output_tokens)
+            ),
         )
 
 
 def get_client(
     *,
+    capability: str = "text",
     api_key: str | None = None,
     api_key_env: str = "LLM_API_KEY",
     model: str | None = None,
@@ -296,7 +383,9 @@ def get_client(
         raise LLMError(f"{api_key_env} no está configurada. Creá un archivo .env con tu API key.")
 
     provider = resolve_provider(key)
-    resolved_model = resolve_model(provider, model)
+    if (provider, capability) not in SUPPORTED_CAPABILITIES:
+        raise LLMUnsupportedCapabilityError(capability, provider)
+    resolved_model = resolve_model(provider, model, capability)
     timeout = timeout or float(os.getenv("LLM_TIMEOUT_SECONDS", "") or DEFAULT_TIMEOUT_SECONDS)
 
     if provider == "openai":

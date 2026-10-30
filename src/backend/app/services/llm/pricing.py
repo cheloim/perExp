@@ -28,6 +28,13 @@ PRICES: dict[str, dict[str, float]] = {
 #: Conservative stand-in for an unknown model.
 DEFAULT_PRICE = {"input": 10.00, "output": 50.00}
 
+# USD per minute. Transcription is priced by audio duration.
+AUDIO_PRICES_PER_MINUTE: dict[str, float] = {
+    "whisper-1": 0.006,
+    "gpt-4o-transcribe": 0.006,
+    "gpt-4o-mini-transcribe": 0.003,
+}
+
 
 def price_for(model: str) -> dict[str, float]:
     return PRICES.get((model or "").strip().lower(), DEFAULT_PRICE)
@@ -37,3 +44,9 @@ def estimate_cost_usd(model: str, input_tokens: int, output: int) -> float:
     """Estimated USD for one call. Returns 0.0 for zero usage."""
     p = price_for(model)
     return (input_tokens * p["input"] + output * p["output"]) / 1_000_000
+
+
+def estimate_audio_cost_usd(model: str, duration_seconds: float) -> float:
+    """Estimate audio transcription cost from duration, conservatively."""
+    price = AUDIO_PRICES_PER_MINUTE.get((model or "").strip().lower(), 0.006)
+    return max(duration_seconds, 0) * price / 60

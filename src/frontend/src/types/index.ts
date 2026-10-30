@@ -366,6 +366,29 @@ export interface ExpenseCreate {
   tag_ids?: number[];
 }
 
+export interface TranscriptionResponse {
+  text: string;
+  duration_seconds: number | null;
+  unclear: boolean;
+}
+
+export interface ExpenseImageDraft {
+  amount: number;
+  currency: "ARS" | "USD";
+  description: string;
+  date: string | null;
+  confidence: "high" | "medium" | "low";
+  source_type: string;
+  card_hint: string | null;
+}
+
+export interface ExpenseImageResponse {
+  status: "ok" | "rejected";
+  draft: ExpenseImageDraft | null;
+  reason: string | null;
+  message: string;
+}
+
 export interface CategorySummary {
   category_id: number | null;
   category_name: string;

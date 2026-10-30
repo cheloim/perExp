@@ -31,6 +31,8 @@ import type {
   CategorizationReviewsResponse,
   BulkAcceptResult,
   ReviewFilters,
+  TranscriptionResponse,
+  ExpenseImageResponse,
 } from "../types";
 
 // Token storage: Using localStorage for persistence across sessions.
@@ -53,6 +55,32 @@ export const clearToken = () => {
 };
 
 export const api = axios.create({ baseURL: "/api" });
+
+export const transcribeAudio = (
+  file: Blob,
+  durationSeconds: number,
+  signal?: AbortSignal,
+): Promise<TranscriptionResponse> => {
+  const form = new FormData();
+  form.append("file", file, "voice-input");
+  form.append("duration_seconds", String(durationSeconds));
+  return api
+    .post<TranscriptionResponse>("/capture/transcribe", form, { signal })
+    .then((response) => response.data);
+};
+
+export const extractExpenseFromImage = (
+  file: File,
+  hint?: string,
+  signal?: AbortSignal,
+): Promise<ExpenseImageResponse> => {
+  const form = new FormData();
+  form.append("file", file);
+  if (hint) form.append("hint", hint);
+  return api
+    .post<ExpenseImageResponse>("/capture/expense-image", form, { signal })
+    .then((response) => response.data);
+};
 
 api.interceptors.request.use((config) => {
   const token = getStoredToken();

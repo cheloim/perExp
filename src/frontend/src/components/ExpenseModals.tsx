@@ -1,9 +1,17 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getCategories, createCategory, suggestCategory, getTags, createTag } from "../api/client";
-import type { Expense, ExpenseCreate } from "../types";
+import {
+  getCategories,
+  createCategory,
+  suggestCategory,
+  getTags,
+  createTag,
+  extractExpenseFromImage,
+} from "../api/client";
+import type { Expense, ExpenseCreate, ExpenseImageDraft } from "../types";
 import { Select } from "./ui/Select";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 // Helper function to get today's date in DD-MM-YYYY format
 export function todayDDMMYYYY() {
@@ -93,6 +101,12 @@ export function ExpenseModal({
     }
     return { ...EMPTY_FORM };
   });
+  const formRef = useRef(form);
+  const updateForm = (updater: ExpenseCreate | ((current: ExpenseCreate) => ExpenseCreate)) => {
+    const nextForm = typeof updater === "function" ? updater(formRef.current) : updater;
+    formRef.current = nextForm;
+    setForm(nextForm);
+  };
 
   const [cuotasEnabled, setCuotasEnabled] = useState(
     isInstallmentsOnly || !!(initial?.installment_total && initial.installment_total > 1),
@@ -101,8 +115,102 @@ export function ExpenseModal({
   // Track dirty state for unsaved changes warning (GNOME HIG: confirmation before destructive actions)
   const [isDirty, setIsDirty] = useState(false);
   const set = <K extends keyof ExpenseCreate>(key: K, value: ExpenseCreate[K]) => {
-    setForm((f) => ({ ...f, [key]: value }));
+    updateForm((f) => ({ ...f, [key]: value }));
     setIsDirty(true);
+  };
+
+  const [imageStatus, setImageStatus] = useState<"idle" | "analyzing" | "ok" | "error">("idle");
+  const [imageDraft, setImageDraft] = useState<ExpenseImageDraft | null>(null);
+  const [imageError, setImageError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [confirmReplace, setConfirmReplace] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const previewUrlRef = useRef<string | null>(null);
+  const scanIdRef = useRef(0);
+  const imageAbortControllerRef = useRef<AbortController | null>(null);
+
+  const clearImagePreview = () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = null;
+    setPreviewUrl(null);
+  };
+
+  useEffect(
+    () => () => {
+      scanIdRef.current += 1;
+      imageAbortControllerRef.current?.abort();
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    },
+    [],
+  );
+
+  const applyImageDraft = (draft: ExpenseImageDraft) => {
+    const [year, month, day] = (draft.date ?? "").split("-");
+    const date = year && month && day ? `${day}-${month}-${year}` : todayDDMMYYYY();
+    updateForm((current) => ({
+      ...current,
+      amount: draft.amount,
+      description: draft.description,
+      date,
+      currency: draft.currency,
+    }));
+    setIsDirty(true);
+    setConfirmReplace(false);
+  };
+
+  const handleImageFile = async (file?: File) => {
+    if (!file) return;
+    imageAbortControllerRef.current?.abort();
+    const scanId = ++scanIdRef.current;
+    const controller = new AbortController();
+    imageAbortControllerRef.current = controller;
+    const formAtStart = formRef.current;
+    const wasEmptyAtStart = !formAtStart.description.trim() && formAtStart.amount === 0;
+    clearImagePreview();
+    if (typeof URL.createObjectURL === "function") {
+      const url = URL.createObjectURL(file);
+      previewUrlRef.current = url;
+      setPreviewUrl(url);
+    }
+    setImageStatus("analyzing");
+    setImageDraft(null);
+    setImageError("");
+    try {
+      const result = await extractExpenseFromImage(file, undefined, controller.signal);
+      if (controller.signal.aborted || scanId !== scanIdRef.current) return;
+      if (result.status !== "ok" || !result.draft) {
+        setImageStatus("error");
+        setImageError(result.message);
+        return;
+      }
+      setImageDraft(result.draft);
+      setImageStatus("ok");
+      const currentForm = formRef.current;
+      const isEmptyNow = !currentForm.description.trim() && currentForm.amount === 0;
+      if (wasEmptyAtStart && isEmptyNow) {
+        applyImageDraft(result.draft);
+      } else {
+        setConfirmReplace(true);
+      }
+    } catch {
+      if (controller.signal.aborted || scanId !== scanIdRef.current) return;
+      setImageStatus("error");
+      setImageError("No pude analizar la imagen. Probá con otra foto más nítida.");
+    } finally {
+      if (scanId === scanIdRef.current) imageAbortControllerRef.current = null;
+    }
+  };
+
+  const removeImage = () => {
+    scanIdRef.current += 1;
+    imageAbortControllerRef.current?.abort();
+    imageAbortControllerRef.current = null;
+    clearImagePreview();
+    setImageDraft(null);
+    setImageError("");
+    setImageStatus("idle");
+    setConfirmReplace(false);
+    if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
   // Warn before closing browser tab with unsaved changes
@@ -136,7 +244,7 @@ export function ExpenseModal({
     if (!desc || desc.length < 3 || initial?.category_id || form.category_id) return;
     const match = keywordMatch(desc);
     if (match) {
-      setForm((f) => ({ ...f, category_id: match }));
+      updateForm((f) => ({ ...f, category_id: match }));
       setAiSuggested(false);
     }
   }, [form.description]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -148,7 +256,7 @@ export function ExpenseModal({
     suggestCategory({ description: desc, amount: form.amount || undefined })
       .then((res) => {
         if (res?.category_id) {
-          setForm((f) => ({ ...f, category_id: res.category_id }));
+          updateForm((f) => ({ ...f, category_id: res.category_id }));
           setAiSuggested(true);
         }
       })
@@ -158,7 +266,7 @@ export function ExpenseModal({
   // Generate installment group ID on mount for installments-only mode
   useEffect(() => {
     if (isInstallmentsOnly && !form.installment_group_id) {
-      setForm((prev) => ({
+      updateForm((prev) => ({
         ...prev,
         installment_group_id: crypto.randomUUID(),
         installment_number: prev.installment_number ?? 1,
@@ -174,14 +282,14 @@ export function ExpenseModal({
     setCuotasEnabled(enabled);
     if (enabled) {
       const gid = form.installment_group_id || crypto.randomUUID();
-      setForm((prev) => ({
+      updateForm((prev) => ({
         ...prev,
         installment_number: 1,
         installment_total: 1,
         installment_group_id: gid,
       }));
     } else {
-      setForm((prev) => ({
+      updateForm((prev) => ({
         ...prev,
         installment_number: null,
         installment_total: null,
@@ -212,7 +320,7 @@ export function ExpenseModal({
 
     const isExclusive = tag.group_name === "cuenta";
 
-    setForm((prev) => {
+    updateForm((prev) => {
       const current = prev.tag_ids ?? [];
       if (current.includes(id)) {
         return { ...prev, tag_ids: current.filter((x) => x !== id) };
@@ -237,7 +345,7 @@ export function ExpenseModal({
         group_name: "otros",
       });
       queryClient.invalidateQueries({ queryKey: ["tags"] });
-      setForm((prev) => ({
+      updateForm((prev) => ({
         ...prev,
         tag_ids: [...(prev.tag_ids ?? []), created.id],
       }));
@@ -288,6 +396,82 @@ export function ExpenseModal({
             </span>
             <span>{saveError}</span>
           </div>
+        )}
+
+        {!initial && !isInstallmentsOnly && (
+          <section className="rounded-md border border-[var(--border-color)] p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={imageStatus === "analyzing"}
+                className="px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--color-base-alt)] disabled:opacity-60 transition"
+              >
+                🧾 Escanear comprobante
+              </button>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
+                aria-label="Escanear comprobante"
+                className="sr-only"
+                onChange={(event) => {
+                  void handleImageFile(event.currentTarget.files?.[0]);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </div>
+            <p className="text-xs text-[var(--text-tertiary)]">
+              Ticket, transferencia o notificación del banco
+            </p>
+
+            {previewUrl && (
+              <div className="flex items-center gap-3">
+                <img
+                  src={previewUrl}
+                  alt="Vista previa del comprobante"
+                  className="h-16 w-16 rounded-md object-cover border border-[var(--border-color)]"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="text-xs text-[var(--text-secondary)] underline hover:text-[var(--text-primary)]"
+                >
+                  Quitar
+                </button>
+              </div>
+            )}
+
+            {imageStatus === "analyzing" && (
+              <p role="status" aria-live="polite" className="text-xs text-[var(--text-secondary)]">
+                Analizando comprobante…
+              </p>
+            )}
+            {imageStatus === "error" && (
+              <p role="alert" className="text-xs text-danger">
+                {imageError}
+              </p>
+            )}
+            {imageStatus === "ok" && imageDraft && (
+              <div role="status" aria-live="polite" className="space-y-1 text-xs">
+                <p className="font-medium text-[var(--text-primary)]">
+                  Comprobante detectado: {imageDraft.currency}{" "}
+                  {imageDraft.amount.toLocaleString("es-AR")}
+                </p>
+                <p className="text-[var(--text-secondary)]">Revisalo antes de guardar.</p>
+                {imageDraft.confidence !== "high" && (
+                  <p className="font-medium text-amber-700 dark:text-amber-300">
+                    Revisá el total detectado.
+                  </p>
+                )}
+                <p className="text-[var(--text-tertiary)]">
+                  {imageDraft.source_type.replace(/_/g, " ")}
+                  {imageDraft.card_hint ? ` · ${imageDraft.card_hint}` : ""}
+                </p>
+              </div>
+            )}
+          </section>
         )}
 
         {/* Fecha */}
@@ -618,6 +802,16 @@ export function ExpenseModal({
             {isSaving ? "Guardando..." : "Guardar"}
           </button>
         </div>
+        <ConfirmDialog
+          isOpen={confirmReplace}
+          title="¿Reemplazar los datos actuales?"
+          message="El comprobante va a reemplazar el monto, la descripción, la fecha y la moneda actuales."
+          confirmLabel="Reemplazar"
+          cancelLabel="Mantener datos"
+          onConfirm={() => imageDraft && applyImageDraft(imageDraft)}
+          onCancel={() => setConfirmReplace(false)}
+          variant="primary"
+        />
       </div>
     </div>
   );
