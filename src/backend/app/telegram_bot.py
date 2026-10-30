@@ -1224,26 +1224,60 @@ def send_disconnect_notification(chat_id: str) -> None:
         logger.warning("[TELEGRAM] Bot event loop not available")
 
 
-def send_message_to_chat(chat_id: str, text: str) -> None:
-    """Send an arbitrary message to a Telegram chat. Safe to call from any thread."""
+def send_message_to_chat(chat_id: str, text: str) -> bool:
+    """Send an arbitrary message to a Telegram chat. Safe to call from any thread.
+
+    Returns True when the message was queued on the bot loop or accepted by the
+    Bot API. Production runs the bot in its own container with
+    TELEGRAM_BOT_ENABLED=false on the backend, so the HTTP fallback is the only
+    path that works from scripts and Celery workers there.
+    """
     from app.metrics import TELEGRAM_MESSAGES
 
     TELEGRAM_MESSAGES.labels(direction="outbound").inc()
-    if not _bot_app or not _bot_app.bot:
-        logger.warning("[TELEGRAM] Bot app not available, cannot send message")
-        return
+    if _bot_app and _bot_app.bot:
 
-    async def _send():
-        try:
-            await _bot_app.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
-        except Exception as e:
-            logger.warning(f"[TELEGRAM] Could not send message to {chat_id}: {e}")
+        async def _send():
+            try:
+                await _bot_app.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
+            except Exception as e:
+                logger.warning(f"[TELEGRAM] Could not send message to {chat_id}: {e}")
 
-    loop = _bot_app.bot._local._loop if hasattr(_bot_app.bot, "_local") else None
-    if loop and loop.is_running():
-        asyncio.run_coroutine_threadsafe(_send(), loop)
-    else:
-        logger.warning("[TELEGRAM] Bot event loop not available")
+        loop = _bot_app.bot._local._loop if hasattr(_bot_app.bot, "_local") else None
+        if loop and loop.is_running():
+            asyncio.run_coroutine_threadsafe(_send(), loop)
+            return True
+        logger.warning("[TELEGRAM] Bot event loop not available; using the Bot API")
+
+    return _send_message_via_api(chat_id, text)
+
+
+def _send_message_via_api(chat_id: str, text: str) -> bool:
+    """Send a text message with the direct Bot API. Returns True on success."""
+    import os
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        logger.warning("[TELEGRAM] No bot token available, cannot send message")
+        return False
+
+    try:
+        import httpx
+
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        with httpx.Client(timeout=10) as client:
+            resp = client.post(
+                url,
+                data={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+            )
+        if resp.status_code != 200:
+            logger.warning(f"[TELEGRAM] API error {resp.status_code}: {resp.text[:200]}")
+            return False
+        logger.info(f"[TELEGRAM] Message sent to {chat_id}")
+        return True
+    except Exception as e:
+        logger.warning(f"[TELEGRAM] Could not send message via API to {chat_id}: {e}")
+        return False
 
 
 def send_photo_to_chat(chat_id: str, image_bytes: bytes, caption: str = None) -> bool:

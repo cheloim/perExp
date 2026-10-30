@@ -54,6 +54,10 @@ export function resolveNotificationTarget(n: Notification): NotificationTarget |
       // #455: this pointed at /budgets, which has no route — every "Ver
       // presupuestos" click landed on the not-found page.
       return { kind: "navigate", path: "/budget" };
+    case "whats_new": {
+      const version = typeof data.version === "string" ? data.version : undefined;
+      return version ? { kind: "navigate", path: `/changes/${version}` } : null;
+    }
     case "monthly_report_ready": {
       const month = typeof data.month === "string" ? data.month : undefined;
       return month ? { kind: "download", month } : null;
@@ -80,6 +84,8 @@ export function getNotifActionLabel(n: Notification): string | null {
       return "Ver programados →";
     case "budget_warning":
       return "Ver presupuestos →";
+    case "whats_new":
+      return "Ver novedades →";
     case "monthly_report_ready":
       return "Descargar reporte →";
     default:
@@ -109,6 +115,8 @@ export function getNotifIcon(n: Notification): { icon: IconName; color: string }
     case "monthly_report_ready":
     case "monthly_report_queued":
       return { icon: "book", color: "text-blue-500" };
+    case "whats_new":
+      return { icon: "sparkles", color: "text-[var(--color-primary)]" };
     case "group_invitation":
       return { icon: "users", color: "text-[var(--color-primary)]" };
     default:
@@ -135,6 +143,8 @@ export function getNotifBorderColor(n: Notification): string {
     case "monthly_report_ready":
     case "monthly_report_queued":
       return "border-l-blue-500";
+    case "whats_new":
+      return "border-l-[var(--color-primary)]";
     default:
       return "";
   }
