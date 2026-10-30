@@ -39,7 +39,13 @@ from app.database import SessionLocal
 from app.models import Account, Card, Category, Expense, ExpenseTag, Tag, User
 from app.prompts import CARD_EXTRACT_PROMPT, EXPENSE_PARSE_PROMPT
 from app.services.bot_reports import _cat_emoji
-from app.services.capture import MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS, transcribe_audio
+from app.services.capture import (
+    MAX_AUDIO_BYTES,
+    MAX_AUDIO_SECONDS,
+    MAX_IMAGE_BYTES,
+    extract_expense_from_image,
+    transcribe_audio,
+)
 from app.services.categorization import auto_categorize, llm_categorize
 from app.services.encryption import compute_hmac
 from app.services.import_utils import _normalize_text
@@ -946,6 +952,228 @@ def _get_user_by_chat_id(chat_id: str) -> User | None:
         return db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
     finally:
         db.close()
+
+
+_EXPENSE_IMAGE_SOURCE_LABELS = {
+    "paper_receipt": "ticket en papel",
+    "digital_receipt": "comprobante digital",
+    "bank_notification": "notificación bancaria",
+    "transaction_detail": "detalle de transacción",
+    "wallet_payment": "pago con billetera",
+    "other": "comprobante",
+}
+
+
+async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Extract a single expense draft from a Telegram photo or image document."""
+    msg = update.message
+    if not msg:
+        return ConversationHandler.END
+
+    user = _get_user_by_chat_id(str(update.effective_chat.id))
+    if not user:
+        await msg.reply_text("Primero autentificate con /start.")
+        return ConversationHandler.END
+    user_id = user.id
+    context.user_data["user_id"] = user_id
+
+    try:
+        allowed = check_rate_limit(f"capture:{user_id}", "capture")[0]
+    except Exception:
+        allowed = True
+    if not allowed:
+        await msg.reply_text(
+            "Alcanzaste el límite de capturas por ahora. Probá de nuevo más tarde."
+        )
+        return ConversationHandler.END
+
+    if msg.photo:
+        media = msg.photo[-1]
+        mime_type = "image/jpeg"
+    elif msg.document and (msg.document.mime_type or "").lower().startswith("image/"):
+        media = msg.document
+        mime_type = (media.mime_type or "").lower()
+    else:
+        await msg.reply_text("Mandame una imagen JPEG, PNG o WebP como foto o archivo.")
+        return ConversationHandler.END
+
+    if mime_type not in {"image/jpeg", "image/png", "image/webp"}:
+        await msg.reply_text(
+            "Formato no compatible. Usá una imagen JPEG, PNG o WebP; HEIC no está disponible todavía."
+        )
+        return ConversationHandler.END
+
+    if media.file_size is not None and media.file_size > MAX_IMAGE_BYTES:
+        await msg.reply_text("La imagen supera el límite de 8 MB. Mandame una más liviana.")
+        return ConversationHandler.END
+
+    try:
+        telegram_file = await media.get_file()
+        image_bytes = bytes(await telegram_file.download_as_bytearray())
+    except Exception:
+        logger.info(
+            "[TELEGRAM_CAPTURE] source_type=%s reason=%s bytes=%d confidence=%s",
+            "unknown",
+            "download_error",
+            0,
+            "unknown",
+        )
+        await msg.reply_text("No pude descargar la imagen. Probá enviarla de nuevo.")
+        return ConversationHandler.END
+
+    if len(image_bytes) > MAX_IMAGE_BYTES:
+        await msg.reply_text("La imagen supera el límite de 8 MB. Mandame una más liviana.")
+        return ConversationHandler.END
+
+    try:
+        result = await asyncio.to_thread(
+            extract_expense_from_image,
+            image_bytes,
+            mime_type=mime_type,
+            hint=(msg.caption or "")[:300] or None,
+            api_key_env="MESSAGES_BOT_LLM_API_KEY",
+        )
+    except Exception:
+        logger.info(
+            "[TELEGRAM_CAPTURE] source_type=%s reason=%s bytes=%d confidence=%s",
+            "unknown",
+            "provider_error",
+            len(image_bytes),
+            "unknown",
+        )
+        await msg.reply_text("No pude analizar la imagen. Probá de nuevo más tarde.")
+        return ConversationHandler.END
+
+    draft = result.draft
+    source_type = getattr(draft, "source_type", "unknown") if draft else "unknown"
+    confidence = getattr(draft, "confidence", "unknown") if draft else "unknown"
+    logger.info(
+        "[TELEGRAM_CAPTURE] source_type=%s reason=%s bytes=%d confidence=%s",
+        source_type,
+        result.reason or "none",
+        len(image_bytes),
+        confidence,
+    )
+    if result.status != "ok" or not draft:
+        await msg.reply_text(result.message)
+        return ConversationHandler.END
+
+    if hasattr(draft, "model_dump"):
+        draft_data = draft.model_dump(mode="json")
+    else:
+        from dataclasses import asdict, is_dataclass
+
+        draft_data = asdict(draft) if is_dataclass(draft) else dict(draft)
+    context.user_data["pending_expense_image"] = draft_data
+
+    source_label = _EXPENSE_IMAGE_SOURCE_LABELS.get(source_type, "comprobante")
+    amount_label = _format_amount(float(draft_data["amount"]), draft_data.get("currency", "ARS"))
+    date_value = draft_data.get("date")
+    if hasattr(date_value, "isoformat"):
+        date_value = date_value.isoformat()
+    date_label = date_value or datetime.now(BUE).date().isoformat()
+    date_label = _format_date_es(date_label)
+    card_hint = draft_data.get("card_hint")
+    summary = (
+        f"🧾 Comprobante detectado ({source_label})\n"
+        f"💰 {amount_label}\n"
+        f"🛒 {draft_data['description']}\n"
+        f"📅 {date_label}"
+    )
+    if card_hint:
+        summary += f"\n💳 {card_hint}"
+    summary += "\n\nRevisalo antes de guardar."
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("✅ Guardar", callback_data="expenseimg:save")],
+            [InlineKeyboardButton("✏️ Editar", callback_data="expenseimg:edit")],
+            [InlineKeyboardButton("❌ Cancelar", callback_data="expenseimg:cancel")],
+        ]
+    )
+    await msg.reply_text(summary, reply_markup=keyboard)
+    return ConversationHandler.END
+
+
+async def handle_expense_image_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    if not await _validate_session(update, context):
+        return ConversationHandler.END
+    action = (query.data or "").partition(":")[2]
+    pending = context.user_data.get("pending_expense_image")
+    if not pending:
+        await query.edit_message_text("No hay un comprobante pendiente para revisar.")
+        return ConversationHandler.END
+
+    if action == "edit":
+        context.user_data.pop("pending_expense_image", None)
+        await query.edit_message_text(
+            "Mandame el gasto corregido, por ejemplo: supermercado 15200."
+        )
+        return ConversationHandler.END
+    if action == "cancel":
+        context.user_data.pop("pending_expense_image", None)
+        await query.edit_message_text("Cancelado.")
+        return ConversationHandler.END
+    if action != "save":
+        await query.edit_message_text("No pude reconocer esa opción. Mandame la imagen de nuevo.")
+        return ConversationHandler.END
+
+    user_id = context.user_data.get("user_id")
+    if not user_id:
+        context.user_data.pop("pending_expense_image", None)
+        await query.edit_message_text("Primero autentificate con /start.")
+        return ConversationHandler.END
+
+    parsed = {
+        "amount": pending["amount"],
+        "description": pending["description"],
+        "date": pending.get("date") or datetime.now(BUE).date().isoformat(),
+        "currency": pending.get("currency", "ARS"),
+    }
+    db = SessionLocal()
+    try:
+        predicted_category_id, categories = _instant_categorize(parsed, user_id, db)
+        expense = _save_expense(
+            parsed,
+            payment="",
+            person=update.effective_user.full_name if update.effective_user else "",
+            user_id=user_id,
+            predicted_category_id=predicted_category_id,
+            card_id=None,
+            account_id=None,
+            log_content=False,
+        )
+    except Exception as exc:
+        logger.error(
+            "[TELEGRAM_CAPTURE] save_failed error_type=%s",
+            type(exc).__name__,
+        )
+        context.user_data.pop("pending_expense_image", None)
+        await query.edit_message_text(
+            "No pude confirmar si el gasto se guardó. Revisá tus gastos antes de reintentar."
+        )
+        return ConversationHandler.END
+    finally:
+        db.close()
+
+    category = next((cat for cat in categories if cat.id == expense.category_id), None)
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✏️ Editar", callback_data=f"quickedit:{expense.id}"),
+                InlineKeyboardButton("🗑 Deshacer", callback_data=f"undo:{expense.id}"),
+            ]
+        ]
+    )
+    context.user_data["last_expense_id"] = expense.id
+    context.user_data["last_expense_time"] = time.time()
+    context.user_data.pop("pending_expense_image", None)
+    await query.edit_message_text(
+        _quick_saved_text(expense, category.name if category else None, []),
+        reply_markup=keyboard,
+    )
+    return ConversationHandler.END
 
 
 async def _validate_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -3813,6 +4041,7 @@ async def _run_bot(token: str) -> None:
             CommandHandler("start", start),
             CommandHandler("editar", cmd_editar),
             MessageHandler(filters.VOICE | filters.AUDIO, handle_voice_message),
+            MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_expense_image),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
         ],
         states={
@@ -3841,6 +4070,7 @@ async def _run_bot(token: str) -> None:
             MessageHandler(filters.COMMAND, cancel),
             CallbackQueryHandler(cancel_callback, pattern=r"^cancel$"),
             MessageHandler(filters.VOICE | filters.AUDIO, handle_voice_message),
+            MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_expense_image),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
         ],
         per_message=False,
@@ -3853,6 +4083,7 @@ async def _run_bot(token: str) -> None:
     app.add_handler(CommandHandler("ayuda", cmd_ayuda))
     app.add_handler(CallbackQueryHandler(handle_report_callback, pattern=r"^report:"))
     app.add_handler(CallbackQueryHandler(handle_reportimg_callback, pattern=r"^reportimg:"))
+    app.add_handler(CallbackQueryHandler(handle_expense_image_callback, pattern=r"^expenseimg:"))
     app.add_handler(CallbackQueryHandler(handle_undo, pattern=r"^undo:"))
     app.add_handler(CallbackQueryHandler(handle_undo_batch, pattern=r"^undobatch:"))
 
