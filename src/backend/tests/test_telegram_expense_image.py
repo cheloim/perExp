@@ -85,11 +85,12 @@ def test_valid_image_shows_confirmation_and_saves_draft(
 
     assert "Comprobante detectado (notificación bancaria)" in fake_photo_update.message.replies[-1]
     buttons = fake_photo_update.message.reply_markups[-1].inline_keyboard
-    assert [button.callback_data for row in buttons for button in row] == [
-        "expenseimg:save",
-        "expenseimg:edit",
-        "expenseimg:cancel",
-    ]
+    callback_parts = [button.callback_data.split(":") for row in buttons for button in row]
+    draft_id = fake_context.user_data["pending_expense_image"]["draft_id"]
+    assert all(len(parts) == 3 for parts in callback_parts)
+    assert [parts[0] for parts in callback_parts] == ["expenseimg"] * 3
+    assert [parts[1] for parts in callback_parts] == [draft_id] * 3
+    assert [parts[2] for parts in callback_parts] == ["save", "edit", "cancel"]
     extract.assert_called_once_with(
         b"image-bytes",
         mime_type="image/jpeg",
@@ -217,7 +218,7 @@ class FakeCallbackQuery:
 
 
 def test_save_callback_categorizes_and_saves_without_payment_method(monkeypatch):
-    query = FakeCallbackQuery("expenseimg:save")
+    query = FakeCallbackQuery("expenseimg:draft-42:save")
     update = SimpleNamespace(
         callback_query=query,
         effective_chat=SimpleNamespace(id=987),
@@ -227,6 +228,7 @@ def test_save_callback_categorizes_and_saves_without_payment_method(monkeypatch)
         user_data={
             "user_id": 42,
             "pending_expense_image": {
+                "draft_id": "draft-42",
                 "amount": 15200,
                 "currency": "ARS",
                 "description": "Supermercado Coto",
@@ -275,7 +277,7 @@ def test_save_callback_categorizes_and_saves_without_payment_method(monkeypatch)
 
 
 def test_save_failure_clears_pending_and_logs_only_exception_type(monkeypatch, caplog):
-    query = FakeCallbackQuery("expenseimg:save")
+    query = FakeCallbackQuery("expenseimg:draft-42:save")
     update = SimpleNamespace(
         callback_query=query,
         effective_chat=SimpleNamespace(id=987),
@@ -285,6 +287,7 @@ def test_save_failure_clears_pending_and_logs_only_exception_type(monkeypatch, c
         user_data={
             "user_id": 42,
             "pending_expense_image": {
+                "draft_id": "draft-42",
                 "amount": 15200,
                 "currency": "ARS",
                 "description": "Sensitive Merchant",
@@ -317,18 +320,89 @@ def test_save_failure_clears_pending_and_logs_only_exception_type(monkeypatch, c
 
 @pytest.mark.parametrize(
     ("callback_data", "expected"),
-    [("expenseimg:edit", "Mandame el gasto corregido"), ("expenseimg:cancel", "Cancelado.")],
+    [("edit", "Mandame el gasto corregido"), ("cancel", "Cancelado.")],
 )
 def test_edit_and_cancel_clear_the_pending_draft(monkeypatch, callback_data, expected):
-    query = FakeCallbackQuery(callback_data)
+    query = FakeCallbackQuery(f"expenseimg:draft-42:{callback_data}")
     update = SimpleNamespace(
         callback_query=query,
         effective_chat=SimpleNamespace(id=987),
     )
-    context = SimpleNamespace(user_data={"user_id": 42, "pending_expense_image": {"amount": 100}})
+    context = SimpleNamespace(
+        user_data={
+            "user_id": 42,
+            "pending_expense_image": {"draft_id": "draft-42", "amount": 100},
+        }
+    )
     monkeypatch.setattr(telegram_bot, "_get_user_by_chat_id", lambda _: SimpleNamespace(id=42))
 
     asyncio.run(telegram_bot.handle_expense_image_callback(update, context))
 
     assert expected in query.edited_text
     assert "pending_expense_image" not in context.user_data
+
+
+def test_old_confirmation_cannot_save_the_newer_image_draft(
+    monkeypatch, fake_photo_update, fake_context
+):
+    results = [
+        ExpenseImageResult(
+            status="ok",
+            draft=ExpenseDraft(
+                amount=100,
+                currency="ARS",
+                description="Comercio A",
+                date=date(2026, 10, 29),
+                confidence="high",
+                source_type="paper_receipt",
+            ),
+            reason=None,
+            message="Detecté un total.",
+        ),
+        ExpenseImageResult(
+            status="ok",
+            draft=ExpenseDraft(
+                amount=200,
+                currency="ARS",
+                description="Comercio B",
+                date=date(2026, 10, 30),
+                confidence="high",
+                source_type="paper_receipt",
+            ),
+            reason=None,
+            message="Detecté un total.",
+        ),
+    ]
+    extract = Mock(side_effect=results)
+    monkeypatch.setattr(telegram_bot, "extract_expense_from_image", extract)
+
+    asyncio.run(telegram_bot.handle_expense_image(fake_photo_update, fake_context))
+    old_callback_data = (
+        fake_photo_update.message.reply_markups[0].inline_keyboard[0][0].callback_data
+    )
+    first_draft_id = fake_context.user_data["pending_expense_image"]["draft_id"]
+
+    fake_photo_update.message.photo = [FakeMedia(data=b"second-image")]
+    asyncio.run(telegram_bot.handle_expense_image(fake_photo_update, fake_context))
+    assert [call.args[0] for call in extract.call_args_list] == [
+        b"image-bytes",
+        b"second-image",
+    ]
+    assert fake_context.user_data["pending_expense_image"]["description"] == "Comercio B"
+    assert fake_context.user_data["pending_expense_image"]["draft_id"] != first_draft_id
+
+    query = FakeCallbackQuery(old_callback_data)
+    update = SimpleNamespace(
+        callback_query=query,
+        effective_chat=SimpleNamespace(id=987),
+        effective_user=SimpleNamespace(full_name="Test"),
+    )
+    save_expense = Mock()
+    monkeypatch.setattr(telegram_bot, "_get_user_by_chat_id", lambda _: SimpleNamespace(id=42))
+    monkeypatch.setattr(telegram_bot, "_save_expense", save_expense)
+
+    asyncio.run(telegram_bot.handle_expense_image_callback(update, fake_context))
+
+    save_expense.assert_not_called()
+    assert query.edited_text == "Este comprobante ya no está vigente. Mandá la imagen de nuevo."
+    assert fake_context.user_data["pending_expense_image"]["description"] == "Comercio B"

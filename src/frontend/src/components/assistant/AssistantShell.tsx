@@ -61,11 +61,16 @@ export function AssistantShell({
     inputRef.current?.focus();
   }, []);
   const voiceInput = useVoiceInput({ onTranscript: handleTranscript });
+  const cancelVoiceInput = voiceInput.cancel;
 
   const lastMessage = messages[messages.length - 1];
   const hasError = lastMessage?.error === true;
   const isLocalhost =
     typeof window !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+
+  useEffect(() => {
+    if (!open) cancelVoiceInput();
+  }, [open, cancelVoiceInput]);
 
   useEffect(() => {
     if (!open) return;

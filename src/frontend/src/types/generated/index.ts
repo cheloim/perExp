@@ -7,7 +7,7 @@
  * ## Architecture
  * - **Backend**: FastAPI (Python) with PostgreSQL, Redis, and Celery
  * - **Frontend**: Vite + React SPA
- * - **Integrations**: Telegram Bot, WhatsApp Bot, Gemini Flash (AI), Yahoo Finance, IOL/PPI brokers
+ * - **Integrations**: Telegram Bot, WhatsApp Bot, OpenAI (AI), Yahoo Finance, IOL/PPI brokers
  *
  * ## Key Features
  * - Expense & income tracking with encrypted fields (AES-256)
@@ -15,7 +15,7 @@
  * - Hierarchical category system with auto-categorization
  * - Budget management with 50/30/20 rule support
  * - Investment portfolio tracking with auto price refresh
- * - AI-powered spending analysis (Gemini Flash)
+ * - AI-powered spending analysis (OpenAI)
  * - Smart CSV/PDF bank statement import
  * - Family group sharing
  * - Real-time SSE notifications
@@ -39,10 +39,6 @@ export * from "./accountCreateType.ts";
 export * from "./accountResponse.ts";
 export * from "./accountUpdate.ts";
 export * from "./accountUpdateType.ts";
-export * from "./adminAuditLogsParams.ts";
-export * from "./adminImpersonateBody.ts";
-export * from "./adminListUsersParams.ts";
-export * from "./adminListUsersStatus.ts";
 export * from "./analysisHistoryEntry.ts";
 export * from "./analysisRequest.ts";
 export * from "./approveAllSuggestionsSuggestionsApproveAllPostParams.ts";
@@ -87,14 +83,8 @@ export * from "./chatMessageRole.ts";
 export * from "./checkDuplicateParams.ts";
 export * from "./confirmImportJob200.ts";
 export * from "./createCardClosingParams.ts";
-export * from "./createGroupBody.ts";
 export * from "./createImportJobBody.ts";
-export * from "./dashboardByCategoryParams.ts";
-export * from "./dashboardByPeriodParams.ts";
-export * from "./dashboardByPeriodPeriod.ts";
-export * from "./dashboardRecentParams.ts";
 export * from "./dashboardSummary.ts";
-export * from "./dashboardSummaryParams.ts";
 export * from "./dashboardSummaryTopCategoriesItem.ts";
 export * from "./deleteAllExpensesExpensesAllDeleteBody.ts";
 export * from "./deleteBrokerSettingsSettingsBrokerBrokerDeleteParams.ts";
@@ -155,7 +145,6 @@ export * from "./investmentResponse.ts";
 export * from "./investmentsChatStreamInvestmentsChatStreamPostBody.ts";
 export * from "./investmentUpdate.ts";
 export * from "./inviteRequest.ts";
-export * from "./joinGroupBody.ts";
 export * from "./listExpensesParams.ts";
 export * from "./listImportJobsParams.ts";
 export * from "./listImportJobsStatus.ts";
@@ -174,12 +163,9 @@ export * from "./lookupSymbolInvestmentsLookupGetParams.ts";
 export * from "./lookupSymbolsInvestmentsLookupBatchGetParams.ts";
 export * from "./messageRequest.ts";
 export * from "./mfaDisableBody.ts";
-export * from "./mfaEnableBody.ts";
 export * from "./mfaSetup200.ts";
 export * from "./mFAVerifyRequest.ts";
 export * from "./notification.ts";
-export * from "./oauthLoginBody.ts";
-export * from "./oauthLoginBodyProvider.ts";
 export * from "./oAuthRequest.ts";
 export * from "./putManualCashBalanceInvestmentsManualCashBalancesBrokerPutBody.ts";
 export * from "./putSettingSettingsKeyPutBody.ts";
@@ -187,7 +173,6 @@ export * from "./putSettingSettingsKeyPutParams.ts";
 export * from "./recurringCreate.ts";
 export * from "./recurringExpenseResponse.ts";
 export * from "./recurringUpdate.ts";
-export * from "./refreshPrices200.ts";
 export * from "./refreshTokenBody.ts";
 export * from "./registerRequest.ts";
 export * from "./resetPasswordBody.ts";
@@ -205,7 +190,6 @@ export * from "./settingUpdate.ts";
 export * from "./suggestCategoryBody.ts";
 export * from "./summarizeChatAnalysisSummarizePostBody.ts";
 export * from "./syncCardHolders200.ts";
-export * from "./syncGroupHolders200.ts";
 export * from "./tagCreate.ts";
 export * from "./tagUpdate.ts";
 export * from "./telegramKeyResponse.ts";
@@ -225,5 +209,4 @@ export * from "./userAdminResponse.ts";
 export * from "./userResponse.ts";
 export * from "./verifyEmailBody.ts";
 export * from "./verifyWebhookWebhookWhatsappGetParams.ts";
-export * from "./whatsappWebhookBody.ts";
 export * from "./whatsNewDismissRequest.ts";

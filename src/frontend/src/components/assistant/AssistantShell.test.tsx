@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { AssistantShell } from "./AssistantShell";
 import { ASSISTANT_CONFIGS } from "./configs";
 import { SHARED_STORAGE } from "./types";
@@ -107,6 +107,68 @@ describe("AssistantShell", () => {
 
     expect(screen.getByRole("textbox")).toHaveValue("¿cuánto gasté?");
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("cancels voice recording when the assistant closes", () => {
+    let recording = false;
+    let onTranscriptSpy = vi.fn<(text: string) => void>();
+    let completeRecording = () => {};
+    const start = vi.fn(async () => {
+      recording = true;
+    });
+    const cancel = vi.fn(() => {
+      recording = false;
+    });
+    vi.mocked(useVoiceInput).mockImplementation(({ onTranscript }) => {
+      onTranscriptSpy = vi.fn(onTranscript);
+      completeRecording = () => {
+        if (recording) onTranscriptSpy("transcripción tardía");
+      };
+      return {
+        supported: true,
+        state: "idle",
+        error: null,
+        elapsed: 1,
+        start,
+        stop: vi.fn(),
+        cancel,
+      };
+    });
+
+    const { rerender } = render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /grabar/i }));
+    expect(start).toHaveBeenCalledOnce();
+
+    rerender(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open={false}
+        onToggle={() => {}}
+      />,
+    );
+    act(() => completeRecording());
+
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(onTranscriptSpy).not.toHaveBeenCalled();
+
+    rerender(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("");
   });
 
   it("names the dialog from config.title for assistive tech", () => {
