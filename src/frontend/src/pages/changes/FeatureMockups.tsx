@@ -1,5 +1,5 @@
 /** CSS mockup components for the Changes page. */
-import SymbolicIcon from "../../components/SymbolicIcon";
+import SymbolicIcon, { type IconName } from "../../components/SymbolicIcon";
 
 /* ─── Encryption Mockup ─────────────────────────────── */
 
@@ -1272,6 +1272,371 @@ export function CuotasKPIMockup() {
               }}
             />
             <span className="text-[7px] text-[var(--text-tertiary)]">{months[i]}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Voice and Receipt Capture Mockup ───────────────── */
+
+export function VoiceCaptureMockup() {
+  const receipt = [
+    ["Monto", "$12.400"],
+    ["Fecha", "Hoy"],
+    ["Comercio", "Supermercado"],
+    ["Moneda", "ARS"],
+  ];
+
+  return (
+    <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-2xl p-5 border border-blue-500/20">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+          <SymbolicIcon name="sparkles" size={20} />
+        </div>
+        <div>
+          <p className="font-semibold text-sm text-[var(--text-primary)]">Captura por voz y foto</p>
+          <p className="text-xs text-[var(--text-secondary)]">
+            Dictá o escaneá. El gasto se completa solo.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-red-500/15 flex items-center justify-center">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+            </div>
+            <div className="flex items-end gap-0.5 h-5 flex-1">
+              {[6, 10, 16, 9, 18, 12, 7, 14, 10, 5].map((height, i) => (
+                <span
+                  key={i}
+                  className="w-1 rounded-full bg-blue-500/70"
+                  style={{ height: `${height}px` }}
+                />
+              ))}
+            </div>
+            <span className="text-[10px] font-mono text-[var(--text-tertiary)]">0:07</span>
+          </div>
+          <p className="text-[10px] text-[var(--text-secondary)] mt-2">
+            “Gasté 12.400 en el supermercado con la Visa”
+          </p>
+        </div>
+
+        <div className="bg-[var(--bg-primary)] border border-green-500/30 rounded-xl p-3">
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-14 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] flex flex-col items-center justify-center gap-1 flex-shrink-0">
+              <SymbolicIcon name="upload" size={14} />
+              <span className="text-[7px] text-[var(--text-tertiary)]">TICKET</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <SymbolicIcon name="check" size={12} className="text-green-500" />
+                <span className="text-[10px] font-medium text-green-500">Comprobante leído</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-2">
+                {receipt.map(([label, value]) => (
+                  <div key={label}>
+                    <p className="text-[8px] text-[var(--text-tertiary)]">{label}</p>
+                    <p className="text-[10px] text-[var(--text-primary)]">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Assistant Revamp Mockup ─────────────────────────── */
+
+export function AssistantRevampMockup() {
+  const periods = ["3 meses", "6 meses", "12 meses"];
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)]">
+      <div className="px-4 py-3 border-b border-[var(--border-color)] flex items-center gap-2">
+        <SymbolicIcon name="bot" size={16} />
+        <span className="text-xs font-semibold text-[var(--text-primary)]">Asistente</span>
+        <span className="ml-auto text-[9px] text-[var(--text-tertiary)]">Limpiar</span>
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="flex gap-1">
+          {periods.map((period, i) => (
+            <span
+              key={period}
+              className={`px-2.5 py-1 rounded-full text-[9px] font-medium ${
+                i === periods.length - 1
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
+              }`}
+            >
+              {period}
+            </span>
+          ))}
+        </div>
+        <div className="flex justify-end">
+          <div className="max-w-[80%] rounded-2xl rounded-br-sm bg-[var(--color-primary)] px-3 py-2 text-[10px] text-white">
+            ¿En qué gasté más este año?
+          </div>
+        </div>
+        <div className="max-w-[90%] rounded-2xl rounded-bl-sm bg-[var(--bg-secondary)] px-3 py-2 space-y-1.5">
+          <p className="text-[10px] text-[var(--text-primary)]">
+            Tu mayor gasto fue <strong className="text-[var(--color-primary)]">Supermercado</strong>{" "}
+            con <strong className="text-green-500">$480.000</strong> en 12 meses.
+          </p>
+          <div className="h-1.5 rounded-full bg-[var(--border-color)] overflow-hidden">
+            <div className="h-full w-[68%] rounded-full bg-[var(--color-primary)]" />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {["Comparar con el año pasado", "Ver por mes"].map((suggestion) => (
+            <span
+              key={suggestion}
+              className="px-2 py-1 rounded-full border border-[var(--color-primary)]/30 text-[9px] text-[var(--color-primary)]"
+            >
+              {suggestion} →
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Notifications Sidebar Mockup ────────────────────── */
+
+export function NotificationsSidebarMockup() {
+  const items = [
+    {
+      title: "Presupuesto de Alimentos",
+      body: "Vas 82% del límite mensual. Te quedan $18.000 para los próximos 9 días.",
+      tone: "amber",
+    },
+    {
+      title: "Cuota 3/6 próxima",
+      body: "El 5 de noviembre vence la cuota de $43.333 de tu Visa.",
+      tone: "blue",
+    },
+  ];
+  const navigation: { icon: IconName; label: string }[] = [
+    { icon: "home", label: "Inicio" },
+    { icon: "chart-bar", label: "Dashboard" },
+    { icon: "bell", label: "Notificaciones" },
+    { icon: "wallet", label: "Gastos" },
+  ];
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)] flex">
+      <div className="w-28 border-r border-[var(--border-color)] p-3 space-y-1.5 bg-[var(--bg-secondary)]/40">
+        {navigation.map((item) => (
+          <div
+            key={item.label}
+            className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[9px] ${
+              item.label === "Notificaciones"
+                ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium"
+                : "text-[var(--text-secondary)]"
+            }`}
+          >
+            <SymbolicIcon name={item.icon} size={11} />
+            <span className="truncate">{item.label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex-1 p-3 space-y-2">
+        {items.map((notification) => (
+          <div
+            key={notification.title}
+            className={`rounded-xl border border-[var(--border-color)] border-l-2 p-2.5 ${
+              notification.tone === "amber" ? "border-l-amber-500" : "border-l-blue-500"
+            }`}
+          >
+            <div className="flex items-start gap-2">
+              <span
+                className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                  notification.tone === "amber" ? "bg-amber-500" : "bg-blue-500"
+                }`}
+              />
+              <div className="min-w-0">
+                <p className="text-[9px] font-semibold text-[var(--text-primary)]">
+                  {notification.title}
+                </p>
+                <p className="text-[8px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">
+                  {notification.body}
+                </p>
+              </div>
+              <SymbolicIcon
+                name="trash"
+                size={10}
+                className="text-[var(--text-tertiary)] flex-shrink-0"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Expenses Search and Bulk Mockup ─────────────────── */
+
+export function ExpensesSearchBulkMockup() {
+  const rows = [
+    { description: "Supermercado Coto", amount: "$12.400", selected: true },
+    { description: "Farmacity", amount: "$4.800", selected: true },
+    { description: "Nafta Shell", amount: "$18.000", selected: false },
+  ];
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)] p-3">
+      <div className="flex items-center gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]/50 px-2.5 py-1.5">
+        <SymbolicIcon name="search" size={12} className="text-[var(--text-tertiary)]" />
+        <span className="text-[10px] text-[var(--text-secondary)] flex-1">super</span>
+        <span className="text-[8px] text-[var(--text-tertiary)]">2 resultados</span>
+        <span className="text-[10px] text-[var(--text-tertiary)]">×</span>
+      </div>
+      <div className="mt-2 space-y-1">
+        {rows.map((row) => (
+          <div
+            key={row.description}
+            className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${
+              row.selected ? "bg-[var(--color-primary)]/10" : ""
+            }`}
+          >
+            <span
+              className={`w-3 h-3 rounded border flex items-center justify-center ${
+                row.selected
+                  ? "bg-[var(--color-primary)] border-[var(--color-primary)]"
+                  : "border-[var(--border-color)]"
+              }`}
+            >
+              {row.selected && <SymbolicIcon name="check" size={8} className="text-white" />}
+            </span>
+            <span className="text-[9px] text-[var(--text-primary)] flex-1">{row.description}</span>
+            <span className="text-[9px] text-[var(--text-secondary)]">{row.amount}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex items-center gap-2 rounded-xl bg-[var(--text-primary)] px-3 py-2 text-[var(--bg-primary)]">
+        <span className="text-[9px] font-medium flex-1">2 gastos seleccionados</span>
+        {["Categoría", "Etiqueta", "Exportar"].map((action) => (
+          <span key={action} className="text-[8px] opacity-80">
+            {action}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Budget and Dashboard Mockup ─────────────────────── */
+
+export function BudgetDashboardMockup() {
+  return (
+    <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)] p-3 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[9px] text-[var(--text-tertiary)]">Presupuesto · Alimentos</p>
+          <p className="text-[13px] font-bold text-[var(--text-primary)]">
+            $68.000{" "}
+            <span className="text-[9px] font-normal text-[var(--text-tertiary)]">de $100.000</span>
+          </p>
+        </div>
+        <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[8px] font-medium text-green-500">
+          En ritmo
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-[var(--bg-secondary)] overflow-hidden">
+        <div className="h-full w-[68%] rounded-full bg-[var(--color-primary)]" />
+      </div>
+      <div className="flex items-center gap-2 text-[8px] text-[var(--text-tertiary)]">
+        <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]" />
+        <span>Ritmo diario: $2.200</span>
+        <span className="ml-auto">Ideal hoy: $2.900</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        <div className="rounded-lg bg-[var(--bg-secondary)]/50 p-2">
+          <p className="text-[8px] text-[var(--text-tertiary)]">MTD vs mismo día</p>
+          <p className="text-[11px] font-bold text-green-500">−12%</p>
+        </div>
+        <div className="rounded-lg bg-[var(--bg-secondary)]/50 p-2">
+          <p className="text-[8px] text-[var(--text-tertiary)]">Proyección de cierre</p>
+          <p className="text-[11px] font-bold text-[var(--text-primary)]">$96.400</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Mini App and Accessibility Mockup ───────────────── */
+
+export function MiniAppA11yMockup() {
+  const groups = [
+    { label: "Necesidades", pct: 72, color: "#3584e4" },
+    { label: "Gustos", pct: 48, color: "#e5a50a" },
+    { label: "Ahorro", pct: 90, color: "#2ec27e" },
+  ];
+  const checks: { icon: IconName; label: string }[] = [
+    { icon: "sun", label: "Tema claro y oscuro" },
+    { icon: "eye", label: "Contraste AA" },
+    { icon: "check", label: "Foco y teclado" },
+  ];
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 flex items-center justify-center gap-5">
+      <div className="w-32 rounded-[1.4rem] border-2 border-[var(--text-tertiary)]/40 bg-[var(--bg-secondary)]/40 p-2 shadow-sm">
+        <div className="mx-auto mb-1.5 h-1 w-8 rounded-full bg-[var(--text-tertiary)]/40" />
+        <div className="rounded-xl bg-[var(--bg-primary)] p-2">
+          <p className="text-[8px] font-semibold text-[var(--text-primary)]">Presupuesto</p>
+          <div className="mt-1.5 flex gap-1">
+            {["Resumen", "Grupos", "Cuotas"].map((tab, i) => (
+              <span
+                key={tab}
+                className={`rounded-full px-1.5 py-0.5 text-[6px] ${
+                  i === 1
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
+                }`}
+              >
+                {tab}
+              </span>
+            ))}
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {groups.map((group) => (
+              <div key={group.label}>
+                <div className="flex justify-between text-[6px] text-[var(--text-secondary)]">
+                  <span>{group.label}</span>
+                  <span>{group.pct}%</span>
+                </div>
+                <div className="mt-0.5 h-1 rounded-full bg-[var(--border-color)]">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${group.pct}%`, backgroundColor: group.color }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 rounded-md border-2 border-[var(--color-primary)] px-1.5 py-1 text-[6px] text-[var(--color-primary)]">
+            Foco visible al navegar con teclado
+          </div>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {checks.map((check) => (
+          <div
+            key={check.label}
+            className="flex items-center gap-2 text-[9px] text-[var(--text-secondary)]"
+          >
+            <span className="w-6 h-6 rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center">
+              <SymbolicIcon name={check.icon} size={12} />
+            </span>
+            {check.label}
           </div>
         ))}
       </div>

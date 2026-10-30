@@ -185,3 +185,30 @@ When the bot creates an expense, the user gets:
 - Confirmation message with amount, category, payment method
 - Emoji-rich formatting (🛒💰📅💳)
 - Category tree with hierarchy indicators (└)
+
+## Anuncios de release
+
+Las novedades de producto se anuncian una sola vez por versión con el script
+`src/backend/scripts/announce_whats_new.py`. El anuncio usa el mismo
+`notify_user()` que el resto de las notificaciones, así que respeta el canal
+elegido por cada usuario (`inapp`, `telegram`, `both`, `none`) y el apagado
+global. Sólo se envía a usuarios activos con Telegram vinculado; el resto ve la
+versión en el modal de Novedades al entrar.
+
+El envío lleva el link a `FRONTEND_URL/changes/<versión>`. La primera corrida
+registra `whats_new_broadcast:<versión>` en `settings` y las siguientes no
+hacen nada.
+
+```bash
+# Ensayo: cuenta destinatarios sin escribir ni enviar
+python scripts/announce_whats_new.py --version v1.6 --dry-run
+
+# Envío real, después del deploy
+python scripts/announce_whats_new.py --version v1.6
+
+# Reenvío deliberado
+python scripts/announce_whats_new.py --version v1.6 --force
+```
+
+Se puede correr desde el contenedor del backend o el worker: si el bot embebido
+no está activo, `send_message_to_chat()` cae al HTTP de la Bot API.

@@ -70,11 +70,24 @@ describe("resolveNotificationTarget", () => {
       resolveNotificationTarget(notif({ type: "group_invitation", data: { member_id: 3 } })),
     ).toBeNull();
   });
+
+  it("sends a release announcement to its version page", () => {
+    expect(
+      resolveNotificationTarget(notif({ type: "whats_new", data: { version: "v1.6" } })),
+    ).toEqual({ kind: "navigate", path: "/changes/v1.6" });
+  });
+
+  it("has nowhere to send a release announcement without a version", () => {
+    expect(resolveNotificationTarget(notif({ type: "whats_new", data: {} }))).toBeNull();
+  });
 });
 
 describe("getNotifActionLabel", () => {
   it("labels only the notifications that have somewhere to go", () => {
     expect(getNotifActionLabel(notif({ type: "budget_warning" }))).toBe("Ver presupuestos →");
+    expect(getNotifActionLabel(notif({ type: "whats_new", data: { version: "v1.6" } }))).toBe(
+      "Ver novedades →",
+    );
     expect(getNotifActionLabel(notif({ type: "group_invitation" }))).toBeNull();
     expect(getNotifActionLabel(notif({ type: "monthly_report_queued" }))).toBeNull();
     expect(getNotifActionLabel(notif({ type: "import_ready", data: {} }))).toBeNull();

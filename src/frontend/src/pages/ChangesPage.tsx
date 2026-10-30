@@ -24,9 +24,21 @@ import {
   ExpenseTableCuentaMockup,
   ExpenseModalCuentaMockup,
   DashboardEnrichedMockup,
+  VoiceCaptureMockup,
+  AssistantRevampMockup,
+  NotificationsSidebarMockup,
+  ExpensesSearchBulkMockup,
+  BudgetDashboardMockup,
+  MiniAppA11yMockup,
 } from "./changes/FeatureMockups";
 
 const FEATURE_MOCKUPS: Record<string, React.FC> = {
+  "🎙️ Captura por voz y foto": VoiceCaptureMockup,
+  "🤖 Asistente renovado": AssistantRevampMockup,
+  "🔔 Notificaciones en la barra lateral": NotificationsSidebarMockup,
+  "🔎 Gastos más rápidos": ExpensesSearchBulkMockup,
+  "📊 Presupuesto y Dashboard rediseñados": BudgetDashboardMockup,
+  "📱 Mini App y accesibilidad": MiniAppA11yMockup,
   "📂 Clasificación Unificada": TagsSystemMockup,
   "🏦 Cuentas Flexibles": ExpenseModalCuentaMockup,
   "📊 Gastos: columna Cuenta": ExpenseTableCuentaMockup,
@@ -186,13 +198,14 @@ export default function ChangesPage() {
               {current.title}
             </h1>
             <p className="text-[var(--text-secondary)] max-w-2xl">
-              {current.version === "v1.4"
-                ? "Reportes financieros del bot de Telegram, edición de gastos de las últimas 48 horas, imágenes renderizadas, vista rápida y soporte multi-moneda. Notificaciones de cuotas y suscripciones."
-                : current.version === "v1.3"
-                  ? "Telegram Mini App, inicio de sesión con un toque, mejoras en detección de tarjetas y suscripciones más inteligentes."
-                  : current.version === "v1.1"
-                    ? "Protección de datos con encriptación de nivel bancario, búsqueda inteligente y mejoras de seguridad en todo el sistema."
-                    : "La primera versión de Oikonomia con todas las herramientas que necesitás para tus finanzas personales."}
+              {current.summary ??
+                (current.version === "v1.4"
+                  ? "Reportes financieros del bot de Telegram, edición de gastos de las últimas 48 horas, imágenes renderizadas, vista rápida y soporte multi-moneda. Notificaciones de cuotas y suscripciones."
+                  : current.version === "v1.3"
+                    ? "Telegram Mini App, inicio de sesión con un toque, mejoras en detección de tarjetas y suscripciones más inteligentes."
+                    : current.version === "v1.1"
+                      ? "Protección de datos con encriptación de nivel bancario, búsqueda inteligente y mejoras de seguridad en todo el sistema."
+                      : "La primera versión de Oikonomia con todas las herramientas que necesitás para tus finanzas personales.")}
             </p>
           </div>
 

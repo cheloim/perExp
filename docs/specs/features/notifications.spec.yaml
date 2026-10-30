@@ -5,7 +5,7 @@ version: "1.1.0"
 status: implemented
 owner: full-stack
 created: 2026-08-16
-updated: 2026-10-24
+updated: 2026-10-30
 github_issue: null
 
 description: >
@@ -54,7 +54,7 @@ entities:
       - name: "type"
         type: "string"
         required: true
-        description: "Notification type: expense_created, scheduled_executed, system"
+        description: "Notification type: expense_created, scheduled_executed, system, whats_new"
       - name: "read"
         type: "boolean"
         default: false
@@ -110,6 +110,12 @@ business_rules:
     description: "All notifications are stored in the database regardless of delivery status"
   - name: "User Scoping"
     description: "Notifications are strictly scoped to the authenticated user"
+  - name: "Release announcements"
+    description: >
+      A release announcement uses type `whats_new`, carries the version in
+      `data.version`, and links to `/changes/<version>`. It is delivered through
+      the same per-user channel preference and is recorded in `settings` as
+      `whats_new_broadcast:<version>` so a rerun does not duplicate it.
 
 frontend:
   components:

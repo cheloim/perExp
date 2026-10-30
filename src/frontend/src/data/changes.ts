@@ -11,13 +11,66 @@ export interface ChangeVersion {
   version: string;
   date: string;
   title: string;
+  summary?: string;
   features: ChangeFeature[];
   previous?: string;
 }
 
-export const LATEST_VERSION = "v1.5";
+export const LATEST_VERSION = "v1.6";
 
 export const CHANGES: ChangeVersion[] = [
+  {
+    version: "v1.6",
+    date: "30 de Octubre, 2026",
+    title: "Captura inteligente, asistente renovado y una app más clara",
+    summary:
+      "Capturá gastos por voz o escaneando un comprobante, hablá con un asistente que analiza hasta doce meses y trabajá más rápido con notificaciones, búsqueda y presupuesto rediseñados.",
+    previous: "v1.5",
+    features: [
+      {
+        title: "🎙️ Captura por voz y foto",
+        icon: "sparkles",
+        color: "#3584e4",
+        description:
+          "Dictá tu gasto desde el asistente con el botón de micrófono, o escaneá un comprobante desde el modal de gasto para completar monto, descripción, fecha y moneda. El bot de Telegram también acepta audios y fotos.",
+      },
+      {
+        title: "🤖 Asistente renovado",
+        icon: "bot",
+        color: "#8b5cf6",
+        description:
+          "Nuevo panel centrado, un solo hilo y un selector de ventana de 3, 6 o 12 meses. Las sugerencias se envían con un toque, las respuestas se leen como markdown y Limpiar pide confirmación.",
+      },
+      {
+        title: "🔔 Notificaciones en la barra lateral",
+        icon: "bell",
+        color: "#e5a50a",
+        description:
+          "Notificaciones tiene su lugar en la barra lateral y su propia página. El texto se muestra completo, se borra con un clic y cada aviso te lleva al lugar correcto.",
+      },
+      {
+        title: "🔎 Gastos más rápidos",
+        icon: "search",
+        color: "#2ec27e",
+        description:
+          "Buscá por descripción, nota o categoría con contador en vivo y Escape para limpiar. Los filtros también mueven las estadísticas, la selección masiva queda siempre disponible y categoría/cuenta se editan en la fila.",
+      },
+      {
+        title: "📊 Presupuesto y Dashboard rediseñados",
+        icon: "chart-bar",
+        color: "#e66100",
+        description:
+          "Presupuesto con edición por fila, barra de ritmo diario y panel de ayuda. El Dashboard suma comparación contra el mismo día del mes anterior, proyección de cierre, leyendas unificadas y opción de ocultar cuentas vacías.",
+      },
+      {
+        title: "📱 Mini App y accesibilidad",
+        icon: "smartphone",
+        color: "#9141ac",
+        description:
+          "La Mini App gana paridad visual en QuickBudget y un resumen mensual comparativo. En toda la app: diseño alineado a GNOME 50, foco visible, teclado y contraste corregidos, y más ancho útil en pantallas grandes.",
+      },
+    ],
+  },
   {
     version: "v1.5",
     date: "24 de Septiembre, 2026",
