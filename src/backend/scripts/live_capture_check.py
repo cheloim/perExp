@@ -193,22 +193,29 @@ def main() -> int:
     }
     failures: list[str] = []
 
-    audio = transcribe_audio(
-        _audio(),
-        filename="voice.wav",
-        mime_type="audio/wav",
-        duration_hint=None,
-        api_key_env="MESSAGES_BOT_LLM_API_KEY",
-    )
-    summary["audio"] = {
-        "text": audio.text,
-        "unclear": audio.unclear,
-        "duration_seconds": audio.duration_seconds,
-    }
-    if audio.unclear or len(audio.text.strip()) < 3:
-        failures.append("audio_unclear")
-    if not audio.duration_seconds or audio.duration_seconds <= 0:
-        failures.append("audio_duration_missing")
+    try:
+        audio = transcribe_audio(
+            _audio(),
+            filename="voice.wav",
+            mime_type="audio/wav",
+            duration_hint=None,
+            api_key_env="MESSAGES_BOT_LLM_API_KEY",
+        )
+        summary["audio"] = {
+            "text": audio.text,
+            "unclear": audio.unclear,
+            "duration_seconds": audio.duration_seconds,
+        }
+        if audio.unclear or len(audio.text.strip()) < 3:
+            failures.append("audio_unclear")
+        if not audio.duration_seconds or audio.duration_seconds <= 0:
+            failures.append("audio_duration_missing")
+    except Exception as exc:  # provider/model unavailable must not hide the image checks
+        summary["audio"] = {
+            "error": type(exc).__name__,
+            "detail": str(exc)[:300],
+        }
+        failures.append("audio_provider_unavailable")
 
     for name, (image, expectation) in cases.items():
         result = extract_expense_from_image(image, mime_type="image/png")

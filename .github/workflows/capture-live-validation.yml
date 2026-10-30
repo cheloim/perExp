@@ -41,21 +41,29 @@ jobs:
       - name: Install backend dependencies
         run: pip install -r src/backend/requirements.txt
 
-      - name: List accessible audio models
+      - name: List accessible models per key
         working-directory: src/backend
         continue-on-error: true
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          MESSAGES_BOT_LLM_API_KEY: ${{ secrets.MESSAGES_BOT_LLM_API_KEY }}
         run: |
           python - <<'PY'
           import os
           from openai import OpenAI
 
-          client = OpenAI(api_key=os.environ["LLM_API_KEY"])
-          ids = sorted(model.id for model in client.models.list().data)
-          audio = [i for i in ids if any(k in i for k in ("audio", "transcribe", "whisper"))]
-          print("audio models:", audio or "(none)")
-          print("all models:", ids)
+          for name in ("LLM_API_KEY", "MESSAGES_BOT_LLM_API_KEY"):
+              key = os.environ.get(name)
+              if not key:
+                  print(f"{name}: missing")
+                  continue
+              try:
+                  ids = sorted(model.id for model in OpenAI(api_key=key).models.list().data)
+                  audio = [i for i in ids if any(k in i for k in ("audio", "transcribe", "whisper"))]
+                  print(f"{name} models:", ids)
+                  print(f"{name} audio:", audio or "(none)")
+              except Exception as exc:
+                  print(f"{name}: error {type(exc).__name__}: {str(exc)[:200]}")
           PY
 
       - name: Run live capture validation
