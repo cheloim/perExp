@@ -141,7 +141,10 @@ those candidates, in batches of 25, via `CATEGORY_REVIEW_PROMPT`:
 10 MB / 120 seconds) to OpenAI Audio using `LLM_AUDIO_MODEL` (default
 `whisper-1`). Transcription cost is estimated at USD 0.006 per audio minute and
 is recorded in the existing LLM budget metrics. Unclear audio returns a retry
-signal instead of an empty expense.
+signal instead of an empty expense. The server parses media duration with
+`mutagen` before contacting the provider; a client-supplied duration is not used
+to enforce the limit or estimate cost. Browser recordings in WebM are converted
+to WAV by the client; the server rejects WebM sent directly.
 
 `POST /capture/expense-image` accepts JPEG, PNG, or WebP (up to 8 MB / 20 MP);
 Pillow strips EXIF and downsizes images to at most 1600 px per side before
@@ -158,6 +161,20 @@ the bounded data in memory.
 OpenAI calls remain subject to the existing monthly budget. The Google adapter
 supports text only; capture explicitly returns unavailable when configured with
 Google rather than silently dropping media.
+
+Capture production configuration is `LLM_PROVIDER=openai` and
+`LLM_MODEL_NAME=gpt-6-luna`. Vision uses `LLM_VISION_MODEL` when configured and
+otherwise inherits `LLM_MODEL_NAME`; audio uses `LLM_AUDIO_MODEL` and defaults to
+`whisper-1`. Audio is estimated at USD 0.006 per minute. Image inference is
+charged according to the selected vision model's image/token pricing and usage;
+there is no fixed per-image price in the application, and it remains within the
+existing monthly LLM budget.
+
+Telegram accepts voice messages and image photos/documents as transient inputs.
+Voice is transcribed for review before entering the existing text-expense flow.
+An image produces a draft that must be explicitly saved; unsupported or rejected
+proofs do not create expenses. Neither input media nor its content is retained by
+the application after processing.
 
 The app uses hand-written multipart wrappers in `frontend/src/api/client.ts`
 for these two operations because Orval's generated functions set
