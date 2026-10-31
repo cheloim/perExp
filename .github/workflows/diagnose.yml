@@ -66,8 +66,7 @@ jobs:
               podman inspect --format='status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}} image={{.ImageName}}' "$c" 2>/dev/null
 
               echo "--- health log (últimos 5) ---"
-              podman inspect --format='{{range .State.Health.Log}}exit={{.ExitCode}} start={{.Start}} out={{.Output}}
-{{end}}' "$c" 2>/dev/null | tail -10
+              podman inspect --format='{{range .State.Health.Log}}exit={{.ExitCode}} start={{.Start}} out={{.Output}}{{"\n"}}{{end}}' "$c" 2>/dev/null | tail -10
 
               echo "--- healthcheck definition ---"
               podman inspect --format='{{json .Config.Healthcheck}}' "$c" 2>/dev/null
