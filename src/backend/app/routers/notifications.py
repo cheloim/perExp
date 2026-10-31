@@ -159,6 +159,24 @@ def delete_all_read(current_user: User = Depends(get_current_user), db: Session 
     return {"ok": True}
 
 
+@router.delete(
+    "/all",
+    status_code=200,
+    summary="Delete all notifications",
+    description="Permanently delete every notification belonging to the current user.",
+)
+def delete_all_notifications(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    deleted = (
+        db.query(Notification)
+        .filter(Notification.user_id == current_user.id)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"ok": True, "deleted": deleted}
+
+
 @router.post(
     "/{notif_id}/accept",
     status_code=200,

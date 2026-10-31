@@ -34,7 +34,7 @@ export default function NotificationsPage() {
                 : `Todas leídas · ${notifications.length} en total`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <NotificationBulkActions />
         </div>
       </div>

@@ -4,6 +4,7 @@ import { useNotifications } from "../context/NotificationsContext";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { hideBackButton, showBackButton } from "../services/telegramWebApp";
 import type { Notification } from "../types";
+import NotificationBulkActions from "./NotificationBulkActions";
 import NotificationsList from "./NotificationsList";
 import SymbolicIcon from "./SymbolicIcon";
 
@@ -132,7 +133,7 @@ export default function NotificationCenterModal({ isOpen, onClose, onOpenDetail 
           )}
         </div>
 
-        <footer className="border-t border-[var(--border-color)] px-5 py-3">
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-color)] px-5 py-3">
           <Link
             to="/notifications"
             onClick={onClose}
@@ -140,6 +141,7 @@ export default function NotificationCenterModal({ isOpen, onClose, onOpenDetail 
           >
             Ver todas las notificaciones →
           </Link>
+          <NotificationBulkActions compact />
         </footer>
       </div>
     </div>

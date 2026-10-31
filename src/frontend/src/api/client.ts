@@ -862,6 +862,7 @@ export const deleteNotification = (id: number) =>
   api.delete(`/notifications/${id}`).then((r) => r.data);
 export const deleteAllReadNotifications = () =>
   api.delete("/notifications/read-all").then((r) => r.data);
+export const deleteAllNotifications = () => api.delete("/notifications/all").then((r) => r.data);
 
 // Family Group
 export const getMyGroup = () => api.get<FamilyGroup | null>("/groups/me").then((r) => r.data);

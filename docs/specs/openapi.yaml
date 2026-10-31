@@ -3181,6 +3181,16 @@ paths:
       responses:
         '200':
           description: Mark notification as read
+  /notifications/all:
+    delete:
+      tags:
+        - notifications
+      summary: Delete all notifications
+      description: Permanently delete every notification belonging to the current user.
+      operationId: delete_all_notifications_notifications_all_delete
+      responses:
+        '200':
+          description: Delete all notifications
   /notifications/read-all:
     put:
       tags:
