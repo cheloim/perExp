@@ -67,5 +67,6 @@ describe("assistant thread persistence", () => {
 
     expect(getStoredToken()).toBeNull();
     expect(localStorage.getItem(SHARED_STORAGE.thread)).toBeNull();
+    expect(isThreadPersistenceEnabled()).toBe(false);
   });
 });
