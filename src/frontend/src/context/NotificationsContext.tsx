@@ -15,6 +15,7 @@ import {
   markAllNotificationsRead,
   deleteNotification as apiDeleteNotification,
   deleteAllReadNotifications,
+  deleteAllNotifications,
   downloadReportPdf,
 } from "../api/client";
 import { getNotifActionLabel, resolveNotificationTarget } from "../utils/notifications";
@@ -32,6 +33,7 @@ interface NotificationsContextValue extends NotificationsState {
   markAllRead: () => Promise<void>;
   deleteNotification: (id: number) => Promise<void>;
   deleteAllRead: () => Promise<void>;
+  deleteAll: () => Promise<void>;
   refresh: () => void;
   /** Notification whose detail is open over the current page, if any. */
   detailNotification: Notification | null;
@@ -227,6 +229,34 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, [refresh]);
 
+  const deleteAll = useCallback(async () => {
+    const {
+      notifications: snapshot,
+      unreadCount: previousUnread,
+      pendingCount: previousPending,
+    } = stateRef.current;
+    if (snapshot.length === 0) return;
+
+    setState((s) => ({ ...s, notifications: [], unreadCount: 0, pendingCount: 0 }));
+    setDetailNotification(null);
+
+    try {
+      await deleteAllNotifications();
+      // The stream re-reads after the DELETE commits, so it cannot resurrect
+      // rows the user just cleared.
+      refresh();
+    } catch (err) {
+      console.error("[NotificationsContext] deleteAll failed", err);
+      setState((s) => ({
+        ...s,
+        notifications: snapshot,
+        unreadCount: previousUnread,
+        pendingCount: previousPending,
+      }));
+      showToast("No se pudieron eliminar las notificaciones", "error", 6000, "bottom-center");
+    }
+  }, [refresh]);
+
   const handleNewNotification = useCallback(
     (notification: Notification) => {
       const target = resolveNotificationTarget(notification);
@@ -368,6 +398,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         markAllRead,
         deleteNotification,
         deleteAllRead,
+        deleteAll,
         refresh,
         detailNotification,
         openDetail,

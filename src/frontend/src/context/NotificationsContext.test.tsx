@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
     emit: (data: unknown) => void;
   },
   deleteNotification: vi.fn<(id: number) => Promise<void>>(),
+  deleteAllNotifications: vi.fn<() => Promise<void>>(),
   showToast: vi.fn(),
 }));
 
@@ -24,6 +25,7 @@ vi.mock("../api/client", () => ({
   markAllNotificationsRead: vi.fn(async () => {}),
   deleteNotification: (id: number) => h.deleteNotification(id),
   deleteAllReadNotifications: vi.fn(async () => {}),
+  deleteAllNotifications: () => h.deleteAllNotifications(),
   downloadReportPdf: vi.fn(),
 }));
 
@@ -147,6 +149,98 @@ describe("NotificationsContext.deleteNotification", () => {
     expect(result.current.unreadCount).toBe(1);
     expect(h.showToast).toHaveBeenCalledWith(
       "No se pudo eliminar la notificación",
+      "error",
+      6000,
+      "bottom-center",
+    );
+  });
+});
+
+describe("NotificationsContext.deleteAll", () => {
+  const SECOND: Notification = {
+    ...NOTIFICATION,
+    id: 8,
+    title: "Otra alerta",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    class FakePort {
+      private listeners: Array<(e: { data: unknown }) => void> = [];
+      start() {}
+      postMessage() {}
+      close() {}
+      addEventListener(_type: string, fn: (e: { data: unknown }) => void) {
+        this.listeners.push(fn);
+      }
+      removeEventListener() {}
+      emit(data: unknown) {
+        for (const fn of this.listeners) fn({ data });
+      }
+    }
+    class FakeSharedWorker {
+      port = new FakePort();
+      constructor() {
+        h.port = this.port;
+      }
+    }
+    class FakeBroadcastChannel {
+      postMessage() {}
+      addEventListener() {}
+      removeEventListener() {}
+    }
+    vi.stubGlobal("SharedWorker", FakeSharedWorker);
+    vi.stubGlobal("BroadcastChannel", FakeBroadcastChannel);
+    localStorage.setItem("auth_token", "test-token");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  it("clears everything before the server answers", async () => {
+    let settle!: () => void;
+    h.deleteAllNotifications.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          settle = resolve;
+        }),
+    );
+
+    const { result } = renderHook(() => useNotifications(), { wrapper });
+    seed([NOTIFICATION, SECOND], 2);
+    expect(result.current.notifications).toHaveLength(2);
+
+    act(() => {
+      void result.current.deleteAll();
+    });
+
+    expect(result.current.notifications).toHaveLength(0);
+    expect(result.current.unreadCount).toBe(0);
+
+    await act(async () => {
+      settle();
+    });
+    await waitFor(() => expect(h.deleteAllNotifications).toHaveBeenCalledTimes(1));
+    expect(result.current.notifications).toHaveLength(0);
+  });
+
+  it("restores the list and says so when the delete fails", async () => {
+    h.deleteAllNotifications.mockRejectedValue(new Error("500"));
+
+    const { result } = renderHook(() => useNotifications(), { wrapper });
+    seed([NOTIFICATION, SECOND], 2);
+
+    await act(async () => {
+      await result.current.deleteAll();
+    });
+
+    expect(result.current.notifications).toHaveLength(2);
+    expect(result.current.unreadCount).toBe(2);
+    expect(h.showToast).toHaveBeenCalledWith(
+      "No se pudieron eliminar las notificaciones",
       "error",
       6000,
       "bottom-center",

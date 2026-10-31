@@ -9,8 +9,9 @@ interface Props {
 
 /** "Marcar todo leído" + "Limpiar leídas", with the confirmation it needs. */
 export default function NotificationBulkActions({ compact = false }: Props) {
-  const { notifications, markAllRead, deleteAllRead } = useNotifications();
+  const { notifications, markAllRead, deleteAllRead, deleteAll } = useNotifications();
   const [confirmClearRead, setConfirmClearRead] = useState(false);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const readCount = notifications.filter((n) => n.read).length;
@@ -37,6 +38,16 @@ export default function NotificationBulkActions({ compact = false }: Props) {
           Limpiar leídas
         </button>
       )}
+      {notifications.length > 0 && (
+        <button
+          onClick={() => setConfirmDeleteAll(true)}
+          className={`text-xs font-medium text-red-500 transition-colors hover:bg-red-500/10 ${
+            compact ? "" : "px-3 py-1.5 rounded-md border border-red-500/40"
+          }`}
+        >
+          Eliminar todas
+        </button>
+      )}
 
       <ConfirmDialog
         isOpen={confirmClearRead}
@@ -53,6 +64,24 @@ export default function NotificationBulkActions({ compact = false }: Props) {
           setConfirmClearRead(false);
         }}
         onCancel={() => setConfirmClearRead(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDeleteAll}
+        title="Eliminar todas las notificaciones"
+        message={
+          <>
+            Se eliminarán {notifications.length} notificación
+            {notifications.length !== 1 ? "es" : ""}, incluidas las no leídas y las invitaciones
+            pendientes. Esta acción no se puede deshacer.
+          </>
+        }
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          void deleteAll();
+          setConfirmDeleteAll(false);
+        }}
+        onCancel={() => setConfirmDeleteAll(false)}
       />
     </>
   );

@@ -15700,6 +15700,89 @@ export const useMarkReadNotificationsNotifIdReadPut = <
 };
 
 /**
+ * Permanently delete every notification belonging to the current user.
+ * @summary Delete all notifications
+ */
+export const deleteAllNotificationsNotificationsAllDelete = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/notifications/all`, method: "DELETE", signal }, options);
+};
+
+export const getDeleteAllNotificationsNotificationsAllDeleteMutationKey = () =>
+  ["deleteAllNotificationsNotificationsAllDelete"] as const;
+
+export const getDeleteAllNotificationsNotificationsAllDeleteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAllNotificationsNotificationsAllDelete>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAllNotificationsNotificationsAllDelete>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getDeleteAllNotificationsNotificationsAllDeleteMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAllNotificationsNotificationsAllDelete>>,
+    void
+  > = () => {
+    return deleteAllNotificationsNotificationsAllDelete(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAllNotificationsNotificationsAllDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAllNotificationsNotificationsAllDelete>>
+>;
+
+export type DeleteAllNotificationsNotificationsAllDeleteMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete all notifications
+ */
+export const useDeleteAllNotificationsNotificationsAllDelete = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteAllNotificationsNotificationsAllDelete>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAllNotificationsNotificationsAllDelete>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(
+    getDeleteAllNotificationsNotificationsAllDeleteMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
  * Mark all unread notifications for the current user as read.
  * @summary Mark all notifications as read
  */

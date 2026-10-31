@@ -124,15 +124,18 @@ export default function NotificationItem({
         </div>
 
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onDelete(n);
           }}
-          className="flex-shrink-0 text-[var(--text-tertiary)] hover:text-red-500 transition-colors p-0.5"
+          className={`flex flex-shrink-0 items-center justify-center rounded-md text-[var(--text-tertiary)] transition-colors hover:bg-red-500/10 hover:text-red-500 ${
+            isPage ? "h-10 w-10 -mr-1" : "h-9 w-9 -mr-1"
+          }`}
           title="Eliminar notificación"
           aria-label={`Eliminar notificación: ${n.title}`}
         >
-          <SymbolicIcon name="trash" size={14} />
+          <SymbolicIcon name="trash" size={isPage ? 18 : 16} />
         </button>
       </div>
     </div>
