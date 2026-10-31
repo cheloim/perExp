@@ -135,6 +135,12 @@ export const telegramWidgetLogin = (data: {
   hash: string;
 }) => api.post<AuthToken>("/auth/telegram/login-widget", data).then((r) => r.data);
 
+export const createTelegramOidcState = () =>
+  api.get<{ state: string }>("/auth/telegram/state").then((r) => r.data.state);
+
+export const exchangeTelegramOidcCode = (code: string) =>
+  api.post<AuthToken>("/auth/telegram/exchange", { code }).then((r) => r.data);
+
 export const telegramOidcLogin = (code: string, redirectUri: string) =>
   api
     .post<AuthToken>("/auth/telegram/oidc", { code, redirect_uri: redirectUri })

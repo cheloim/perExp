@@ -1,26 +1,55 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { getStoredToken, storeToken } from "../api/client";
+import { exchangeTelegramOidcCode, getStoredToken, storeToken } from "../api/client";
+
+const ERROR_MESSAGES: Record<string, string> = {
+  telegram_oidc_failed: "No se pudo conectar con Telegram. Intentá de nuevo.",
+  telegram_token_invalid: "El token de Telegram es inválido o expiró.",
+  telegram_no_id: "No se pudo obtener tu ID de Telegram.",
+  telegram_not_linked:
+    "Tu cuenta de Telegram no está vinculada. Vinculala desde Configuración → Telegram Bot.",
+  telegram_account_issue: "Tu cuenta está desactivada o bloqueada.",
+  telegram_state_invalid:
+    "El enlace de autenticación no es válido o expiró. Iniciá sesión de nuevo.",
+  telegram_state_unavailable:
+    "No se pudo completar el inicio de sesión con Telegram. Intentá de nuevo.",
+};
 
 /**
  * Handles the redirect from Telegram's OIDC authorization endpoint.
- * The backend exchanges the code and redirects here with ?token=...
- * or ?error=... if something failed.
+ *
+ * The backend redirects here with a short-lived, single-use `code`. The
+ * original `state` was already validated and consumed server-side. The access
+ * token is never part of the URL: it is obtained by exchanging the code via
+ * POST.
  */
 export default function TelegramCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  // StrictMode runs effects twice in development. The code is single-use, so
+  // the second run must not try to exchange it again.
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    const token = searchParams.get("token");
+    if (startedRef.current) return;
+    startedRef.current = true;
+
+    const code = searchParams.get("code");
     const errorParam = searchParams.get("error");
     const tgId = searchParams.get("tg_id");
+    const legacyToken = searchParams.get("token");
 
-    // Success — store token and redirect
-    if (token) {
-      storeToken(token);
-      navigate("/", { replace: true });
+    // The code is single-use. Remove it from the URL immediately so it does
+    // not remain in history or leak through the Referer header.
+    if (code || legacyToken) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+
+    // Tokens in the query string are no longer accepted. An old link (or an
+    // attacker-crafted one) must not start a session.
+    if (legacyToken) {
+      setError("El enlace de autenticación no es válido. Iniciá sesión de nuevo.");
       return;
     }
 
@@ -42,20 +71,24 @@ export default function TelegramCallbackPage() {
         return;
       }
 
-      const errorMessages: Record<string, string> = {
-        telegram_oidc_failed: "No se pudo conectar con Telegram. Intentá de nuevo.",
-        telegram_token_invalid: "El token de Telegram es inválido o expiró.",
-        telegram_no_id: "No se pudo obtener tu ID de Telegram.",
-        telegram_not_linked:
-          "Tu cuenta de Telegram no está vinculada. Vinculala desde Configuración → Telegram Bot.",
-        telegram_account_issue: "Tu cuenta está desactivada o bloqueada.",
-      };
-      setError(errorMessages[errorParam] || "Error desconocido al iniciar sesión con Telegram.");
+      setError(ERROR_MESSAGES[errorParam] || "Error desconocido al iniciar sesión con Telegram.");
       return;
     }
 
-    // No token and no error — might be a direct access
-    setError("No se recibió respuesta de Telegram.");
+    if (!code) {
+      setError("No se recibió respuesta de Telegram.");
+      return;
+    }
+
+    void (async () => {
+      try {
+        const token = await exchangeTelegramOidcCode(code);
+        storeToken(token.access_token);
+        navigate("/", { replace: true });
+      } catch {
+        setError("El código de autenticación ya se usó o expiró. Iniciá sesión de nuevo.");
+      }
+    })();
   }, [searchParams, navigate]);
 
   if (error) {
