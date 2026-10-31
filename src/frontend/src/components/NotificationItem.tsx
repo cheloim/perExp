@@ -18,6 +18,8 @@ interface Props {
   rejectPending?: boolean;
   /** Panel rows are tight; page rows are cards with room to breathe. */
   variant?: "panel" | "page";
+  /** Open the detail modal even when the notification has no destination. */
+  alwaysClickable?: boolean;
 }
 
 /**
@@ -34,11 +36,12 @@ export default function NotificationItem({
   onReject,
   rejectPending = false,
   variant = "panel",
+  alwaysClickable = false,
 }: Props) {
   const { icon, color } = getNotifIcon(n);
   const borderColor = getNotifBorderColor(n);
   const actionLabel = getNotifActionLabel(n);
-  const isClickable = resolveNotificationTarget(n) !== null;
+  const isClickable = alwaysClickable || resolveNotificationTarget(n) !== null;
   const isPage = variant === "page";
 
   // A pending invitation is one the user can still answer: once it is read, it
@@ -62,7 +65,7 @@ export default function NotificationItem({
       ].join(" ")}
       role={isClickable ? "button" : undefined}
       tabIndex={isClickable ? 0 : undefined}
-      aria-label={isClickable ? `${n.title}. ${actionLabel}` : undefined}
+      aria-label={isClickable ? (actionLabel ? `${n.title}. ${actionLabel}` : n.title) : undefined}
     >
       <div className="flex items-start gap-2.5">
         <span className="flex-shrink-0 mt-0.5">

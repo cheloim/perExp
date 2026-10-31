@@ -35,6 +35,27 @@ _AUDIO_MIMES = {
     "wav": {"audio/wav", "audio/x-wav", "audio/wave"},
 }
 
+_CARD_ENDING_WORDS = re.compile(r"(?i)\b(?:terminad[ao]|ending)\s+en\b\s*")
+_CARD_DIGITS = re.compile(r"(?i)[*•·x]*\b\d{2,}\b[*•·x]*")
+
+
+def sanitize_card_hint(value: str | None) -> str | None:
+    """Keep the card label, never the PAN or its last digits.
+
+    The extraction prompt already forbids card numbers, but a provider can
+    still echo ``Visa ****4521``. The bot must not persist or show that: the
+    label is enough to match a card, and the digits are sensitive.
+    """
+    if not value:
+        return None
+
+    text = _CARD_ENDING_WORDS.sub(" ", value)
+    text = _CARD_DIGITS.sub(" ", text)
+    text = re.sub(r"[\s,;:/\\|()\[\]{}*•·-]+", " ", text).strip(" -·*")
+    text = " ".join(text.split())
+    return text or None
+
+
 CAPTURE_REQUESTS = Counter(
     "oikonomia_capture_requests_total",
     "Capture requests by media kind, state, and bounded reason",
@@ -346,7 +367,7 @@ def _extract_expense_from_image(
         date=extraction.date,
         confidence=extraction.confidence,
         source_type=extraction.source_type,
-        card_hint=extraction.card_hint,
+        card_hint=sanitize_card_hint(extraction.card_hint),
     )
     return ExpenseImageResult(
         status="ok",

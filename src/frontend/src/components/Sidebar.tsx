@@ -15,6 +15,7 @@ interface SidebarProps {
   tabs: SidebarTab[];
   unreadCount: number;
   onOpenUserPanel: () => void;
+  onOpenNotifications: () => void;
 }
 
 /**
@@ -25,7 +26,12 @@ interface SidebarProps {
  * on the row: compact over the bell on the rail, at the row's end when the
  * sidebar expands.
  */
-export default function Sidebar({ tabs, unreadCount, onOpenUserPanel }: SidebarProps) {
+export default function Sidebar({
+  tabs,
+  unreadCount,
+  onOpenUserPanel,
+  onOpenNotifications,
+}: SidebarProps) {
   const rowClass = (isActive: boolean) => `
     group/nav relative flex items-center gap-3 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150
     ${
@@ -103,6 +109,11 @@ export default function Sidebar({ tabs, unreadCount, onOpenUserPanel }: SidebarP
             unreadCount > 0 ? `Notificaciones, ${unreadCount} sin leer` : "Notificaciones"
           }
           data-tour="sidebar-notifications"
+          onClick={(event) => {
+            // The bell opens the center in place; the route stays for links.
+            event.preventDefault();
+            onOpenNotifications();
+          }}
           className={({ isActive }) => rowClass(isActive)}
         >
           {({ isActive }) => (

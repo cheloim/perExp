@@ -555,6 +555,6 @@ def test_format_recurring_report_with_items():
     )
     text = _format_recurring_report(report)
     assert "Netflix" in text
-    assert "$3,000" in text
+    assert "$3.000" in text
     assert "Mensual" in text
     assert "mañana" in text

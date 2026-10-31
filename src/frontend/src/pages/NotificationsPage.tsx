@@ -13,7 +13,7 @@ type Filter = "all" | "unread";
  * exists because #455 had nowhere for a long message to live.
  */
 export default function NotificationsPage() {
-  const { notifications, connected } = useNotifications();
+  const { notifications, connected, openDetail } = useNotifications();
   const [filter, setFilter] = useState<Filter>("all");
 
   const unread = notifications.filter((n) => !n.read).length;
@@ -91,7 +91,7 @@ export default function NotificationsPage() {
           </p>
         </div>
       ) : (
-        <NotificationsList variant="page" filter={filter} />
+        <NotificationsList variant="page" filter={filter} onOpenDetail={openDetail} />
       )}
     </div>
   );

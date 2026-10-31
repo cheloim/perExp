@@ -8,6 +8,8 @@ import { NotificationsProvider, useNotifications } from "./context/Notifications
 import { getStoredToken, getMe, getAdminSlug, dismissWhatsNew, createExpense } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import ToastViewport from "./components/ToastViewport";
+import NotificationCenterModal from "./components/NotificationCenterModal";
+import NotificationDetailModal from "./components/NotificationDetailModal";
 import ImpersonationBanner from "./components/ImpersonationBanner";
 import ReAuthModal from "./components/ReAuthModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -208,6 +210,7 @@ function MainLayout() {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showReAuth, setShowReAuth] = useState(false);
   const [newExpenseOpen, setNewExpenseOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // Global expense creation
   const createMut = useMutation({
@@ -323,7 +326,8 @@ function MainLayout() {
     if (main) main.scrollTo(0, 0);
   }, [location.pathname]);
 
-  const { unreadCount } = useNotifications();
+  const { unreadCount, detailNotification, openDetail, closeDetail, activateNotification } =
+    useNotifications();
 
   // Global Escape key handler
   useEffect(() => {
@@ -405,11 +409,16 @@ function MainLayout() {
           tabs={TABS}
           unreadCount={unreadCount}
           onOpenUserPanel={() => setUserPanelOpen(true)}
+          onOpenNotifications={() => setNotificationsOpen(true)}
         />
 
         {/* Main content */}
         <div className="md:pl-16 pb-14 flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 mr-0">
-          <MobileHeader unreadCount={unreadCount} onOpenUserPanel={() => setUserPanelOpen(true)} />
+          <MobileHeader
+            unreadCount={unreadCount}
+            onOpenUserPanel={() => setUserPanelOpen(true)}
+            onOpenNotifications={() => setNotificationsOpen(true)}
+          />
 
           <UploadProgressBanner />
 
@@ -622,6 +631,18 @@ function MainLayout() {
             isSaving={createMut.isPending}
           />
         )}
+
+        {/* Notification overlays */}
+        <NotificationCenterModal
+          isOpen={notificationsOpen}
+          onClose={() => setNotificationsOpen(false)}
+          onOpenDetail={openDetail}
+        />
+        <NotificationDetailModal
+          notification={detailNotification}
+          onClose={closeDetail}
+          onAction={activateNotification}
+        />
       </div>
       {/* Onboarding */}
       <Suspense fallback={null}>

@@ -33,6 +33,12 @@ interface NotificationsContextValue extends NotificationsState {
   deleteNotification: (id: number) => Promise<void>;
   deleteAllRead: () => Promise<void>;
   refresh: () => void;
+  /** Notification whose detail is open over the current page, if any. */
+  detailNotification: Notification | null;
+  openDetail: (notification: Notification) => void;
+  closeDetail: () => void;
+  /** Navigate or download for a notification the user explicitly acted on. */
+  activateNotification: (notification: Notification) => void;
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | undefined>(undefined);
@@ -90,6 +96,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const [port, setPort] = useState<MessagePort | null>(null);
   const [broadcastChannel] = useState(() => new BroadcastChannel(BROADCAST_CHANNEL_NAME));
+  const [detailNotification, setDetailNotification] = useState<Notification | null>(null);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -118,6 +125,31 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       console.error("[NotificationsContext] markRead failed", err);
     }
   }, []);
+
+  const activateNotification = useCallback(
+    (notification: Notification) => {
+      const target = resolveNotificationTarget(notification);
+      if (!target) return;
+
+      if (target.kind === "download") {
+        downloadReportPdf(target.month);
+      } else {
+        navigate(target.path);
+      }
+    },
+    [navigate],
+  );
+
+  const openDetail = useCallback(
+    (notification: Notification) => {
+      // Opening the detail is an explicit read: the user is looking at it.
+      void markRead(notification.id);
+      setDetailNotification(notification);
+    },
+    [markRead],
+  );
+
+  const closeDetail = useCallback(() => setDetailNotification(null), []);
 
   const markAllRead = useCallback(async () => {
     try {
@@ -209,14 +241,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           target && actionLabel
             ? {
                 label: actionLabel,
-                onClick: () => {
-                  void markRead(notification.id);
-                  if (target.kind === "download") {
-                    downloadReportPdf(target.month);
-                  } else {
-                    navigate(target.path);
-                  }
-                },
+                // Open the detail over the current page; navigating is the
+                // user's next choice, not a side effect of reading the toast.
+                onClick: () => openDetail(notification),
               }
             : undefined,
       });
@@ -237,7 +264,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         };
       });
     },
-    [markRead, navigate],
+    [openDetail],
   );
 
   const handleCountsUpdate = useCallback((unread_count: number, pending_count: number) => {
@@ -342,6 +369,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         deleteNotification,
         deleteAllRead,
         refresh,
+        detailNotification,
+        openDetail,
+        closeDetail,
+        activateNotification,
       }}
     >
       {children}
