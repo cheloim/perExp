@@ -427,7 +427,8 @@ export default function GuidePage() {
             </p>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1">
               <li>
-                <strong>Categoría</strong> — filtrá por categoría específica o "Sin categoría"
+                <strong>Categoría</strong> — elegí una o varias categorías a la vez, o "Sin
+                categoría"; las tarjetas de estadísticas y los desgloses respetan la selección
               </li>
               <li>
                 <strong>Cuenta</strong> — filtrá por tarjeta o cuenta

@@ -23,6 +23,7 @@ import {
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import { Select } from "../components/ui/Select";
+import { MultiSelect } from "../components/ui/MultiSelect";
 import { ExpenseModal } from "../components/ExpenseModals";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import EmptyState from "../components/ui/EmptyState";
@@ -122,6 +123,7 @@ export default function ExpensesPage() {
   const {
     filters,
     setFilter,
+    setCategoryIds,
     clearFilters,
     searchParams,
     setSearchParams,
@@ -129,7 +131,7 @@ export default function ExpensesPage() {
     setSearchInput,
   } = useExpenseFilters();
 
-  const filterCategory = filters.categoryId;
+  const filterCategoryIds = filters.categoryIds;
   const filterUncategorized = filters.uncategorized;
   const filterPerson = filters.person;
   const filterDateFrom = filters.dateFrom;
@@ -177,7 +179,7 @@ export default function ExpensesPage() {
   // The same filters feed the table, the stats cards and the breakdowns, so
   // the numbers above always match the rows below (issue #477).
   const filterParams = {
-    category_id: filterCategory,
+    category_ids: filterCategoryIds.length ? filterCategoryIds.join(",") : undefined,
     uncategorized: filterUncategorized || undefined,
     person: filterPerson,
     date_from: filterDateFrom,
@@ -189,24 +191,28 @@ export default function ExpensesPage() {
     search: filterSearch,
   };
 
-  const handleCategoryFilter = (value: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (value === "__none__") {
+  const handleCategorySelection = (values: string[]) => {
+    // "Sin categoría" is exclusive: it is not an id, and it cannot coexist with
+    // a category selection.
+    if (values.includes("__none__")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("category_id");
+      next.delete("category_ids");
       next.set("uncategorized", "1");
-      next.delete("category_id");
-    } else if (value) {
-      next.set("category_id", value);
-      next.delete("uncategorized");
-    } else {
-      next.delete("category_id");
-      next.delete("uncategorized");
+      setSearchParams(next);
+      return;
     }
-    setSearchParams(next);
+    setCategoryIds(values.map(Number).filter((id) => Number.isInteger(id) && id > 0));
+  };
+
+  // Drilldowns (a slice of the donut, a category row) replace the whole
+  // selection with the one category they were clicked for.
+  const handleCategoryFilter = (value: string) => {
+    handleCategorySelection(value ? [value] : []);
   };
 
   const activeFiltersCount = [
-    filterCategory,
-    filterUncategorized || undefined,
+    filterCategoryIds.length > 0 || filterUncategorized || undefined,
     filterPerson,
     filterDateFrom,
     filterDateTo,
@@ -220,7 +226,7 @@ export default function ExpensesPage() {
   const [visibleCount, setVisibleCount] = useState(100);
 
   // Reset visible count when filters change
-  const filterKey = `${filterCategory}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}-${filterCuentaId}-${filterSinCuenta}-${filterSearch}`;
+  const filterKey = `${filterCategoryIds.join(",")}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}-${filterCuentaId}-${filterSinCuenta}-${filterSearch}`;
   const prevFilterKey = useRef(filterKey);
   if (filterKey !== prevFilterKey.current) {
     prevFilterKey.current = filterKey;
@@ -336,7 +342,7 @@ export default function ExpensesPage() {
       await queryClient.cancelQueries({ queryKey: ["expenses-list"] });
       const queryKey = [
         "expenses-list",
-        filterCategory,
+        filterCategoryIds.join(","),
         filterUncategorized,
         filterPerson,
         filterDateFrom,
@@ -395,7 +401,7 @@ export default function ExpensesPage() {
         queryClient.setQueryData<Expense[]>(
           [
             "expenses-list",
-            filterCategory,
+            filterCategoryIds.join(","),
             filterUncategorized,
             filterPerson,
             filterDateFrom,
@@ -423,7 +429,7 @@ export default function ExpensesPage() {
     // Optimistic: remove from list immediately
     const queryKey = [
       "expenses-list",
-      filterCategory,
+      filterCategoryIds.join(","),
       filterUncategorized,
       filterPerson,
       filterDateFrom,
@@ -729,18 +735,21 @@ export default function ExpensesPage() {
       },
     });
   }
-  if (filterCategory) {
-    filterChips.push({
-      key: "category",
-      label: categories.find((category) => category.id === filterCategory)?.name ?? "Categoría",
-      clear: () => handleCategoryFilter(""),
-    });
+  if (filterCategoryIds.length > 0) {
+    for (const id of filterCategoryIds) {
+      filterChips.push({
+        key: `category-${id}`,
+        label: categories.find((category) => category.id === id)?.name ?? "Categoría",
+        clear: () =>
+          handleCategorySelection(filterCategoryIds.filter((other) => other !== id).map(String)),
+      });
+    }
   }
   if (filterUncategorized) {
     filterChips.push({
       key: "uncategorized",
       label: "Sin categoría",
-      clear: () => handleCategoryFilter(""),
+      clear: () => handleCategorySelection([]),
     });
   }
   if (filterCuentaId) {
@@ -965,24 +974,14 @@ export default function ExpensesPage() {
             <div id="expense-filter-fields" className="border-t border-[var(--border-color)] pt-3">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {/* Categoría */}
-                {(() => {
-                  const groups = categoryGroupOptions(categories);
-                  return (
-                    <Select
-                      value={
-                        filterUncategorized
-                          ? "__none__"
-                          : filterCategory
-                            ? String(filterCategory)
-                            : ""
-                      }
-                      onChange={(v) => handleCategoryFilter(v)}
-                      options={[{ value: "__none__", label: "Sin categoría" }]}
-                      groups={groups}
-                      placeholder="Categoría"
-                    />
-                  );
-                })()}
+                {/* Categoría — multi-select: several categories can be on at once. */}
+                <MultiSelect
+                  values={filterUncategorized ? ["__none__"] : filterCategoryIds.map(String)}
+                  onChange={handleCategorySelection}
+                  options={[{ value: "__none__", label: "Sin categoría" }]}
+                  groups={categoryGroupOptions(categories)}
+                  placeholder="Categoría"
+                />
 
                 {/* Cuenta */}
                 {(() => {
