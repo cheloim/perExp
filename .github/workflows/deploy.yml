@@ -1558,6 +1558,7 @@ jobs:
               echo "Landing container: $LANDING_HEALTH"
               if [ "$LANDING_HEALTH" = "unhealthy" ]; then
                 echo "::error::Landing container unhealthy"
+                podman inspect --format='{{range .State.Health.Log}}exit={{.ExitCode}} out={{.Output}}{{"\n"}}{{end}}' "$LANDING_CONTAINER" 2>/dev/null | tail -5
                 ERRORS=$((ERRORS + 1))
               fi
             fi
