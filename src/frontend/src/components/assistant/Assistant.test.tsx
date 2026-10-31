@@ -9,6 +9,7 @@ import Assistant, {
 } from "./Assistant";
 import { getInvestments } from "../../api/client";
 import { SHARED_STORAGE } from "./types";
+import { THREAD_PERSISTENCE_KEY, THREAD_TIMESTAMP_KEY } from "./storage";
 import type { Message } from "./types";
 
 // Only `getInvestments` is faked — it is the request this file is about to
@@ -42,6 +43,7 @@ function fakeStream(chunks: string[]): Response {
 
 function seed(messages: Message[]): void {
   localStorage.setItem(SHARED_STORAGE.thread, JSON.stringify(messages));
+  localStorage.setItem(THREAD_TIMESTAMP_KEY, String(Date.now()));
 }
 
 function renderAssistant(initialDomain: "spending" | "investments") {
@@ -56,6 +58,7 @@ function renderAssistant(initialDomain: "spending" | "investments") {
 describe("Assistant", () => {
   beforeEach(() => {
     localStorage.clear();
+    localStorage.setItem(THREAD_PERSISTENCE_KEY, "true");
     vi.mocked(getInvestments).mockReset();
     vi.mocked(getInvestments).mockResolvedValue([]);
     vi.stubGlobal(

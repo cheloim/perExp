@@ -27,7 +27,8 @@ export function AssistantShell({
   buildContext?: () => string;
 }) {
   const trapRef = useFocusTrap(open, onToggle);
-  const { messages, updateThread, clearThread } = useThread();
+  const { messages, updateThread, clearThread, persistEnabled, setPersistenceEnabled } =
+    useThread();
 
   // Chrome and endpoint follow the domain of the last message, not the route,
   // so a thread can cross between spending and investments without the window
@@ -356,6 +357,39 @@ export function AssistantShell({
               )}
             </div>
             <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setPersistenceEnabled(!persistEnabled)}
+                aria-pressed={persistEnabled}
+                aria-label={
+                  persistEnabled
+                    ? "Desactivar el guardado de la conversación"
+                    : "Guardar la conversación en este dispositivo"
+                }
+                title={
+                  persistEnabled
+                    ? "La conversación se guarda en este dispositivo (7 días)"
+                    : "La conversación se borra al cerrar sesión"
+                }
+                className={`flex items-center justify-center w-8 h-8 rounded-full transition-all ${
+                  persistEnabled
+                    ? "bg-[var(--color-primary-strong)]/15 text-[var(--accent-color)]"
+                    : "bg-[var(--color-base-alt)] text-secondary hover:bg-[var(--color-base)]"
+                }`}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill={persistEnabled ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+                </svg>
+              </button>
               {messages.length > 0 && (
                 <button
                   onClick={() => setClearConfirm(true)}

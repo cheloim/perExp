@@ -3,6 +3,7 @@ import { act, render, screen, fireEvent, waitFor, within } from "@testing-librar
 import { AssistantShell } from "./AssistantShell";
 import { ASSISTANT_CONFIGS } from "./configs";
 import { SHARED_STORAGE } from "./types";
+import { THREAD_PERSISTENCE_KEY, THREAD_TIMESTAMP_KEY } from "./storage";
 import type { Message } from "./types";
 import { useVoiceInput } from "../../hooks/useVoiceInput";
 
@@ -36,11 +37,13 @@ function fakeStream(chunks: string[]): Response {
 
 function seed(messages: Message[]): void {
   localStorage.setItem(SHARED_STORAGE.thread, JSON.stringify(messages));
+  localStorage.setItem(THREAD_TIMESTAMP_KEY, String(Date.now()));
 }
 
 describe("AssistantShell", () => {
   beforeEach(() => {
     localStorage.clear();
+    localStorage.setItem(THREAD_PERSISTENCE_KEY, "true");
     vi.mocked(useVoiceInput).mockReturnValue({
       supported: false,
       state: "idle",
@@ -782,5 +785,23 @@ describe("AssistantShell", () => {
     );
 
     expect(screen.queryByRole("group", { name: "Período de análisis" })).toBeNull();
+  });
+
+  it("permite desactivar el guardado y borra el hilo persistido", () => {
+    seed([{ role: "user", text: "gasté 1000" }]);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("gasté 1000")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /desactivar el guardado/i }));
+
+    expect(localStorage.getItem(SHARED_STORAGE.thread)).toBeNull();
+    expect(screen.queryByText("gasté 1000")).toBeNull();
   });
 });
