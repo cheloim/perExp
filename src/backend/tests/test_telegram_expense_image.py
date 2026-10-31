@@ -98,6 +98,8 @@ def test_valid_image_shows_confirmation_and_saves_draft(
         api_key_env="MESSAGES_BOT_LLM_API_KEY",
     )
     assert fake_context.user_data["pending_expense_image"]["amount"] == 15200
+    assert fake_context.user_data["pending_expense_image"]["card_hint"] == "Visa"
+    assert "4521" not in fake_photo_update.message.replies[-1]
     assert "15200" not in caplog.text
     assert "Supermercado Coto" not in caplog.text
 

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ComponentProps } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import NotificationsList from "./NotificationsList";
@@ -40,12 +41,15 @@ vi.mock("../api/client", () => ({
 
 vi.mock("react-router-dom", () => ({ useNavigate: () => vi.fn() }));
 
-function renderList(n: Notification) {
+function renderList(
+  n: Notification,
+  props: Partial<ComponentProps<typeof NotificationsList>> = {},
+) {
   h.notifications = [n];
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <NotificationsList variant="page" />
+      <NotificationsList variant="page" {...props} />
     </QueryClientProvider>,
   );
 }
@@ -108,5 +112,15 @@ describe("NotificationsList", () => {
 
     expect(h.deleteNotification).not.toHaveBeenCalled();
     expect(screen.getByText("Eliminar importación")).toBeInTheDocument();
+  });
+
+  it("opens the detail modal instead of navigating when a handler is provided", () => {
+    const onOpenDetail = vi.fn();
+    renderList(NOTIFICATION, { onOpenDetail });
+
+    fireEvent.click(screen.getByText(NOTIFICATION.title));
+
+    expect(onOpenDetail).toHaveBeenCalledWith(NOTIFICATION);
+    expect(h.markRead).not.toHaveBeenCalled();
   });
 });

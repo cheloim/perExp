@@ -5,6 +5,7 @@ import { sidebarIcons } from "./SidebarIcons";
 interface MobileHeaderProps {
   unreadCount: number;
   onOpenUserPanel: () => void;
+  onOpenNotifications: () => void;
 }
 
 /**
@@ -14,7 +15,11 @@ interface MobileHeaderProps {
  * notification entry, so a header bar there would be two icons floating in an
  * otherwise empty strip.
  */
-export default function MobileHeader({ unreadCount, onOpenUserPanel }: MobileHeaderProps) {
+export default function MobileHeader({
+  unreadCount,
+  onOpenUserPanel,
+  onOpenNotifications,
+}: MobileHeaderProps) {
   return (
     <header className="md:hidden h-14 border-b border-[var(--border-color)] bg-sidebar flex items-center justify-between px-4 sticky top-0 z-20">
       {/* Left: logo + app name */}
@@ -33,6 +38,10 @@ export default function MobileHeader({ unreadCount, onOpenUserPanel }: MobileHea
           to="/notifications"
           title="Notificaciones"
           aria-label={`${unreadCount} notificaciones sin leer`}
+          onClick={(event) => {
+            event.preventDefault();
+            onOpenNotifications();
+          }}
           className="relative p-2 rounded-md text-[var(--color-sidebar-icon)] hover:bg-[var(--color-base-alt)] transition-colors"
         >
           <span className="w-5 h-5 block">{sidebarIcons.bell}</span>

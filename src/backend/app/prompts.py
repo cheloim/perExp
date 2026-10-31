@@ -23,7 +23,7 @@ Devolvé SOLO JSON con esta forma:
   "currency": "ARS" | "USD",
   "merchant": string | null,
   "date": "YYYY-MM-DD" | null,
-  "card_hint": string | null,
+  "card_hint": string | null (solo franquicia/banco/tipo; nunca números de tarjeta),
   "confidence": "high" | "medium" | "low",
   "reason": null | "not_a_payment_proof" | "multiple_transactions" | "multiple_totals" | "no_total" | "not_completed" | "not_an_expense" | "balance_only" | "illegible" | "invalid_amount"
 }
@@ -42,6 +42,7 @@ Reglas:
 - Si no hay un total legible: reason="no_total".
 - No inventes montos. Si no estás seguro, confidence="low".
 - Formato argentino: "$15.200,50" = 15200.50; "USD 5" = 5.00. Devolvé el total como número positivo, sin separadores.
+- Nunca devuelvas números de tarjeta, PAN ni los últimos 4 dígitos, ni siquiera en card_hint. Si el comprobante los muestra, omitilos.
 - No devuelvas descripciones largas ni listas de ítems; merchant es el comercio o contraparte, limpio."""
 
 
@@ -262,10 +263,12 @@ Extraé del siguiente mensaje de notificación bancaria:
 - "date": fecha en formato "YYYY-MM-DD". Si no se menciona fecha, usá hoy.
 - "currency": "ARS" si es pesos o no se menciona, "USD" si es dólares.
 - "card_type": "credito" si es compra con tarjeta de crédito, "debito" si es débito directo o transferencia.
-- "card_name": nombre completo de la tarjeta si se menciona (ej: "Visa Débito", "Mastercard Crédito", "Visa", "Mastercard"). Si no se menciona, null.
+- "card_name": nombre completo de la tarjeta si se menciona (ej: "Visa Débito", "Mastercard Crédito", "Visa", "Mastercard"), sin números de tarjeta. Si no se menciona, null.
 - "bank": nombre del banco emisor si se menciona, sino null.
 - "installment_number": número de cuota actual si se menciona (ej: 3 si dice "3 de 12" o "cuota 3"), sino null.
 - "installment_total": cantidad total de cuotas si se menciona (ej: 12 si dice "3 de 12" o "6 cuotas"), sino null.
+
+Nunca incluyas números de tarjeta, PAN ni los últimos 4 dígitos en card_name, bank ni description. Si la notificación los muestra, omitilos.
 
 Ejemplos de entrada → salida:
 "Compra aprobada Visa $15.200 Supermercado Coto" → {{"amount": 15200.0, "description": "Supermercado Coto", "date": "{today}", "currency": "ARS", "card_type": "credito", "card_name": "Visa", "bank": null, "installment_number": null, "installment_total": null}}

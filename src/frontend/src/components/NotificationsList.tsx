@@ -16,6 +16,8 @@ interface Props {
   filter?: "all" | "unread";
   /** Called after a notification is activated — the panel uses it to close. */
   onAfterActivate?: () => void;
+  /** When present, activating a row opens its detail instead of navigating. */
+  onOpenDetail?: (notification: Notification) => void;
 }
 
 /**
@@ -25,7 +27,12 @@ interface Props {
  * Shared by the popover and the /notifications page so the two cannot drift
  * apart in behaviour.
  */
-export default function NotificationsList({ variant, filter = "all", onAfterActivate }: Props) {
+export default function NotificationsList({
+  variant,
+  filter = "all",
+  onAfterActivate,
+  onOpenDetail,
+}: Props) {
   const navigate = useNavigate();
   const { notifications, markRead, deleteNotification } = useNotifications();
   const visible = filter === "unread" ? notifications.filter((n) => !n.read) : notifications;
@@ -64,6 +71,13 @@ export default function NotificationsList({ variant, filter = "all", onAfterActi
   const handleActivate = (n: Notification) => {
     const target = resolveNotificationTarget(n);
     if (!target) return;
+
+    if (onOpenDetail) {
+      // The opener marks it read and shows the detail over the current page.
+      onOpenDetail(n);
+      onAfterActivate?.();
+      return;
+    }
 
     void markRead(n.id);
     if (target.kind === "download") {
@@ -115,6 +129,7 @@ export default function NotificationsList({ variant, filter = "all", onAfterActi
             onAccept={handleAccept}
             onReject={(x) => setConfirmReject(x.id)}
             rejectPending={reject.isPending}
+            alwaysClickable={Boolean(onOpenDetail) && n.type !== "group_invitation"}
           />
         ))}
       </div>

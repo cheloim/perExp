@@ -12,6 +12,7 @@ from app.services.capture import (
     UnsupportedMediaError,
     extract_expense_from_image,
     normalize_image,
+    sanitize_card_hint,
     transcribe_audio,
 )
 from app.services.llm.types import LLMResult
@@ -245,3 +246,46 @@ def test_accepts_supermarket_receipt_with_items_and_one_total(monkeypatch):
     assert result.status == "ok"
     assert result.draft.amount == 15200.5
     assert result.draft.description == "Supermercado Coto"
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("Visa ****4521", "Visa"),
+        ("Mastercard terminada en 1108", "Mastercard"),
+        ("Visa •••• 4521", "Visa"),
+        ("Visa Galicia 4521", "Visa Galicia"),
+        ("Visa Débito", "Visa Débito"),
+        ("4521", None),
+        (None, None),
+    ],
+)
+def test_sanitize_card_hint_never_returns_card_digits(raw, expected):
+    assert sanitize_card_hint(raw) == expected
+
+
+def test_image_extraction_strips_card_digits_from_the_hint(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: {
+            "is_payment_proof": True,
+            "source_type": "bank_notification",
+            "completed": True,
+            "direction": "debit",
+            "single_transaction": True,
+            "total": 3200,
+            "currency": "ARS",
+            "merchant": "Café Tortoni",
+            "date": "2026-10-29",
+            "card_hint": "Visa ****4521",
+            "confidence": "high",
+            "reason": None,
+        },
+    )
+
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
+
+    assert result.status == "ok"
+    assert result.draft is not None
+    assert result.draft.card_hint == "Visa"

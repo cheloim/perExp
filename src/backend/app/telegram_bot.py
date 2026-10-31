@@ -44,6 +44,7 @@ from app.services.capture import (
     MAX_AUDIO_SECONDS,
     MAX_IMAGE_BYTES,
     extract_expense_from_image,
+    sanitize_card_hint,
     transcribe_audio,
 )
 from app.services.categorization import auto_categorize, llm_categorize
@@ -381,6 +382,11 @@ def _parse_bank_notification(text: str, *, log_content: bool = True) -> dict | N
                     "[BANK_PARSE] Stripped prefix: '%s' -> '%s'", original, result["description"]
                 )
 
+        # The provider can echo "Visa ****4521" even when the prompt forbids it.
+        if result:
+            result["card_name"] = sanitize_card_hint(result.get("card_name"))
+            result["bank"] = sanitize_card_hint(result.get("bank"))
+
         return result
     except Exception as e:
         if log_content:
@@ -621,6 +627,15 @@ def _save_expense(
                     levels.append(node.name)
                 expense._cat_levels = list(reversed(levels))
 
+        # Keep the tags on the instance so every saved-message path can render
+        # the account and custom tags without opening another session.
+        expense._tags = (
+            db.query(Tag)
+            .join(ExpenseTag, ExpenseTag.tag_id == Tag.id)
+            .filter(ExpenseTag.expense_id == expense.id)
+            .all()
+        )
+
         # Budget threshold check (non-blocking)
         if expense.category_id and user_id:
             try:
@@ -672,7 +687,8 @@ def _should_ask_installments(
 def _format_amount(amount: float, currency: str) -> str:
     if currency == "USD":
         return f"USD {amount:,.2f}"
-    return f"${amount:,.0f}"
+    # Argentine grouping: $3.200, not $3,200.
+    return f"${amount:,.0f}".replace(",", ".")
 
 
 # Payment entity prefixes to strip from bank notification descriptions
@@ -887,60 +903,71 @@ async def _edit_html(query, text: str, **kwargs):
         await query.edit_message_text(plain, **kwargs)
 
 
-def _saved_text(expense: "Expense", payment_label: str) -> str:
+def _format_category_tree(levels: list[str]) -> str:
+    """Render the category hierarchy: the root carries the emoji, the rest 📂."""
+    if not levels:
+        return ""
+
+    lines = [f"{_cat_emoji(levels[0])} {_escape_html(levels[0])}"]
+    for depth, name in enumerate(levels[1:], start=1):
+        lines.append(f"{'    ' * (depth - 1)}└ 📂 {_escape_html(name)}")
+    return "\n".join(lines)
+
+
+def _saved_text(expense: "Expense", payment_label: str = "", tags: list | None = None) -> str:
+    """Build the 'expense saved' message.
+
+    The message is category-first: the description is not repeated, and the
+    account/custom tags sit next to the category so the user can see how the
+    expense was classified without opening the app.
+    """
     amount_str = _format_amount(expense.amount, expense.currency)
     date_str = _format_date_es(expense.date.strftime("%Y-%m-%d"))
-    safe_label = _escape_html(payment_label)
     levels = getattr(expense, "_cat_levels", [])
+    tags = tags or getattr(expense, "_tags", [])
 
-    # Build category tree with emojis; description is always the leaf with 📝
-    indents = ["", "  └ ", "      └ "]
-    tree_lines = []
-    for i, name in enumerate(levels):
-        indent = indents[i] if i < len(indents) else indents[-1]
-        tree_lines.append(f"{indent}{_cat_emoji(name)} {name}")
-    # Description as final leaf
-    leaf_indent = indents[min(len(levels), len(indents) - 1)]
-    tree_lines.append(f"{leaf_indent}📝 {_escape_html(expense.description)}")
-    cat_tree = "\n".join(tree_lines)
-
-    installment_info = ""
     if expense.installment_total and expense.installment_total >= 2:
         total = round(expense.amount * expense.installment_total, 2)
-        installment_info = (
-            f"\n💳 {_escape_html(payment_label)} — {expense.installment_total} cuotas\n"
-            f"💰 {_format_amount(total, expense.currency)} → "
-            f"{expense.installment_total}× {amount_str}"
+        amount_line = (
+            f"💰 {_format_amount(total, expense.currency)} "
+            f"({expense.installment_total} cuotas de {amount_str})"
         )
+    else:
+        amount_line = f"💰 {amount_str}"
 
-    return (
-        f"✅ ¡Listo! Guardé el gasto.\n\n"
-        f"💰 {amount_str}\n"
-        f"💳 {safe_label}\n"
-        f"📅 {date_str}\n\n"
-        f"{cat_tree}"
-        f"{installment_info}"
+    account_tag = next(
+        (t for t in tags if getattr(t, "group_name", None) == "cuenta"),
+        None,
     )
+    payment = account_tag.name if account_tag else payment_label
+
+    lines = ["✅ ¡Listo! Guardé el gasto.", "", amount_line]
+    if payment:
+        lines.append(f"💳 {_escape_html(payment)}")
+    lines.append(f"📅 {date_str}")
+
+    cat_tree = _format_category_tree(levels)
+    if cat_tree:
+        lines.extend(["", cat_tree])
+
+    other_tags = [
+        t.name for t in tags if getattr(t, "group_name", None) not in ("categoria", "cuenta")
+    ]
+    if other_tags:
+        if not cat_tree:
+            lines.append("")
+        lines.append("🏷️ " + ", ".join(_escape_html(name) for name in other_tags))
+
+    return "\n".join(lines)
 
 
 def _quick_saved_text(
-    expense: "Expense", category_name: str | None, tags: list | None = None
+    expense: "Expense", category_name: str | None = None, tags: list | None = None
 ) -> str:
-    amount_str = _format_amount(expense.amount, expense.currency)
-    cat_line = f"📂 {category_name}" if category_name else ""
-    tag_parts = []
-    if tags:
-        for t in tags:
-            if t.group_name == "categoria":
-                continue  # Skip mirror tags (shown as category)
-            tag_parts.append(t.name)
-    tag_line = f"🏷️ {', '.join(tag_parts)}" if tag_parts else ""
-    lines = [f"✅ {amount_str} — {expense.description}"]
-    if cat_line:
-        lines.append(cat_line)
-    if tag_line:
-        lines.append(tag_line)
-    return "\n".join(lines)
+    """Compatibility wrapper for the flows that only had the leaf category."""
+    if category_name and not getattr(expense, "_cat_levels", None):
+        expense._cat_levels = [category_name]
+    return _saved_text(expense, tags=tags)
 
 
 def _get_user_by_chat_id(chat_id: str) -> User | None:
@@ -1066,6 +1093,9 @@ async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYP
         draft_data = asdict(draft) if is_dataclass(draft) else dict(draft)
     draft_id = uuid.uuid4().hex[:10]
     draft_data["draft_id"] = draft_id
+    # Defense in depth: never persist or show a card number, even if a provider
+    # (or an older extractor) echoes one in card_hint.
+    draft_data["card_hint"] = sanitize_card_hint(draft_data.get("card_hint"))
     context.user_data["pending_expense_image"] = draft_data
 
     source_label = _EXPENSE_IMAGE_SOURCE_LABELS.get(source_type, "comprobante")
@@ -1172,8 +1202,11 @@ async def handle_expense_image_callback(update: Update, context: ContextTypes.DE
     keyboard = InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("✏️ Editar", callback_data=f"quickedit:{expense.id}"),
-                InlineKeyboardButton("🗑 Deshacer", callback_data=f"undo:{expense.id}"),
+                InlineKeyboardButton(
+                    "✏️ Editar",
+                    callback_data=f"quickedit:{expense.id}",
+                    style="primary",
+                )
             ]
         ]
     )
@@ -1481,6 +1514,7 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             "📌 <b>Comandos disponibles:</b>\n"
             "/gastos — Ver gastos del mes\n"
             "/presupuesto — Ver presupuestos\n"
+            "/deshacer — Deshacer el último gasto\n"
             "/suscripciones — Ver suscripciones\n"
             "/inversiones — Ver inversiones\n"
             "/cuotas — Ver cuotas pendientes\n"
@@ -1510,6 +1544,7 @@ _HELP_TEXT = (
     "/gastos — Ver gastos del mes\n"
     "/presupuesto — Ver presupuestos\n"
     "/editar — Editar un gasto reciente\n"
+    "/deshacer — Deshacer el último gasto\n"
     "/suscripciones — Ver suscripciones\n"
     "/inversiones — Ver inversiones\n"
     "/cuotas — Ver cuotas pendientes\n"
@@ -1672,8 +1707,11 @@ async def _handle_bank_notification(
         keyboard = InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton("✏️ Editar", callback_data=f"quickedit:{expense.id}"),
-                    InlineKeyboardButton("🗑 Deshacer", callback_data=f"undo:{expense.id}"),
+                    InlineKeyboardButton(
+                        "✏️ Editar",
+                        callback_data=f"quickedit:{expense.id}",
+                        style="primary",
+                    )
                 ]
             ]
         )
@@ -1749,6 +1787,10 @@ async def _process_text_expense(
 
     if "editar" in text.lower():
         return await cmd_editar(update, context)
+
+    if text.lower().strip() in {"deshacer", "deshacer gasto", "undo"}:
+        await cmd_deshacer(update, context)
+        return ConversationHandler.END
 
     if _is_bank_notification(text):
         return await _handle_bank_notification(update, context, text, log_content=source == "text")
@@ -1894,8 +1936,11 @@ async def _process_text_expense(
             keyboard = InlineKeyboardMarkup(
                 [
                     [
-                        InlineKeyboardButton("✏️ Editar", callback_data=f"quickedit:{expense.id}"),
-                        InlineKeyboardButton("🗑 Deshacer", callback_data=f"undo:{expense.id}"),
+                        InlineKeyboardButton(
+                            "✏️ Editar",
+                            callback_data=f"quickedit:{expense.id}",
+                            style="primary",
+                        )
                     ]
                 ]
             )
@@ -3058,6 +3103,46 @@ async def handle_undo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         db.close()
 
 
+async def cmd_deshacer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Undo the last saved expense when the 2-minute window is still open."""
+    expense_id = context.user_data.get("last_expense_id")
+    if not expense_id:
+        await update.message.reply_text("No hay un gasto reciente para deshacer.")
+        return
+
+    db = SessionLocal()
+    try:
+        user = _get_user_by_chat_id(str(update.effective_chat.id))
+        if not user:
+            await update.message.reply_text("🔒 Sesión expirada.")
+            return
+
+        expense = (
+            db.query(Expense).filter(Expense.id == expense_id, Expense.user_id == user.id).first()
+        )
+        if not expense:
+            context.user_data.pop("last_expense_id", None)
+            await update.message.reply_text("❌ Gasto no encontrado o ya deshecho.")
+            return
+
+        if expense.created_at and (datetime.utcnow() - expense.created_at).total_seconds() > 120:
+            await update.message.reply_text(
+                "⏰ Ya pasaron 2 minutos, no se puede deshacer. Usá /editar."
+            )
+            return
+
+        db.query(ExpenseTag).filter(ExpenseTag.expense_id == expense_id).delete()
+        from app.models import ScheduledExpense
+
+        db.query(ScheduledExpense).filter(ScheduledExpense.expense_id == expense_id).delete()
+        db.delete(expense)
+        db.commit()
+        context.user_data.pop("last_expense_id", None)
+        await update.message.reply_text("🗑 Gasto deshecho.")
+    finally:
+        db.close()
+
+
 async def handle_undo_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
@@ -4063,6 +4148,7 @@ async def _post_init(app: Application) -> None:
         ("gastos", "Ver gastos del mes"),
         ("presupuesto", "Ver presupuestos"),
         ("editar", "Editar un gasto reciente"),
+        ("deshacer", "Deshacer el último gasto guardado"),
         ("suscripciones", "Ver suscripciones recurrentes"),
         ("inversiones", "Ver inversiones"),
         ("cuotas", "Ver cuotas pendientes"),
@@ -4123,6 +4209,7 @@ async def _run_bot(token: str) -> None:
 
     app.add_handler(CommandHandler("presupuesto", cmd_presupuesto))
     app.add_handler(CommandHandler("gastos", cmd_gastos))
+    app.add_handler(CommandHandler("deshacer", cmd_deshacer))
     app.add_handler(CommandHandler("cuotas", cmd_cuotas))
     app.add_handler(CommandHandler("suscripciones", cmd_suscripciones))
     app.add_handler(CommandHandler("ayuda", cmd_ayuda))

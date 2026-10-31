@@ -217,7 +217,14 @@ _CAT_EMOJI: dict[str, str] = {
 
 
 def _cat_emoji(name: str) -> str:
-    return _CAT_EMOJI.get(name.lower().strip(), "📂")
+    key = name.lower().strip()
+    if key in _CAT_EMOJI:
+        return _CAT_EMOJI[key]
+    # Custom roots such as "Café y snacks" should still get the café emoji.
+    for token, emoji in _CAT_EMOJI.items():
+        if token in key:
+            return emoji
+    return "📂"
 
 
 def build_cat_levels(category_id: int | None, db: Session) -> list[str]:
