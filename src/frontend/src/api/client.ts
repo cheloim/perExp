@@ -1,5 +1,8 @@
 import axios from "axios";
-import { clearAssistantStorage } from "../components/assistant/storage";
+import {
+  clearAssistantStorage,
+  setThreadPersistenceEnabled,
+} from "../components/assistant/storage";
 import type {
   Account,
   Budget,
@@ -54,7 +57,9 @@ export const clearToken = () => {
   inMemoryAuthToken = null;
   localStorage.removeItem(TOKEN_KEY);
   // The assistant thread contains amounts and categories. Logout, and the
-  // 401 interceptor that calls this on expiry, must not leave it behind.
+  // 401 interceptor that calls this on expiry, must not leave it behind. Reset
+  // the opt-in too: the next user on this device starts in memory.
+  setThreadPersistenceEnabled(false);
   clearAssistantStorage();
 };
 
