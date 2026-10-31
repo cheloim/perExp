@@ -53,7 +53,6 @@ const ROWS: Row[] = [
 
 const OVERRIDES = {
   "/expenses/stats": { total: 19000, count: 3, avg: 6333, last_used: null },
-  "/expenses/by-person": [{ person: "Ana", total: 19000, count: 3 }],
   "/categories": [
     { id: 1, name: "Salud", color: "#6366f1", keywords: "" },
     { id: 2, name: "Suscripciones", color: "#8b5cf6", keywords: "" },
@@ -205,10 +204,15 @@ test("clearing the filters is remembered across reloads", async ({ page }) => {
   await expect(page).not.toHaveURL(/[?&]range=/);
 });
 
-test("the category analysis links out instead of duplicating the chart", async ({ page }) => {
-  const categoryRequests: string[] = [];
+test("the category analysis links out and no chart request is made", async ({ page }) => {
+  const chartRequests: string[] = [];
   page.on("request", (request) => {
-    if (request.url().includes("/api/expenses/by-category")) categoryRequests.push(request.url());
+    if (
+      request.url().includes("/api/expenses/by-category") ||
+      request.url().includes("/api/expenses/by-person")
+    ) {
+      chartRequests.push(request.url());
+    }
   });
 
   await openExpenses(page);
@@ -227,8 +231,40 @@ test("the category analysis links out instead of duplicating the chart", async (
   });
   await expect(link).toHaveAttribute("href", `/cat-dashboard?month=${expectedMonth}`);
 
-  // The redundant by-category request is gone.
-  expect(categoryRequests).toHaveLength(0);
+  // /expenses has no charts left: neither aggregate is requested.
+  expect(chartRequests).toHaveLength(0);
+});
+
+test("the collapsed filter bar is pinned and the expanded one is not", async ({ page }) => {
+  await openExpenses(page);
+
+  const filterCard = page.getByTestId("expense-filters");
+  await expect(filterCard).toHaveCSS("position", "sticky");
+
+  await page.getByRole("button", { name: /Filtros/ }).click();
+  await expect(filterCard).toHaveCSS("position", "static");
+});
+
+test("sort headers are keyboard operable and expose aria-sort", async ({ page }) => {
+  await openExpenses(page);
+
+  // The date column is hidden on mobile; describe is visible everywhere.
+  const header = page.getByRole("columnheader", { name: /Descripción/ });
+  await expect(header).toHaveAttribute("aria-sort", "none");
+
+  await page.getByRole("button", { name: /Descripción/ }).focus();
+  await page.keyboard.press("Enter");
+
+  await expect(header).toHaveAttribute("aria-sort", "ascending");
+});
+
+test("row actions become visible when focused from the keyboard", async ({ page }) => {
+  await openExpenses(page);
+
+  const edit = page.getByRole("button", { name: "Editar Farmacia Central" }).first();
+  await edit.focus();
+
+  await expect(edit.locator("..")).toHaveCSS("opacity", "1");
 });
 
 test("the empty state offers to clear the filters, and clearing restores the list", async ({
