@@ -132,6 +132,14 @@ class TelegramOidcRequest(BaseModel):
     redirect_uri: str
 
 
+class TelegramOidcStateResponse(BaseModel):
+    state: str
+
+
+class TelegramOidcExchangeRequest(BaseModel):
+    code: str
+
+
 class TelegramOidcLinkRequest(BaseModel):
     code: str
     redirect_uri: str

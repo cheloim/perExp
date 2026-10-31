@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
+  createTelegramOidcState,
   forgotPassword,
   forceChangePassword,
   getStoredToken,
@@ -189,20 +190,26 @@ function LoginForm({
     if (client) client.requestCode();
   }, [googleCodeClient]);
 
-  // Telegram OIDC login
-  const handleTelegramOidc = useCallback(() => {
-    const clientId = import.meta.env.VITE_TELEGRAM_OIDC_CLIENT_ID || "";
-    const redirectUri = `${window.location.origin}/api/auth/telegram/callback`;
-    const state = Math.random().toString(36).substring(2);
-    sessionStorage.setItem("telegram_oidc_state", state);
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: "code",
-      scope: "openid",
-      state,
-    });
-    window.location.href = `https://oauth.telegram.org/auth?${params}`;
+  // Telegram OIDC login. The state is issued by the backend and consumed by
+  // the callback, so the redirect cannot be replayed or fixed by an attacker.
+  const handleTelegramOidc = useCallback(async () => {
+    setError("");
+    try {
+      const state = await createTelegramOidcState();
+      sessionStorage.setItem("telegram_oidc_state", state);
+      const clientId = import.meta.env.VITE_TELEGRAM_OIDC_CLIENT_ID || "";
+      const redirectUri = `${window.location.origin}/api/auth/telegram/callback`;
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: "code",
+        scope: "openid",
+        state,
+      });
+      window.location.href = `https://oauth.telegram.org/auth?${params}`;
+    } catch {
+      setError("No se pudo iniciar sesión con Telegram. Intentá de nuevo.");
+    }
   }, []);
 
   // Load GIS script

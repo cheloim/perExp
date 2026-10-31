@@ -171,8 +171,10 @@ import type {
   TelegramKeyResponse,
   TelegramLoginWidgetRequest,
   TelegramOidcCallbackAuthTelegramCallbackGetParams,
+  TelegramOidcExchangeRequest,
   TelegramOidcLinkRequest,
   TelegramOidcRequest,
+  TelegramOidcStateResponse,
   TelegramStatusResponse,
   TelegramWebAppRequest,
   Token,
@@ -9020,6 +9022,249 @@ export const useTelegramOidcLoginAuthTelegramOidcPost = <
   TContext
 > => {
   return useMutation(getTelegramOidcLoginAuthTelegramOidcPostMutationOptions(options), queryClient);
+};
+
+/**
+ * Returns a short-lived state that the client sends to Telegram and the callback validates. Requires Redis; fails closed if unavailable.
+ * @summary Create a one-time state for the Telegram OIDC redirect
+ */
+export const telegramOidcStateAuthTelegramStateGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<TelegramOidcStateResponse>(
+    { url: `/auth/telegram/state`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getTelegramOidcStateAuthTelegramStateGetQueryKey = () => {
+  return [`/auth/telegram/state`] as const;
+};
+
+export const getTelegramOidcStateAuthTelegramStateGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getTelegramOidcStateAuthTelegramStateGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>
+  > = ({ signal }) => telegramOidcStateAuthTelegramStateGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type TelegramOidcStateAuthTelegramStateGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>
+>;
+export type TelegramOidcStateAuthTelegramStateGetQueryError = ErrorType<unknown>;
+
+export function useTelegramOidcStateAuthTelegramStateGet<
+  TData = Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+          TError,
+          Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTelegramOidcStateAuthTelegramStateGet<
+  TData = Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+          TError,
+          Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTelegramOidcStateAuthTelegramStateGet<
+  TData = Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Create a one-time state for the Telegram OIDC redirect
+ */
+
+export function useTelegramOidcStateAuthTelegramStateGet<
+  TData = Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getTelegramOidcStateAuthTelegramStateGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Consumes a one-time code issued by the Telegram OIDC callback and returns the access token. The code can be used only once.
+ * @summary Exchange a one-time Telegram login code for an access token
+ */
+export const telegramOidcExchangeAuthTelegramExchangePost = (
+  telegramOidcExchangeRequest: BodyType<TelegramOidcExchangeRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<Token>(
+    {
+      url: `/auth/telegram/exchange`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: telegramOidcExchangeRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getTelegramOidcExchangeAuthTelegramExchangePostMutationKey = () =>
+  ["telegramOidcExchangeAuthTelegramExchangePost"] as const;
+
+export const getTelegramOidcExchangeAuthTelegramExchangePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>,
+    TError,
+    TelegramOidcExchangeAuthTelegramExchangePostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>,
+  TError,
+  TelegramOidcExchangeAuthTelegramExchangePostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTelegramOidcExchangeAuthTelegramExchangePostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>,
+    TelegramOidcExchangeAuthTelegramExchangePostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return telegramOidcExchangeAuthTelegramExchangePost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TelegramOidcExchangeAuthTelegramExchangePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>
+>;
+export type TelegramOidcExchangeAuthTelegramExchangePostMutationBody =
+  BodyType<TelegramOidcExchangeRequest>;
+export type TelegramOidcExchangeAuthTelegramExchangePostMutationError = ErrorType<unknown>;
+export type TelegramOidcExchangeAuthTelegramExchangePostMutationVariables = {
+  data: BodyType<TelegramOidcExchangeRequest>;
+};
+
+/**
+ * @summary Exchange a one-time Telegram login code for an access token
+ */
+export const useTelegramOidcExchangeAuthTelegramExchangePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>,
+      TError,
+      TelegramOidcExchangeAuthTelegramExchangePostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>,
+  TError,
+  TelegramOidcExchangeAuthTelegramExchangePostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getTelegramOidcExchangeAuthTelegramExchangePostMutationOptions(options),
+    queryClient,
+  );
 };
 
 /**
