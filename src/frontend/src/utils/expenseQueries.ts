@@ -12,15 +12,10 @@ export const expenseQueryKeys = {
   list: (filterKey: string, visibleCount: number) =>
     ["expenses-list", filterKey, visibleCount] as const,
   stats: (filterKey: string) => ["expense-stats", filterKey] as const,
-  byCategory: (filterKey: string) => ["expenses-by-category", filterKey] as const,
   byPerson: (filterKey: string) => ["expenses-by-person", filterKey] as const,
 };
 
-const ANALYTICS_QUERY_KEYS = [
-  ["expense-stats"],
-  ["expenses-by-category"],
-  ["expenses-by-person"],
-] as const;
+const ANALYTICS_QUERY_KEYS = [["expense-stats"], ["expenses-by-person"]] as const;
 
 /**
  * Invalidate the table AND every number derived from the same rows. Refreshing

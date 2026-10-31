@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   AreaChart,
   Area,
@@ -38,9 +38,15 @@ interface TrendRow {
 
 export default function CategoryDashboard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const [month, setMonth] = useState(currentMonth);
+  // `/expenses` links here with the month it is looking at; keep that context
+  // instead of always resetting to the current month.
+  const linkedMonth = searchParams.get("month");
+  const [month, setMonth] = useState(
+    linkedMonth && /^\d{4}-\d{2}$/.test(linkedMonth) ? linkedMonth : currentMonth,
+  );
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
   const [trendMonths, setTrendMonths] = useState(6);
   const [merchantTab, setMerchantTab] = useState<"amount" | "count">("amount");
