@@ -248,10 +248,11 @@ test("the collapsed filter bar is pinned and the expanded one is not", async ({ 
 test("sort headers are keyboard operable and expose aria-sort", async ({ page }) => {
   await openExpenses(page);
 
-  const header = page.getByRole("columnheader", { name: /Fecha/ });
-  await expect(header).toHaveAttribute("aria-sort", "descending");
+  // The date column is hidden on mobile; describe is visible everywhere.
+  const header = page.getByRole("columnheader", { name: /Descripción/ });
+  await expect(header).toHaveAttribute("aria-sort", "none");
 
-  await page.getByRole("button", { name: /Fecha/ }).focus();
+  await page.getByRole("button", { name: /Descripción/ }).focus();
   await page.keyboard.press("Enter");
 
   await expect(header).toHaveAttribute("aria-sort", "ascending");
