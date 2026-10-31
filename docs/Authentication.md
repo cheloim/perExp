@@ -1,211 +1,148 @@
-# Authentication
+# Autenticación y sesiones
 
-## Overview
+> Reescrito el 2026-10-30 contra el código real (`src/backend/app/routers/auth.py`,
+> `routers/mfa.py`, `services/auth.py`). La versión anterior describía Apple Sign-In y un
+> refresh token que **no existen**.
 
-NikoFin supports multiple authentication methods: email/password, Google OAuth, and Apple Sign-In. All methods issue JWT tokens valid for 7 days.
+## Resumen
 
-## JWT Configuration
+- **JWT propio** firmado con `JWT_SECRET` (fallback `SECRET_KEY`), HS256.
+- **Un solo token de acceso de 7 días.** No hay refresh token separado: `/auth/refresh`
+  reemite un token nuevo si el actual sigue vigente.
+- **Cookie HTTP-only** `oikonomia_auth` además del bearer, para el flujo de Grafana.
+- **Proveedor OAuth único: Google.** `/auth/oauth/callback` rechaza cualquier otro.
+- **MFA TOTP** opcional por usuario.
+- **Telegram** soporta login por WebApp, widget y OIDC.
 
-| Setting          | Value                      |
-| ---------------- | -------------------------- |
-| Algorithm        | HS256                      |
-| Expiry           | 7 days (`JWT_EXPIRE_DAYS`) |
-| Secret           | `SECRET_KEY` env var       |
-| Password hashing | bcrypt                     |
+## Flujos
 
-## Login Methods
-
-### Email + Password
-
-**Endpoint**: `POST /auth/login`
-
-```json
-{
-  "email": "user@example.com",
-  "password": "securepassword"
-}
-```
-
-**Response**:
-
-```json
-{
-  "access_token": "eyJ...",
-  "token_type": "bearer",
-  "user": { ... }
-}
-```
-
-### Registration
-
-**Endpoint**: `POST /auth/register`
-
-```json
-{
-  "full_name": "John Doe",
-  "email": "john@example.com",
-  "password": "SecurePass123"
-}
-```
-
-**Password requirements**:
-
-- Minimum 8 characters
-- At least 1 uppercase letter
-- At least 1 lowercase letter
-- At least 1 digit
-
-**On registration**:
-
-- Default category hierarchy is seeded
-- User record created with bcrypt-hashed password
-
-### Google OAuth (id_token)
-
-**Endpoint**: `POST /auth/oauth`
-
-```json
-{
-  "provider": "google",
-  "id_token": "eyJ..."
-}
-```
-
-The `id_token` is verified via Google's tokeninfo endpoint:
+### 1. Email y contraseña
 
 ```
-GET https://oauth2.googleapis.com/tokeninfo?id_token={token}
+POST /auth/login {email, password}
+  ├─ usuario inactivo        → 403
+  ├─ email no verificado     → 403 "Verificá tu email antes de iniciar sesión"
+  ├─ credenciales inválidas  → 401 (incrementa contador de fallos)
+  ├─ mfa_enabled             → 200 {access_token, mfa_required: true}   ← token de 5 min
+  ├─ force_password_change   → 200 {access_token, force_password_change: true}
+  └─ ok                      → 200 {access_token} + cookie HTTP-only
 ```
 
-### Google OAuth (Authorization Code)
+El token devuelto con `mfa_required` es un JWT de 5 minutos. Su alcance está bajo revisión
+de seguridad en el advisory privado `GHSA-x54h-5rqj-mh63`; el detalle técnico no se publica
+acá hasta que esté corregido. La corrección prevista introduce un claim `scope` que
+distingue un access token completo de un token pendiente de segundo factor.
 
-**Endpoint**: `POST /auth/oauth/callback`
+### 2. Segundo factor
 
-```json
-{
-  "provider": "google",
-  "code": "authorization_code"
-}
+```
+POST /auth/login/mfa {email, code}     → token completo + cookie
+POST /mfa/setup                        → secreto TOTP + QR
+POST /mfa/verify {code}                → habilita MFA
+POST /mfa/disable {code}               → deshabilita MFA
+GET  /mfa/status                       → {enabled: bool}
 ```
 
-Flow:
+TOTP de 30 segundos, emisor `NikoFin` en producción y `NikoFin (Dev)` en desarrollo.
 
-1. Exchange code for tokens via Google OAuth
-2. Verify id_token from response
-3. Create/login user
+### 3. Google OAuth
 
-### Apple Sign-In
-
-**Endpoint**: `POST /auth/oauth`
-
-```json
-{
-  "provider": "apple",
-  "id_token": "eyJ..."
-}
+```
+POST /auth/oauth/callback {provider: "google", code}
 ```
 
-Verification:
+El frontend obtiene el `code` con Google Identity Services y lo canjea acá. No existe
+`POST /auth/oauth` ni Apple Sign-In.
 
-1. Fetch Apple's public keys from `https://appleid.apple.com/auth/keys`
-2. Match `kid` header in JWT
-3. Verify signature with Apple's public key (RS256)
-4. Extract user info from token
+### 4. Telegram
 
-## Token Management
+| Endpoint | Uso |
+|---|---|
+| `POST /auth/telegram/webapp` | Login desde la Mini App (initData firmada) |
+| `POST /auth/telegram/link-webapp` | Vincular la cuenta de Telegram a un usuario existente |
+| `POST /auth/telegram/login-widget` | Login con el widget oficial |
+| `POST /auth/telegram/oidc` | Inicio del flujo OIDC |
+| `POST /auth/telegram/callback` | Callback OIDC |
+| `POST /auth/telegram/link` | Vincular desde el bot |
 
-### Refresh Token
+### 5. Verificación de email
 
-**Endpoint**: `POST /auth/refresh`
-
-Returns a new JWT token. Requires valid current token.
-
-### Change Password
-
-**Endpoint**: `PUT /auth/password`
-
-```json
-{
-  "current_password": "oldpass",
-  "new_password": "newpass"
-}
+```
+POST /auth/register            → crea usuario, envía email
+POST /auth/verify-email        → consume el token
+POST /auth/resend-verification → reenvía
 ```
 
-### Forgot Password
+### 6. Recuperación de contraseña
 
-**Endpoint**: `POST /auth/forgot-password`
-
-```json
-{
-  "email": "user@example.com"
-}
+```
+POST /auth/forgot-password {email}   → siempre 200 (no revela si existe)
+POST /auth/reset-password {token, password}
 ```
 
-- Generates reset token (15-minute expiry)
-- Sends email via Resend API
-- Token stored in `reset_token` and `reset_token_expires`
+El reset **no invalida** los tokens emitidos antes. Está trackeado en
+[#536](https://github.com/cheloim/perExp/issues/536).
 
-### Reset Password
+### 7. Sesión
 
-**Endpoint**: `POST /auth/reset-password`
-
-```json
-{
-  "token": "reset_token_from_email",
-  "new_password": "newpass"
-}
+```
+GET  /auth/me
+PUT  /auth/me                    → perfil
+PUT  /auth/me/onboarding
+PUT  /auth/password              → cambio de contraseña
+POST /auth/force-change-password → cambio obligatorio
+POST /auth/refresh               → reemite con token vigente
+POST /auth/logout                → borra la cookie (no revoca el JWT)
 ```
 
-## User Profile
+## Modelo de sesión
 
-### Get Current User
+| Aspecto | Implementación |
+|---|---|
+| Formato | JWT HS256, claim `sub` = user id |
+| Vigencia | `JWT_EXPIRE_DAYS` (default 7) |
+| Token parcial | 5 min, sin claim de scope (vulnerabilidad abierta) |
+| Transporte | `Authorization: Bearer` + cookie `oikonomia_auth` |
+| Cookie | `httpOnly`, `secure`, `sameSite=lax`, `path=/` |
+| Revocación | **No existe.** `token_version` y `jti` son trabajo pendiente (#536) |
 
-**Endpoint**: `GET /auth/me`
+## MFA y contraseñas
 
-Returns current user profile including:
+- Hash: bcrypt vía `get_password_hash`.
+- Bloqueo: contador de intentos por email/IP con ventana deslizante en Redis.
+- Contraseña mínima: 8 caracteres, mayúscula, minúscula, número y símbolo.
+- `force_password_change` se usa en cuentas sembradas y resets administrativos.
 
-- `id`, `full_name`, `email`
-- `provider` (local, google, apple)
-- `avatar_url`
-- `invite_code` (for family groups)
-- `telegram_linked` (boolean)
+> El rate limit toma el **primer** valor de `X-Forwarded-For`, que nginx antepone: un
+> cliente puede falsificarlo y evadir el límite (`GHSA` asociado, issue
+> [#530](https://github.com/cheloim/perExp/issues/530)).
 
-## Telegram Bot Authentication
+## Roles
 
-### Get Telegram Key
+| Rol | Cómo se determina |
+|---|---|
+| Usuario | Autenticado y activo |
+| Admin | `User.is_admin == true` |
+| Staff de un grupo | `GroupMember.role` con membresía `accepted` |
 
-**Endpoint**: `GET /auth/me/telegram-key`
+El panel `/x/:slug` **no** verifica el rol en el cliente; el backend sí. Es un hueco de UX
+trackeado en [#516](https://github.com/cheloim/perExp/issues/516).
 
-Returns 12-character key for linking Telegram bot.
+## Archivos relevantes
 
-### Regenerate Telegram Key
+| Archivo | Responsabilidad |
+|---|---|
+| `routers/auth.py` | Endpoints de login, registro, sesión y OAuth |
+| `routers/mfa.py` | Alta, verificación y baja de TOTP |
+| `services/auth.py` | Emisión y validación de JWT, hash de contraseñas |
+| `services/mfa.py` | TOTP y códigos de recuperación |
+| `services/rate_limit.py` | Ventanas de intentos en Redis |
+| `services/telegram_oidc.py` | Intercambio OIDC con Telegram |
 
-**Endpoint**: `POST /auth/me/telegram-key/regenerate`
+## Verificación
 
-Invalidates old key and generates new one.
-
-### Check Telegram Status
-
-**Endpoint**: `GET /auth/me/telegram-status`
-
-Returns:
-
-```json
-{
-  "linked": true,
-  "chat_id": "123456789"
-}
+```bash
+cd src/backend
+SECRET_KEY="test-secret-key-that-is-at-least-32-chars-long-for-testing" \
+  pytest tests/test_auth*.py tests/test_mfa*.py -q
 ```
-
-## Security Features
-
-- **bcrypt** password hashing
-- **JWT** with 7-day expiry
-- **Single-use** Telegram keys (invalidated after linking)
-- **Token-based** password reset (15-min expiry)
-- **OAuth** provider verification (Google, Apple)
-- **CORS** configured for production domain
-
-## Protected Routes
-
-All routes except `/auth/login`, `/auth/register`, and `/auth/oauth` require a valid JWT token in the `Authorization: Bearer {token}` header.

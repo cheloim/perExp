@@ -1,260 +1,118 @@
-# Data Model
+# Modelo de datos
 
-## Entity Relationship Diagram
+> Reescrito el 2026-10-30 contra `src/backend/app/models/`. La versión anterior mostraba 10
+> entidades; el esquema real tiene **28 tablas**.
+
+## Cómo leer este documento
+
+Las columnas exactas viven en el código (`app/models/*.py`). Acá se documentan las
+relaciones, las decisiones y las invariantes que no se ven en una tabla.
+
+## Núcleo de usuario y grupo
 
 ```
-User ──┬── Card ──────────── Expense
-       ├── Account ───────── Expense
-       ├── Category ──────── Expense
-       ├── Investment
-       ├── ImportJob
-       ├── Notification
-       ├── CardClosing
-       ├── ScheduledExpense
-       ├── AnalysisHistory
-       └── GroupMember ──── Group
+User 1───N GroupMember N───1 Group
+  │
+  ├──N Expense
+  ├──N Account 1───N Card 1───N CardClosing
+  ├──N Category (auto-referenciada: padre/hijo)
+  ├──N Tag N───N Expense (ExpenseTag)
+  ├──N Budget 1───N BudgetGroup
+  ├──N RecurringExpense
+  ├──N ScheduledExpense
+  ├──N Investment
+  └──N Notification
 ```
 
-## Entities
+| Tabla | Notas |
+|---|---|
+| `users` | `is_admin`, `mfa_enabled`, `email_verified`, `force_password_change`, tokens de Google y WhatsApp |
+| `groups`, `group_members` | Membresía con `role` y estado `accepted`/`pending`. Los queries de grupo deben filtrar `accepted`. |
+| `accounts`, `cards`, `card_closings` | Una cuenta agrupa tarjetas. El cierre define período de facturación y vencimiento. |
+| `categories` | Jerárquica (auto-FK), con `budget_group` (`necesidades`/`gustos`/`ahorro`) para 50/30/20. |
+| `expenses` | Entidad central. `is_income` distingue ingreso; `amount` es `Float`. |
 
-### User
+## Gastos, cuotas y recurrencia
 
-The central entity. All data is scoped to a user (or group).
+| Tabla | Rol |
+|---|---|
+| `expenses` | Gasto o ingreso. Campos cifrados: `description`. `description_hmac` para igualdad exacta. |
+| `expense_tags` | N:M entre gasto y tag. |
+| `recurring_expenses` | Detecta patrones (comercio + monto) y propone confirmar/pausar. |
+| `scheduled_expenses` | Define un gasto futuro recurrente que se materializa por tarea. |
 
-| Field                 | Type       | Description                       |
-| --------------------- | ---------- | --------------------------------- |
-| `id`                  | Integer PK | Auto-increment                    |
-| `full_name`           | String     | Display name                      |
-| `email`               | String     | Unique, used for login            |
-| `hashed_password`     | String     | bcrypt hash                       |
-| `invite_code`         | String     | 8-char group invite code          |
-| `telegram_key`        | String     | 12-char bot auth key (single-use) |
-| `telegram_chat_id`    | String     | Telegram chat ID (for bot)        |
-| `provider`            | String     | "local", "google", "apple"        |
-| `provider_id`         | String     | OAuth provider user ID            |
-| `avatar_url`          | String     | Profile picture URL               |
-| `reset_token`         | String     | Password reset token              |
-| `reset_token_expires` | DateTime   | Token expiry (15 min)             |
+**Invariantes:**
 
-### Card
+- `is_income` se deriva de la categoría (`is_income_category()`), no se elige a mano.
+- Un gasto pertenece a un usuario; el acceso familiar se resuelve consultando el grupo, no
+  duplicando la fila.
+- `amount` es `Float`, lo que impide comparar por igualdad exacta con seguridad. Migrar a
+  `Numeric(12,2)` está trackeado en [#200](https://github.com/cheloim/perExp/issues/200).
 
-Credit or debit cards.
+## Presupuesto
 
-| Field       | Type       | Description                         |
-| ----------- | ---------- | ----------------------------------- |
-| `id`        | Integer PK | Auto-increment                      |
-| `card_name` | String     | "Visa", "Mastercard", etc.          |
-| `bank`      | String     | Issuing bank                        |
-| `holder`    | String     | Cardholder name (for family groups) |
-| `card_type` | String     | "credito" or "debito"               |
-| `user_id`   | Integer FK | Owner                               |
+```
+Budget 1───N BudgetGroup 1───N (límites por categoría)
+   │
+   └──N BudgetEvent   (histórico de cambios)
+```
 
-### Account
+- Un `Budget` es mensual y pertenece a un usuario.
+- `BudgetGroup` representa necesidades/gustos/ahorro.
+- `BudgetEvent` guarda el histórico para auditoría y para explicar cambios.
+- El modelo 50/30/20 se calcula sobre ingresos declarados, no sobre el total gastado.
 
-Cash and bank accounts for transfers.
+## Importaciones
 
-| Field     | Type       | Description                                                |
-| --------- | ---------- | ---------------------------------------------------------- |
-| `id`      | Integer PK | Auto-increment                                             |
-| `name`    | String     | "Efectivo", "MercadoPago", etc.                            |
-| `type`    | String     | efectivo, cuenta_corriente, caja_ahorro, mercadopago, otro |
-| `user_id` | Integer FK | Owner                                                      |
+```
+ImportJob 1───N Expense (creados al confirmar)
+```
 
-### Category
+- `raw_text` está cifrado (hasta 10 MB por fila).
+- Estados: `PENDING` → `PROCESSING` → `PREVIEW` → `CONFIRMED` / `FAILED`.
+- La confirmación no es idempotente todavía ([#522](https://github.com/cheloim/perExp/issues/522)).
 
-Hierarchical expense categories.
+## Inversiones
 
-| Field       | Type       | Description                              |
-| ----------- | ---------- | ---------------------------------------- |
-| `id`        | Integer PK | Auto-increment                           |
-| `name`      | String     | Category name                            |
-| `color`     | String     | Hex color for visualization              |
-| `keywords`  | String     | Comma-separated auto-categorize keywords |
-| `parent_id` | Integer FK | Self-referencing (up to 3 levels)        |
-| `user_id`   | Integer FK | Owner (nullable for global categories)   |
+`investments` guarda posiciones manuales (ticker, cantidad, precio, moneda) y saldos de
+efectivo. Los precios se refrescan por tarea (`services/price_refresh.py`), no en el request.
 
-### Expense
+## IA y categorización
 
-The core transaction record.
+| Tabla | Rol |
+|---|---|
+| `analysis_history` | Historial de consultas al asistente |
+| `category_suggestions` | Sugerencias de categoría por descripción |
+| `merchant_preferences` | Preferencia aprendida por comercio |
+| `categorization_reviews` | Detección de gastos mal categorizados (admin) |
 
-| Field                  | Type       | Description                          |
-| ---------------------- | ---------- | ------------------------------------ |
-| `id`                   | Integer PK | Auto-increment                       |
-| `date`                 | Date       | Transaction date                     |
-| `description`          | String     | Merchant/description                 |
-| `amount`               | Float      | Transaction amount                   |
-| `currency`             | String     | "ARS" or "USD"                       |
-| `notes`                | String     | Optional notes                       |
-| `transaction_id`       | String     | Unique ID from statement (for dedup) |
-| `installment_number`   | Integer    | Current installment (e.g., 3)        |
-| `installment_total`    | Integer    | Total installments (e.g., 12)        |
-| `installment_group_id` | String     | Groups installments together         |
-| `is_income`            | Boolean    | Income vs expense flag               |
-| `category_id`          | Integer FK | Linked category                      |
-| `card_id`              | Integer FK | Linked card (for card payments)      |
-| `account_id`           | Integer FK | Linked account (for cash/transfer)   |
-| `user_id`              | Integer FK | Owner                                |
+## Administración y auditoría
 
-### ScheduledExpense
+| Tabla | Rol |
+|---|---|
+| `audit_logs` | Login, MFA y acciones admin |
+| `platform_logs` | Logs de aplicación consultables desde el panel |
+| `impersonation_sessions`, `impersonation_messages` | Suplantación con historial |
+| `settings` | Configuración global clave/valor |
+| `monthly_reports` | Reportes generados, payload cifrado |
+| `notifications` | Bandeja por usuario |
 
-Future installment records (auto-executed daily).
+## Convenciones de esquema
 
-| Field                  | Type       | Description                              |
-| ---------------------- | ---------- | ---------------------------------------- |
-| `id`                   | Integer PK | Auto-increment                           |
-| `installment_group_id` | String     | Groups with other installments           |
-| `installment_number`   | Integer    | Current installment                      |
-| `installment_total`    | Integer    | Total installments                       |
-| `scheduled_date`       | Date       | When to execute                          |
-| `amount`               | Float      | Amount                                   |
-| `currency`             | String     | "ARS" or "USD"                           |
-| `description`          | String     | Description                              |
-| `status`               | String     | PENDING, EXECUTED, CANCELLED             |
-| `category_id`          | Integer FK | Category                                 |
-| `card_id`              | Integer FK | Card                                     |
-| `account_id`           | Integer FK | Account                                  |
-| `executed_expense_id`  | Integer FK | Links to created Expense after execution |
-| `user_id`              | Integer FK | Owner                                    |
+1. **Toda tabla de dominio tiene `user_id`** con índice, salvo catálogos globales.
+2. **Los borrados en cascada se declaran explícitamente**; no se confía en el default.
+3. **Los campos con PII usan `EncryptedType`** y, si se buscan, un `*_hmac` acompañante.
+4. **Los índices se nombran `ix_<tabla>_<columna>`** y se agregan en la migración, no al
+   arrancar.
+5. **Los montos deberían ser `Numeric(12,2)`.** Hoy `Float` es deuda conocida.
 
-### Investment
+## Verificar el esquema real
 
-Investment portfolio records.
-
-| Field           | Type       | Description                     |
-| --------------- | ---------- | ------------------------------- |
-| `id`            | Integer PK | Auto-increment                  |
-| `ticker`        | String     | Stock ticker (e.g., "GGAL")     |
-| `name`          | String     | Company/fund name               |
-| `type`          | String     | Accion, Cedear, Bono, FCI, etc. |
-| `broker`        | String     | IOL, PPI, or manual             |
-| `quantity`      | Float      | Shares/units                    |
-| `avg_cost`      | Float      | Average cost per unit           |
-| `current_price` | Float      | Current market price            |
-| `currency`      | String     | "ARS" or "USD"                  |
-| `notes`         | String     | Optional notes                  |
-| `updated_at`    | DateTime   | Last price update               |
-| `user_id`       | Integer FK | Owner                           |
-
-### ImportJob
-
-Background import processing records.
-
-| Field           | Type        | Description                                          |
-| --------------- | ----------- | ---------------------------------------------------- |
-| `id`            | Integer PK  | Auto-increment                                       |
-| `filename`      | String      | Original filename                                    |
-| `status`        | String      | PROCESSING, QUEUED, READY_PREVIEW, COMPLETED, FAILED |
-| `file_content`  | LargeBinary | Raw file data (cleared after processing)             |
-| `preview_data`  | Text (JSON) | Parsed transactions                                  |
-| `error_message` | Text        | Error details if failed                              |
-| `completed_at`  | DateTime    | Processing completion time                           |
-| `user_id`       | Integer FK  | Owner                                                |
-
-### Notification
-
-Real-time notifications.
-
-| Field        | Type        | Description                                   |
-| ------------ | ----------- | --------------------------------------------- |
-| `id`         | Integer PK  | Auto-increment                                |
-| `type`       | String      | import_ready, import_failed, group_invitation |
-| `title`      | String      | Bold header text                              |
-| `body`       | Text        | Description text                              |
-| `data`       | Text (JSON) | Type-specific payload                         |
-| `read`       | Boolean     | Read status                                   |
-| `created_at` | DateTime    | Creation time                                 |
-| `user_id`    | Integer FK  | Recipient                                     |
-
-### Group & GroupMember
-
-Family group sharing.
-
-**Group:**
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | Integer PK | Auto-increment |
-| `name` | String | Group name |
-| `created_by` | Integer FK | Creator |
-
-**GroupMember:**
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | Integer PK | Auto-increment |
-| `group_id` | Integer FK | Parent group |
-| `user_id` | Integer FK | Member user |
-| `role` | String | "member" (default) |
-| `status` | String | pending, accepted, rejected |
-| `invited_by` | Integer FK | Who invited this member |
-| `joined_at` | DateTime | When they joined |
-
-### CardClosing
-
-Credit card billing cycle tracking.
-
-| Field               | Type       | Description         |
-| ------------------- | ---------- | ------------------- |
-| `id`                | Integer PK | Auto-increment      |
-| `card`              | String     | Card name           |
-| `card_last_digits`  | String     | Last 4 digits       |
-| `card_type`         | String     | credito/debito      |
-| `bank`              | String     | Issuing bank        |
-| `card_id`           | Integer FK | Linked card         |
-| `closing_date`      | Integer    | Day of month (1-28) |
-| `next_closing_date` | Date       | Next closing date   |
-| `due_date`          | Date       | Payment due date    |
-| `user_id`           | Integer FK | Owner               |
-
-### AnalysisHistory
-
-Saved AI analysis sessions.
-
-| Field           | Type       | Description              |
-| --------------- | ---------- | ------------------------ |
-| `id`            | Integer PK | Auto-increment           |
-| `month`         | String     | Analyzed month (YYYY-MM) |
-| `question`      | String     | User's question          |
-| `result_text`   | Text       | AI response              |
-| `expense_count` | Integer    | Expenses analyzed        |
-| `total_amount`  | Float      | Total amount analyzed    |
-| `user_id`       | Integer FK | Owner                    |
-
-### CategorizationReview
-
-Internal review of an expense that looks miscategorized (issue #414). Admin-only:
-never shown to the end user. `UniqueConstraint(expense_id, detector_version)`
-makes the daily scan idempotent.
-
-| Field                  | Type       | Description                                        |
-| ---------------------- | ---------- | -------------------------------------------------- |
-| `id`                   | Integer PK | Auto-increment                                     |
-| `expense_id`           | Integer FK | Expense under review                               |
-| `user_id`              | Integer FK | Owner                                              |
-| `current_category_id`  | Integer FK | Category assigned today (nullable)                 |
-| `suggested_category_id`| Integer FK | Category the detector proposes (nullable)          |
-| `score`                | Float      | Combined signal score (0-1)                        |
-| `source`               | String     | `rules` or `rules+llm`                             |
-| `reason`               | Text       | Human-readable reason                              |
-| `evidence`             | Text (JSON)| Signals, merchant key, category stats, LLM verdict |
-| `detector_version`     | String     | Scoring version that produced the row              |
-| `status`               | String     | `pending` \| `accepted` \| `rejected` \| `investigated` |
-| `bulk_applied`         | Boolean    | Accepted from the UI bulk action (excluded from `manual_precision`) |
-| `reviewed_by`          | Integer FK | Admin who resolved it                              |
-| `reviewed_at`          | DateTime   | When it was resolved                               |
-
-### Setting
-
-Key-value store for user preferences and broker credentials.
-
-| Field   | Type      | Description                           |
-| ------- | --------- | ------------------------------------- |
-| `key`   | String PK | Composite: `{user_id}:{setting_name}` |
-| `value` | Text      | Setting value                         |
-
-## Key Relationships
-
-- **User 1:N** → Card, Account, Expense, Investment, Category, ImportJob, Notification
-- **Expense N:1** → Card, Account, Category
-- **Category self-referencing** → parent_id (up to 3 levels deep)
-- **Group 1:N** → GroupMember N:1 → User
-- **ScheduledExpense N:1** → Card, Account, Category
-- **ScheduledExpense 1:1** → Expense (after execution)
+```bash
+cd src/backend
+python -c "
+from app.models import Base
+for t in sorted(Base.metadata.tables):
+    print(t)
+"
+```

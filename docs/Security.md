@@ -1,168 +1,112 @@
-# Security
+# Seguridad
 
-## Field-Level Encryption
+> Reescrito el 2026-10-30 contra el código. La versión anterior afirmaba una columna
+> `description_search` que nunca existió, un script `migrate_encrypt_fields.py` inexistente,
+> "sin cookies" cuando sí se usan, y recomendaba rotar una clave que otro documento declara
+> no rotable.
 
-Oikonomia implements application-level field encryption to protect sensitive user data. Even if an administrator has direct database access, they cannot read the encrypted fields without the `SECRET_KEY`.
+## Modelo de seguridad en una página
 
-### What's Encrypted
+| Activo | Protección |
+|---|---|
+| Documentos y transacciones | Aislamiento por `user_id` y grupos con membresía `accepted`. **No hay RLS en base.** |
+| Campos con PII | Cifrado a nivel de aplicación con Fernet (`EncryptedType`) |
+| Búsqueda sobre campos cifrados | HMAC-SHA256 determinístico (`*_hmac`) |
+| Credenciales | bcrypt |
+| Sesión | JWT HS256 + cookie HTTP-only |
+| Segundo factor | TOTP opcional |
+| Transporte | TLS terminado en nginx |
+| Secretos | Podman secrets, montados como archivos |
 
-| Model | Field | Why Encrypted |
-|-------|-------|---------------|
-| `User` | `full_name` | PII - User's real name |
-| `User` | `telegram_chat_id` | PII - Telegram identifier |
-| `User` | `mfa_secret` | Security - TOTP secret key |
-| `Card` | `card_name` | Financial - Card brand (Visa, etc.) |
-| `Card` | `bank` | Financial - Bank name |
-| `Card` | `holder` | PII - Cardholder name |
-| `Expense` | `description` | Financial - Merchant/transaction details |
-| `Expense` | `notes` | Financial - User notes |
-| `Investment` | `notes` | Financial - Investment notes |
-| `AuditLog` | `ip_address` | PII - User's IP address |
-| `AuditLog` | `user_agent` | PII - Browser/device info |
-| `MonthlyReport` | `report_data` | Financial - Report JSON |
+**No hay cifrado en reposo del volumen completo ni RLS.** Si alguien accede a Postgres, ve
+todo lo que no esté cifrado a nivel de columna.
 
-### What's NOT Encrypted (and why)
+## Cifrado de campos
 
-| Field | Reason |
-|-------|--------|
-| `User.email` | Needed for login, unique constraint, lookups |
-| `User.telegram_key` | Temporary auth token, not PII |
-| `User.hashed_password` | Already bcrypt hashed |
-| `Expense.amount` | Needed for calculations/summaries |
-| `Expense.currency` | Not sensitive |
-| `Card.card_type` | Not sensitive (credito/debito) |
+`EncryptedType` (`app/types/encrypted.py`) envuelve `String` y cifra/descifra de forma
+transparente con Fernet.
 
-### Architecture
+- Clave: `ENCRYPTION_KEY` si está definida; si no, `SHA256(SECRET_KEY)`.
+- Si el descifrado falla, el valor se reemplaza por `[encrypted]` (no rompe la lectura).
+- **Cambiar la clave deja ilegibles los datos existentes.** Ver `Key-Management.md`.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Application Layer                           │
-├─────────────────────────────────────────────────────────────────┤
-│  routers/auth.py  │  routers/cards.py  │  routers/expenses.py   │
-├─────────────────────────────────────────────────────────────────┤
-│                   SQLAlchemy Models                              │
-│  User.full_name   │  Card.holder       │  Expense.description   │
-│  (EncryptedType)  │  (EncryptedType)   │  (EncryptedType)       │
-├─────────────────────────────────────────────────────────────────┤
-│              EncryptedType (TypeDecorator)                       │
-│         Auto-encrypt on write, auto-decrypt on read              │
-├─────────────────────────────────────────────────────────────────┤
-│              encryption.py (Fernet wrapper)                      │
-│    SECRET_KEY → SHA-256 → Fernet key → AES-128-CBC              │
-└─────────────────────────────────────────────────────────────────┘
-```
+### Columnas cifradas
 
-### How It Works
+| Modelo | Campos |
+|---|---|
+| `User` | `full_name`, `telegram_chat_id`, `telegram_key`, `whatsapp_phone`, `google_refresh_token` |
+| `Account` | `name`, `institution` |
+| `Card` | `card_name`, `brand` |
+| `Expense` | `description` |
+| `Tag` | `name` |
+| `ScheduledExpense` | `description` |
+| `Investment` | `name` |
+| `ImportJob` | `raw_text` |
+| `MonthlyReport` | payload del reporte |
 
-**Encryption (writing to DB):**
-```python
-# User saves "Farmacity $1500"
-expense.description = "Farmacity $1500 medicamentos"
+### Búsqueda sobre datos cifrados
 
-# EncryptedType.process_bind_param() encrypts automatically
-# Stored in DB: gAAAAABqZ3jJ-1GzGpLcQ3aZhNOdG5EN0V2hRzbqNolmyIfMrp...
-```
+No existe una columna tokenizada. Para buscar por descripción se usa
+`description_hmac = compute_hmac(description)` (igualdad exacta) y, para búsqueda parcial,
+el filtro descifra en aplicación (`services/expense_filters.py`). Ese enfoque es correcto
+para privacidad y **caro** para volúmenes grandes: está trackeado en
+[#523](https://github.com/cheloim/perExp/issues/523).
 
-**Decryption (reading from DB):**
-```python
-# Read from DB: gAAAAABqZ3jJ-1GzGpLcQ3aZhNOdG5EN0V2hRzbqNolmyIfMrp...
-expense.description  # Returns: "Farmacity $1500 medicamentos"
+## Sesión y cookies
 
-# EncryptedType.process_result_value() decrypts automatically
-```
+- JWT en `Authorization: Bearer` **y** cookie `oikonomia_auth`.
+- Cookie: `httpOnly=true`, `secure=true`, `sameSite=lax`, `path=/`.
+- Se usa para el flujo OAuth de Grafana, que necesita una cookie en el mismo dominio.
+- Logout borra la cookie pero **no revoca el JWT** (ver `Authentication.md`).
 
-### Search on Encrypted Fields
+## Aislamiento multi-tenant
 
-Encrypted fields cannot be searched with SQL `LIKE` or `WHERE`. For searchable fields, we maintain a separate plaintext search column:
+- Cada consulta debería filtrar por el usuario o por los integrantes aceptados de su grupo.
+- Hay 136 chequeos inline y tres copias divergentes de `get_group_user_ids`.
+- La deduplicación de importaciones **no filtraba por usuario**; registrado en
+  `GHSA-gwvx-c53m-33h4` y trackeado en [#524](https://github.com/cheloim/perExp/issues/524).
 
-```
-Expense {
-    description: EncryptedType     # "Farmacity $1500 medicamentos"
-    description_search: String     # "farmacity 1500 medicamentos" (tokenized)
-}
-```
+## Vulnerabilidades conocidas
 
-**How search works:**
-```python
-# User searches "farmacia"
-# 1. Query: SELECT * WHERE description_search LIKE '%farmacia%'
-# 2. For each result: decrypt(description) → show to user
-```
+Están en **Security Advisories privados** del repositorio porque el código es público. No
+se replica el detalle acá hasta que estén corregidas.
 
-**Tokenization:**
-- Lowercase
-- Remove accents (é → e)
-- Keep only alphanumeric + spaces
-- Collapse multiple spaces
+| ID | Tema | Severidad |
+|---|---|---|
+| `GHSA-x54h-5rqj-mh63` | Bypass de MFA | Crítica |
+| `GHSA-p86h-c2xv-j859` | Administrador sembrado con credenciales por defecto | Crítica |
+| `GHSA-gwvx-c53m-33h4` | Fuga entre tenants en deduplicación | Alta |
+| `GHSA-3p3m-cw22-v8wp` | Agotamiento del pool vía SSE | Alta |
+| `GHSA-9mpx-qm3j-6836` | Credencial de base commiteada | Alta |
 
-### Telegram Bot Lookup (HMAC)
+Seguimiento: <https://github.com/cheloim/perExp/security/advisories>
 
-The bot needs fast user lookups by `telegram_chat_id`. Since the field is encrypted, we maintain a separate HMAC hash column:
+## Controles existentes
 
-```
-User {
-    telegram_chat_id: EncryptedType  # Encrypted
-    telegram_chat_hash: String       # HMAC-SHA256 (plaintext, indexed)
-}
-```
+| Control | Estado |
+|---|---|
+| Validación de entrada | Pydantic en todos los routers |
+| Rate limit | Login, registro y reset. Redis, ventana deslizante. |
+| Lockout | Contador de fallos por email/IP |
+| Auditoría | `audit_logs` para login, MFA y acciones admin |
+| Borrado de cuenta | `services/account_deletion.py` |
+| CORS | Lista explícita de orígenes |
+| Secretos en logs | **Parcial.** Hay PII en logs y en `platform_logs` ([#526](https://github.com/cheloim/perExp/issues/526)). |
+| Escaneo de dependencias | Dependabot, sin gate de CVEs |
 
-**Bot lookup flow:**
-```python
-# Bot receives message from chat_id "123456"
-chat_hash = compute_hmac("123456")  # HMAC-SHA256
-user = db.query(User).filter(User.telegram_chat_hash == chat_hash).first()
-# O(1) index seek → decrypt single row → respond
-```
+## Lo que falta
 
-### Key Management
+| Hueco | Issue |
+|---|---|
+| Threat model formal y mapa de datos personales | [#533](https://github.com/cheloim/perExp/issues/533) |
+| Política de retención y DSAR | [#533](https://github.com/cheloim/perExp/issues/533) |
+| Revocación de sesión | [#536](https://github.com/cheloim/perExp/issues/536) |
+| Redacción de PII en logs | [#526](https://github.com/cheloim/perExp/issues/526) |
+| Autorización centralizada | [#524](https://github.com/cheloim/perExp/issues/524) |
+| Gate de CVEs en CI | [#534](https://github.com/cheloim/perExp/issues/534) |
 
-**SECRET_KEY** is used for:
-1. Fernet encryption (AES-128-CBC)
-2. HMAC computation (SHA-256)
-3. JWT signing
+## Reportar una vulnerabilidad
 
-**Requirements:**
-- Minimum 32 characters
-- Validated at startup (app won't start if too short)
-- Stored in environment variable (`.env` or deployment config)
-
-**Generate a new key:**
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(64))"
-```
-
-### Migration
-
-The migration script (`backend/scripts/migrate_encrypt_fields.py`) runs automatically on startup. It:
-
-1. Checks each field for plaintext values
-2. Encrypts plaintext values (EncryptedType handles this automatically)
-3. Generates HMAC hashes for telegram_chat_id
-4. Generates search tokens for description fields
-
-**Idempotent:** Safe to run multiple times (skips already-encrypted values).
-
-**Run manually:**
-```bash
-cd backend
-DATABASE_URL="..." SECRET_KEY="..." python scripts/migrate_encrypt_fields.py
-```
-
-### Security Considerations
-
-**What encryption protects against:**
-- Database dumps/exfiltration
-- SQL injection attacks
-- Administrator snooping (without SECRET_KEY)
-- Backup exposure
-
-**What encryption does NOT protect against:**
-- Application-level breaches (app has SECRET_KEY in memory)
-- Compromised server (attacker can read SECRET_KEY)
-- Social engineering (user shares their data)
-
-**Recommendations:**
-1. Rotate SECRET_KEY periodically (requires re-encrypting all data)
-2. Store SECRET_KEY in secure environment variables (not in code)
-3. Use different SECRET_KEYs for dev/staging/production
-4. Monitor audit logs for suspicious access patterns
+No abras un issue público. Usá
+[Private vulnerability reporting](https://github.com/cheloim/perExp/security/advisories/new)
+o el canal descrito en `SECURITY.md`.

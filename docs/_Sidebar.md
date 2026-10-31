@@ -13,3 +13,10 @@
 - [API Reference](API-Reference)
 - [Deployment](Deployment)
 - [Frontend](Frontend)
+
+- [Matriz de autoridad](README)
+- [Configuración](Configuration)
+- [Design System](Design-System)
+- [Accesibilidad](Accessibility)
+- [Migraciones](Migrations)
+- [Auditoría 2026-10](https://github.com/cheloim/perExp/blob/main/docs/analysis/audit-2026-10/index.html)

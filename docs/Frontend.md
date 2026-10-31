@@ -1,235 +1,138 @@
 # Frontend
 
-## Overview
+> Reescrito el 2026-10-30. La versión anterior listaba rutas eliminadas (`/accounts`),
+> componentes inexistentes (`MainLayout`, `AccountsManager`, `BottomNav`) y archivos del
+> asistente que ya no existen.
 
-NikoFin's frontend is a React 18 SPA built with TypeScript, Vite, and TanStack Query v5. It follows GNOME HIG-inspired design with CSS variables for theming.
+## Stack
 
-## Routes
+| Pieza | Versión / uso |
+|---|---|
+| React | 18, SPA con Vite |
+| TypeScript | strict, `tsc --noEmit` en CI |
+| Router | React Router, rutas declaradas en `App.tsx` e `InstitutionalRoutes.tsx` |
+| Datos | TanStack Query v5 (`useQuery` en 23 archivos, `useMutation` en 18) |
+| Estilos | CSS propio con tokens GNOME/Adwaita en `index.css` |
+| Gráficos | Recharts (donas, barras) y treemap propio |
+| Tests | Vitest (unit) + Playwright (e2e) |
 
-| Path                  | Component         | Description                    |
-| --------------------- | ----------------- | ------------------------------ |
-| `/login`              | LoginPage         | Email/password + OAuth login   |
-| `/reset-password`     | ResetPasswordPage | Password reset with token      |
-| `/`                   | Dashboard         | Main summary page              |
-| `/accounts`           | AccountsPage      | Account + card management      |
-| `/expenses`           | ExpensesPage      | Expense list with filters      |
-| `/cat-dashboard`      | CategoryDashboard | Category treemap visualization |
-| `/installments`       | InstallmentsPage  | Installment groups view        |
-| `/investments`        | InvestmentsPage   | Investment portfolio           |
-| `/import-jobs/:jobId` | ImportJobPreview  | Import preview + confirmation  |
-| `/categories`         | CategoriesPage    | Category configuration         |
+## Rutas
 
-## Key Components
+### App autenticada (`App.tsx`)
 
-### Layout
+| Ruta | Componente | Notas |
+|---|---|---|
+| `/login` | `LoginPage` | Password, Google, Telegram |
+| `/` | `Dashboard` | KPIs, tendencia, categorías |
+| `/expenses` | `ExpensesPage` | Lista, filtros, bulk, CSV |
+| `/budget` | `BudgetPage` | Plan 50/30/20 y límites por categoría |
+| `/cat-dashboard` | `CategoryDashboard` | Treemap y drilldown |
+| `/clasificacion` | `ClasificacionPage` | Categorías y tags |
+| `/categories/:id` | `ClasificacionPage` | Detalle de categoría |
+| `/tags`, `/categories` | redirect a `/clasificacion` | Compatibilidad |
+| `/installments` | `InstallmentsPage` | Cuotas |
+| `/investments` | `InvestmentsPage` | Portfolio |
+| `/import-jobs/:jobId` | `ImportJobPreview` | Preview y confirmación de import |
+| `/notifications` | `NotificationsPage` | Bandeja |
+| `/guide`, `/guide/:topic` | `GuidePage` | 9 guías |
+| `/changes`, `/changes/:version` | `ChangesPage` | What's New |
+| `/x/:slug` | `AdminPage` | Panel admin (sin gate de rol en cliente) |
+| `*` | `Dashboard` | **No hay 404** ([#520](https://github.com/cheloim/perExp/issues/520)) |
 
-- **App.tsx**: Root component with routing, bottom nav, sidebar
-- **MainLayout.tsx**: Page wrapper with sidebar + content area
-- **Sidebar**: Collapsible navigation with icons
-- **BottomNav**: Mobile bottom navigation bar
+### Institucionales / públicas (`InstitutionalRoutes.tsx`)
 
-### Expense Management
+`/privacy`, `/tos`, `/guide/*`, `/changes/*`, `/novedades` y `LandingPage` como fallback.
+`LandingPage` también se sirve según el hostname.
 
-- **ExpenseModals.tsx**: Create/edit expense modal with category creation
-- **ExpenseDetailModal.tsx**: View expense details (uses shared DetailModal)
-- **ExpensesPage.tsx**: Expense list with filters (date, category, card, account, person)
+### Quick view (Mini App de Telegram)
 
-### Card & Account Management
+`pages/quick/` contiene las vistas compactas que se abren dentro de Telegram.
 
-- **AccountsManager.tsx**: Account creation form with type selection
-- **CardsManager.tsx**: Card creation/management UI
-- **CardAccountModal.tsx**: Shared modal for creating cards/accounts
-- **UserPanel.tsx**: User settings panel with Accounts tab (click-to-edit rows)
+## Estado
 
-### Import
+Solo tres contextos globales:
 
-- **ImportUploadButton.tsx**: File upload with progress tracking
-- **ImportJobPreview.tsx**: Transaction preview with card mapping, duplicate flags
+| Contexto | Responsabilidad |
+|---|---|
+| `ThemeContext` | Claro/oscuro y preferencia |
+| `NotificationsContext` | SSE + contador de no leídas |
+| `UploadProgressContext` | Progreso de subida de archivos |
 
-### Dashboard
+No hay store global (Redux/Zustand): **el estado del servidor es de TanStack Query** y el
+estado de UI es local o vive en la URL. `docs/guides/state-management.md` describe un
+endpoint `PUT /auth/me/preference` que **no existe**; está pendiente de corrección (#532).
 
-- **Dashboard.tsx**: Main dashboard with totals, trends, transactions
-- **CategoryTreemap.tsx**: Recharts treemap for category visualization
+## Capa de API
 
-### AI
+| Archivo | Estado |
+|---|---|
+| `api/client.ts` (1.086 líneas, 188 exports) | **En uso** por 41 archivos. Es la capa real. |
+| `api/client-generated.ts` (22.563 líneas) | **Muerto:** cero importadores. Se sigue generando con orval en CI. |
+| `types/index.ts` | Tipos manuales en uso |
+| `types/generated/` | Tipos de orval, sin consumidores |
 
-- **components/assistant/**: el asistente único (gastos e inversiones comparten la misma
-  implementación; solo cambia el objetivo). Modal rediseñado en #415 (tarjeta centrada
-  76%×78%) — ver especificación de [estados](Asistente-IA-Estados.md),
-  [accesibilidad](Asistente-IA-Accesibilidad.md), [performance](Asistente-IA-Performance.md)
-  y [unificación de los dos asistentes](Asistente-IA-Unificacion.md)
-  y el [mockup aprobado](mockups/ai-assistant-modal.html) (HTML interactivo, stand-in de Figma).
-  - `Assistant.tsx`: punto de entrada. Aporta el mapa de config, el dominio que siembra la
-    ruta y el contexto extra por dominio (la foto de cartera para inversiones).
-  - `AssistantShell.tsx`: el chrome del modal. El dominio —y con él el título, el endpoint y
-    el placeholder— se resuelve del **último mensaje del hilo**, no de la ruta, así un hilo
-    puede cruzar entre pantallas sin que la ventana cambie de personalidad.
-  - `configs.ts`: `ASSISTANT_CONFIGS`, una config por dominio (título, sugerencias, endpoint,
-    `buildBody`, slot de análisis mensual, rotación por inactividad).
-  - `domainOf.ts`, `streamTo.ts`, `types.ts`: dominio del hilo, cliente SSE y contratos.
-  - `useAssistantSessions.ts`, `useAssistantChat.ts`, `useSummarize.ts`: store de sesiones
-    compartida (una sola, agnóstica al dominio), chat con streaming y resumen.
-  - `Bubble.tsx`, `SessionCard.tsx`, `migrateLegacySessions.ts`: burbujas, tarjetas del
-    historial y migración desde las stores legadas `ai_assistant_*` / `inv_assistant_*`.
+Hay que elegir uno. Trackeado en [#534](https://github.com/cheloim/perExp/issues/534).
 
-### Investments
+## Componentes clave
 
-- **InvestmentsPage.tsx**: Portfolio table with IOL/PPI sync
-- **InvestmentDetailModal.tsx**: View/edit investment details
+### Layout y navegación
+- `Sidebar.tsx`, `SidebarIcons.tsx`, `MobileNav.tsx`, `MobileHeader.tsx`
+- `UserPanel.tsx` — panel lateral con preferencias, Telegram y logout
+- `ImpersonationBanner.tsx`, `ImpersonationRequestModal.tsx`
+- `WhatsNewModal.tsx`, `OnboardingWalkthrough.tsx`
 
-### Shared
+### Gastos
+- `ExpensesPage.tsx` — lista, filtros, selección múltiple, export
+- `ExpenseModals.tsx` — alta/edición, creación de categoría inline
+- `ExpenseDetailModal.tsx`, `TransactionDetailModal.tsx`, `DetailModal.tsx`
+- `QuickEditPopover.tsx`, `BulkActionBar.tsx`, `BulkTagPicker.tsx`
+- `ImportUploadButton.tsx`, `UploadProgressBanner.tsx`, `AutoDetectedBanner.tsx`
 
-- **DetailModal.tsx**: Modal shell with GNOME HIG styling, focus trap, mobile bottom sheet
-- **TransactionDetailModal.tsx**: Import transaction detail view
-- **ConfirmDialog.tsx**: Confirmation dialog component
-- **NotificationsPanel.tsx**: Notification bell panel with SSE
-- **InvitationDisclaimer.tsx**: Group invitation disclaimer modal
+### Asistente
+- `components/assistant/Assistant.tsx` — entrada
+- `AssistantShell.tsx` — UI del chat y scroll
+- `useThread.ts` — persistencia del hilo (hoy sobrevive al logout)
+- `useAssistantChat.ts`, `streamTo.ts` — streaming SSE
+- `configs.ts`, `domainOf.ts` — configuración por dominio
+- `Bubble.tsx` — burbuja de mensaje
 
-### UI Components (`components/ui/`)
+### Primitivas (`components/ui/`)
+`CurrencyInput`, `EmptyState`, `Popover`, `Select`, `Skeleton`, `Sparkline`.
+Ver `Design-System.md` para estado y requisitos.
 
-- **Select.tsx**: Custom select with search
-- **AutocompleteInput.tsx**: Autocomplete input
-- **CurrencyInput.tsx**: Currency-formatted input
-- **Popover.tsx**: Popover dropdown
-- **Skeleton.tsx**: Loading skeleton
-- **EmptyState.tsx**: Empty state placeholder
-- **Sparkline.tsx**: Mini sparkline chart
-- **SpinButton.tsx**: Numeric spin button
+## Convenciones
 
-## State Management
+- **Un archivo por página grande**, pero con umbral: ninguna página nueva debería superar
+  ~600 líneas sin extraer subcomponentes.
+- **No `style={{}}`** en pantallas nuevas; usar tokens.
+- **Todo click en `<button>` o `<Link>`.**
+- **Un solo formato de moneda** (`formatMoney` a crear; hoy `formatCurrency` duplica el
+  símbolo en USD).
+- **Nombres de archivo:** `PascalCase.tsx` para componentes, `camelCase.ts` para utilidades.
+- **Tests junto al archivo** (`*.test.tsx`) y e2e en `e2e/`.
 
-### Server State (TanStack Query)
+## Comandos
 
-All API data is managed via TanStack Query v5:
+```bash
+cd src/frontend
 
-```typescript
-const { data, isLoading, error } = useQuery({
-  queryKey: ["expenses", filters],
-  queryFn: () => getExpenses(filters),
-});
+npm run dev          # Vite
+npm run lint         # ESLint
+npm run typecheck    # tsc --noEmit
+npm run format       # Prettier
+npm test             # Vitest
+npm run test:e2e     # Playwright
+npm run generate:api # orval desde docs/specs/openapi.yaml
 ```
 
-**Query invalidation** after mutations:
+## Deuda conocida
 
-```typescript
-queryClient.invalidateQueries({ queryKey: ["expenses"] });
-queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-```
-
-### Client State (React Context)
-
-| Context                 | Purpose                            |
-| ----------------------- | ---------------------------------- |
-| `ThemeContext`          | Light/dark mode toggle             |
-| `NotificationsContext`  | SSE connection, notification state |
-| `UploadProgressContext` | Active upload tracking             |
-| `FamilyGroupContext`    | Current group, members             |
-| `PanelWidthContext`     | Sidebar width state                |
-
-### Local State (useState/useReducer)
-
-Component-specific state (modals, forms, filters) uses local state.
-
-## Styling
-
-### CSS Variables
-
-Theming via CSS custom properties:
-
-```css
-:root {
-  --color-primary: #3584e4;
-  --color-surface: #ffffff;
-  --color-base-alt: #f6f5f4;
-  --text-primary: #242424;
-  --text-secondary: #77767b;
-  --text-tertiary: #929292;
-  --border-color: #e0e0e0;
-}
-```
-
-### GNOME HIG-Inspired Design
-
-- Rounded corners (8px-12px)
-- Subtle shadows (`shadow-gnome-lg`)
-- 44px minimum touch targets
-- Consistent spacing (gap-3, space-y-6)
-- Primary color for interactive elements
-
-### Responsive Layout
-
-- Mobile: Bottom navigation, stacked layout
-- Desktop: Sidebar navigation, side-by-side layout
-- `visualViewport` API for keyboard handling
-- `viewport-fit=cover` for mobile browsers
-
-## API Client
-
-**File**: `api/client.ts`
-
-All API calls use axios with interceptors:
-
-```typescript
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8001",
-});
-
-// Auth interceptor
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("auth_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-```
-
-**Key functions**:
-
-- `getExpenses(filters)`, `createExpense(data)`, `updateExpense(id, data)`
-- `getCards()`, `createCard(data)`, `updateCard(id, data)`
-- `getAccounts()`, `createAccount(data)`
-- `createImportJob(file, signal, onUploadProgress)`
-- `confirmImportJob(jobId, rows, cardsMapping)`
-- `getDashboard(filters)`
-- `analysisChat(question, month)` (SSE)
-- `investmentsAssistantChat(question)` (SSE)
-
-## TypeScript Types
-
-**File**: `types/index.ts`
-
-Key interfaces:
-
-- `Expense`, `Card`, `Account`, `Category`
-- `Investment`, `ImportJob`, `SmartImportRow`
-- `Notification`, `FamilyGroup`, `GroupMember`
-- `UploadProgress`, `DashboardSummary`
-- `SmartImportPreview`, `CardsMapping`
-
-## Workers
-
-### Notifications SharedWorker
-
-**File**: `workers/notifications.worker.ts`
-
-- Maintains single SSE connection across all tabs
-- Uses `BroadcastChannel` for cross-tab communication
-- Exponential backoff reconnection
-- Handles token expiry
-
-## Hooks
-
-| Hook                            | Purpose                        |
-| ------------------------------- | ------------------------------ |
-| `useExpenseFilters`             | URL-based expense filter state |
-| `useFocusTrap`                  | Modal focus trap               |
-| `useModal` / `useModalWithData` | Modal open/close state         |
-| `useNotifications`              | SSE notification context       |
-| `useUndoToast`                  | Undo toast for deletions       |
-
-## Utils
-
-| File             | Purpose                        |
-| ---------------- | ------------------------------ |
-| `format.tsx`     | Currency formatting (ARS/USD)  |
-| `formatText.tsx` | Text formatting utilities      |
-| `toast.ts`       | Toast event system (showToast) |
+| Tema | Issue |
+|---|---|
+| ARS/USD mezclados en totales | [#508](https://github.com/cheloim/perExp/issues/508) |
+| Tres definiciones de "gasto" | [#509](https://github.com/cheloim/perExp/issues/509) |
+| Drilldowns que pierden filtros | [#510](https://github.com/cheloim/perExp/issues/510) |
+| Carga/error/vacío indistinguibles | [#511](https://github.com/cheloim/perExp/issues/511) |
+| Accesibilidad estructural | [#517](https://github.com/cheloim/perExp/issues/517) |
+| Contraste AA | [#518](https://github.com/cheloim/perExp/issues/518) |
+| Design system incompleto | [#520](https://github.com/cheloim/perExp/issues/520) |

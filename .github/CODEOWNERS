@@ -1,0 +1,30 @@
+# Ownership por área. Un PR que toca un área pide review de su dueño.
+# Ver docs/specs/architecture/domain-boundaries.md para el mapa de dominios.
+
+*                       @cheloim
+
+# Backend
+/src/backend/app/routers/        @cheloim
+/src/backend/app/services/       @cheloim
+/src/backend/app/models/         @cheloim
+/src/backend/app/tasks/          @cheloim
+/src/backend/app/telegram_bot.py @cheloim
+/src/backend/app/whatsapp_bot.py @cheloim
+
+# Frontend
+/src/frontend/src/components/    @cheloim
+/src/frontend/src/pages/         @cheloim
+/src/frontend/src/index.css      @cheloim
+
+# Contrato y documentación canónica
+/docs/specs/openapi.yaml         @cheloim
+/docs/README.md                  @cheloim
+/docs/Security.md                @cheloim
+/docs/Authentication.md          @cheloim
+
+# Infra y seguridad
+/.github/workflows/              @cheloim
+/docker/                         @cheloim
+/podman-compose.yml              @cheloim
+/scripts/setup-secrets.sh        @cheloim
+/SECURITY.md                     @cheloim
