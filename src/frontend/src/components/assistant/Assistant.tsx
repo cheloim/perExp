@@ -3,6 +3,7 @@ import { getInvestments } from "../../api/client";
 import type { Investment } from "../../types";
 import { AssistantShell } from "./AssistantShell";
 import { ASSISTANT_CONFIGS } from "./configs";
+import { DOCKED_WIDTH_DEFAULT, type AssistantMode } from "./layoutMode";
 import type { AssistantDomain } from "./types";
 
 export const DRAWER_OPEN_KEY = "ai_drawer_open";
@@ -88,12 +89,21 @@ export default function Assistant({
   onToggle,
   initialDomain,
   showTrigger = false,
+  mode = "modal",
+  onModeChange,
+  width = DOCKED_WIDTH_DEFAULT,
+  onWidthChange,
 }: {
   open: boolean;
   onToggle: () => void;
   initialDomain: AssistantDomain;
   /** Whether this surface owns the floating trigger. */
   showTrigger?: boolean;
+  /** Floating window or a docked side panel that shares the page width. */
+  mode?: AssistantMode;
+  onModeChange?: (mode: AssistantMode) => void;
+  width?: number;
+  onWidthChange?: (width: number) => void;
 }) {
   // The investments endpoint wants a portfolio snapshot the spending endpoint
   // ignores. Only fetched while the drawer is open — it is request context, not
@@ -140,6 +150,10 @@ export default function Assistant({
         initialDomain={initialDomain}
         open={open}
         onToggle={onToggle}
+        mode={mode}
+        onModeChange={onModeChange}
+        width={width}
+        onWidthChange={onWidthChange}
         buildContext={() =>
           investments === undefined
             ? "=== CARTERA ACTUAL ===\n(el resumen de posiciones no está disponible)"
