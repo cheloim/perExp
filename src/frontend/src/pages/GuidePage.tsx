@@ -434,7 +434,8 @@ export default function GuidePage() {
                 <strong>Cuenta</strong> — filtrá por tarjeta o cuenta
               </li>
               <li>
-                <strong>Fecha</strong> — desde/hasta con selects de fecha
+                <strong>Fecha</strong> — presets de 1, 2, 3, 6 o 12 meses, o un rango Custom con
+                calendario; los filtros se mantienen durante la sesión al cambiar de página
               </li>
               <li>
                 <strong>Búsqueda</strong> — texto libre en descripciones (búsqueda debounced)

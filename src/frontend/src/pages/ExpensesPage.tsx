@@ -52,6 +52,9 @@ import {
 } from "../utils/format";
 import { useExpenseFilters } from "../hooks/useExpenseFilters";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { presetLabel } from "../utils/dateRange";
+import { expenseQueryKeys, invalidateExpenseQueries } from "../utils/expenseQueries";
+import { DateRangePicker } from "../components/ui/DateRangePicker";
 
 type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
 type SortDir = "asc" | "desc";
@@ -124,7 +127,10 @@ export default function ExpensesPage() {
     filters,
     setFilter,
     setCategoryIds,
+    setDateRange,
+    clearDateRange,
     clearFilters,
+    ready,
     searchParams,
     setSearchParams,
     searchInput,
@@ -214,8 +220,7 @@ export default function ExpensesPage() {
   const activeFiltersCount = [
     filterCategoryIds.length > 0 || filterUncategorized || undefined,
     filterPerson,
-    filterDateFrom,
-    filterDateTo,
+    filterDateFrom || filterDateTo || undefined,
     filterTagId || undefined,
     filterUntagged || undefined,
     filterCuentaId || undefined,
@@ -233,13 +238,14 @@ export default function ExpensesPage() {
     setVisibleCount(100);
   }
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["expenses-list"] });
+  const invalidate = () => invalidateExpenseQueries(queryClient);
 
   const { data: expenses = [], isLoading } = useQuery<Expense[]>({
-    queryKey: ["expenses-list", filterKey, visibleCount],
+    queryKey: expenseQueryKeys.list(filterKey, visibleCount),
     queryFn: () => getExpenses({ ...filterParams, limit: visibleCount }),
     placeholderData: (prev) => prev,
     staleTime: 30_000,
+    enabled: ready,
   });
 
   const { data: categories = [] } = useQuery({
@@ -254,18 +260,21 @@ export default function ExpensesPage() {
   });
 
   const { data: expenseStats } = useQuery({
-    queryKey: ["expense-stats", filterKey],
+    queryKey: expenseQueryKeys.stats(filterKey),
     queryFn: () => getExpenseStats(filterParams),
+    enabled: ready,
   });
 
   const { data: categoryBreakdown = [] } = useQuery({
-    queryKey: ["expenses-by-category", filterKey],
+    queryKey: expenseQueryKeys.byCategory(filterKey),
     queryFn: () => getExpensesByCategory(filterParams),
+    enabled: ready,
   });
 
   const { data: personBreakdown = [] } = useQuery({
-    queryKey: ["expenses-by-person", filterKey],
+    queryKey: expenseQueryKeys.byPerson(filterKey),
     queryFn: () => getExpensesByPerson(filterParams),
+    enabled: ready,
   });
 
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
@@ -340,22 +349,20 @@ export default function ExpensesPage() {
     },
     onMutate: async ({ id, field, value }) => {
       await queryClient.cancelQueries({ queryKey: ["expenses-list"] });
-      const queryKey = [
-        "expenses-list",
-        filterCategoryIds.join(","),
-        filterUncategorized,
-        filterPerson,
-        filterDateFrom,
-        filterDateTo,
-        filterTagId,
-        filterUntagged,
-        filterCuentaId,
-        filterSinCuenta,
-        visibleCount,
-      ];
+      const queryKey = expenseQueryKeys.list(filterKey, visibleCount);
       const previous = queryClient.getQueryData<Expense[]>(queryKey);
-      queryClient.setQueryData<Expense[]>(queryKey, (old) =>
-        (old ?? []).map((e) => {
+      queryClient.setQueryData<Expense[]>(queryKey, (old) => {
+        if (!old) return old;
+        // Under a category filter, a row that no longer matches has to leave
+        // the table now; the invalidated aggregates catch up with the server.
+        if (field === "category_id") {
+          const stillMatches =
+            (filterCategoryIds.length === 0 ||
+              (value != null && filterCategoryIds.includes(value))) &&
+            !(filterUncategorized && value != null);
+          if (!stillMatches) return old.filter((e) => e.id !== id);
+        }
+        return old.map((e) => {
           if (e.id !== id) return e;
           if (field === "category_id") {
             const cat = categories.find((c) => c.id === value);
@@ -373,8 +380,8 @@ export default function ExpensesPage() {
             ...e,
             tags: newTag ? [...keepTags, newTag] : keepTags,
           };
-        }),
-      );
+        });
+      });
       return { previous, queryKey };
     },
     onError: (_err, _vars, ctx) => {
@@ -399,15 +406,7 @@ export default function ExpensesPage() {
       const saved = pendingDeletes.current.get(id);
       if (saved?.expense) {
         queryClient.setQueryData<Expense[]>(
-          [
-            "expenses-list",
-            filterCategoryIds.join(","),
-            filterUncategorized,
-            filterPerson,
-            filterDateFrom,
-            filterDateTo,
-            filterTagId,
-          ],
+          expenseQueryKeys.list(filterKey, visibleCount),
           (old) =>
             old
               ? [...old, saved.expense].sort(
@@ -780,18 +779,15 @@ export default function ExpensesPage() {
       clear: () => setFilter("untagged", undefined),
     });
   }
-  if (filterDateFrom) {
+  if (filterDateFrom || filterDateTo) {
     filterChips.push({
-      key: "date_from",
-      label: `Desde ${formatDateDMY(filterDateFrom)}`,
-      clear: () => setFilter("date_from", undefined),
-    });
-  }
-  if (filterDateTo) {
-    filterChips.push({
-      key: "date_to",
-      label: `Hasta ${formatDateDMY(filterDateTo)}`,
-      clear: () => setFilter("date_to", undefined),
+      key: "date_range",
+      label: filters.datePreset
+        ? presetLabel(filters.datePreset)
+        : `${filterDateFrom ? formatDateDMY(filterDateFrom) : "…"} – ${
+            filterDateTo ? formatDateDMY(filterDateTo) : "…"
+          }`,
+      clear: clearDateRange,
     });
   }
   if (filterPerson) {
@@ -1055,23 +1051,16 @@ export default function ExpensesPage() {
                   );
                 })()}
 
-                {/* Desde */}
-                <input
-                  type="date"
-                  value={filterDateFrom ?? ""}
-                  onChange={(e) => setFilter("date_from", e.target.value || undefined)}
-                  className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                  placeholder="Desde"
-                />
-
-                {/* Hasta */}
-                <input
-                  type="date"
-                  value={filterDateTo ?? ""}
-                  onChange={(e) => setFilter("date_to", e.target.value || undefined)}
-                  className="text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-                  placeholder="Hasta"
-                />
+                {/* Rango de fechas — presets rápidos o Custom */}
+                <div className="lg:col-span-2">
+                  <DateRangePicker
+                    preset={filters.datePreset}
+                    from={filterDateFrom}
+                    to={filterDateTo}
+                    month={filters.month}
+                    onChange={setDateRange}
+                  />
+                </div>
               </div>
             </div>
           )}
