@@ -1,4 +1,11 @@
 import { useCallback, useRef, useState } from "react";
+import {
+  clearAssistantStorage,
+  isPersistedThreadExpired,
+  isThreadPersistenceEnabled,
+  markThreadSaved,
+  setThreadPersistenceEnabled,
+} from "./storage";
 import { LEGACY_STORAGE, SHARED_STORAGE } from "./types";
 import type { AssistantDomain, Message, Session } from "./types";
 
@@ -75,6 +82,7 @@ export function migrateToThread(): Message[] {
   }
   try {
     localStorage.setItem(SHARED_STORAGE.thread, JSON.stringify(messages));
+    markThreadSaved();
   } catch {
     /* quota exceeded: the thread still lives in memory for this session */
   }
@@ -82,6 +90,12 @@ export function migrateToThread(): Message[] {
 }
 
 function loadThread(): Message[] {
+  // Persistence is opt-in. With the preference off (the default) or an expired
+  // TTL, purge any thread left by a previous session instead of loading it.
+  if (!isThreadPersistenceEnabled() || isPersistedThreadExpired()) {
+    clearAssistantStorage();
+    return [];
+  }
   return trimThread(migrateToThread());
 }
 
@@ -99,6 +113,7 @@ function loadThread(): Message[] {
  */
 export function useThread() {
   const [messages, setMessages] = useState<Message[]>(loadThread);
+  const [persistEnabled, setPersistEnabledState] = useState<boolean>(isThreadPersistenceEnabled);
 
   /** Latest messages with stable object identity, readable synchronously. */
   const messagesRef = useRef<Message[]>(messages);
@@ -109,8 +124,10 @@ export function useThread() {
     const trimmed = trimThread(next);
     messagesRef.current = trimmed;
     setMessages(trimmed);
+    if (!isThreadPersistenceEnabled()) return;
     try {
       localStorage.setItem(SHARED_STORAGE.thread, JSON.stringify(trimmed));
+      markThreadSaved();
     } catch {
       /* quota exceeded: keep in-memory state rather than corrupting storage */
     }
@@ -123,7 +140,25 @@ export function useThread() {
 
   const clearThread = useCallback(() => commit([]), [commit]);
 
-  return { messages, updateThread, clearThread };
+  const setPersistenceEnabled = useCallback((enabled: boolean) => {
+    setThreadPersistenceEnabled(enabled);
+    setPersistEnabledState(enabled);
+    if (!enabled) {
+      messagesRef.current = [];
+      setMessages([]);
+      return;
+    }
+    if (messagesRef.current.length) {
+      try {
+        localStorage.setItem(SHARED_STORAGE.thread, JSON.stringify(messagesRef.current));
+        markThreadSaved();
+      } catch {
+        /* quota exceeded: keep in-memory state */
+      }
+    }
+  }, []);
+
+  return { messages, updateThread, clearThread, persistEnabled, setPersistenceEnabled };
 }
 
 export type ThreadStore = ReturnType<typeof useThread>;
