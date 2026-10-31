@@ -57,6 +57,11 @@ const OVERRIDES = {
     { category_id: 1, category_name: "Salud", category_color: "#6366f1", total: 1500, count: 1 },
   ],
   "/expenses/by-person": [{ person: "Ana", total: 19000, count: 3 }],
+  "/categories": [
+    { id: 1, name: "Salud", color: "#6366f1", keywords: "" },
+    { id: 2, name: "Suscripciones", color: "#8b5cf6", keywords: "" },
+    { id: 3, name: "Transporte", color: "#e66100", keywords: "" },
+  ],
 };
 
 /** Stub the list endpoint with the real filter contract, recording requests. */
@@ -66,12 +71,20 @@ async function mockExpensesList(page: Page) {
     const url = new URL(route.request().url());
     requests.push(url);
     const search = (url.searchParams.get("search") ?? "").toLowerCase();
-    const categoryId = url.searchParams.get("category_id");
+    // Multi-select writes `category_ids`; a single-category link may still
+    // arrive as the legacy `category_id`.
+    const categoryIds = (
+      url.searchParams.get("category_ids") ??
+      url.searchParams.get("category_id") ??
+      ""
+    )
+      .split(",")
+      .filter(Boolean);
     const rows = ROWS.filter((r) => {
       const haystack = `${r.description} ${r.notes} ${r.category_name}`.toLowerCase();
       return (
         (!search || haystack.includes(search)) &&
-        (!categoryId || String(r.category_id) === categoryId)
+        (categoryIds.length === 0 || categoryIds.includes(String(r.category_id)))
       );
     });
     await route.fulfill({
@@ -125,7 +138,36 @@ test("search combines with other filters (AND)", async ({ page }) => {
 
   const listRequest = requests.find((u) => u.searchParams.has("search"));
   expect(listRequest?.searchParams.get("search")).toBe("netflix");
-  expect(listRequest?.searchParams.get("category_id")).toBe("2");
+  // The legacy single link is normalized to the multi-select contract.
+  expect(listRequest?.searchParams.get("category_ids")).toBe("2");
+});
+
+test("picking several categories filters the table by all of them", async ({ page }) => {
+  const requests = await openExpenses(page);
+
+  await page.getByRole("button", { name: /Filtros/ }).click();
+  await page.getByRole("button", { name: "Categoría" }).click();
+
+  const listbox = page.getByRole("listbox", { name: "Categoría" });
+  await listbox.getByRole("option", { name: "Salud" }).click();
+  await listbox.getByRole("option", { name: "Suscripciones" }).click();
+
+  const results = await new AxeBuilder({ page }).include("#expense-filter-fields").analyze();
+  expect(results.violations).toEqual([]);
+
+  await page.keyboard.press("Escape");
+
+  await expect(page).toHaveURL(/[?&]category_ids=1(%2C|,)2/);
+  await expect(page.getByText(/farmacia/i).first()).toBeVisible();
+  await expect(page.getByText(/netflix/i).first()).toBeVisible();
+  await expect(page.getByText(/nafta/i)).toHaveCount(0);
+
+  await expect
+    .poll(() => {
+      const sent = requests.map((u) => u.searchParams.get("category_ids")).filter(Boolean);
+      return sent[sent.length - 1];
+    })
+    .toBe("1,2");
 });
 
 test("the empty state offers to clear the filters, and clearing restores the list", async ({

@@ -2,6 +2,13 @@ import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import useSeoMeta from "./hooks/useSeoMeta";
 import Assistant, { readDrawerOpen, persistDrawerOpen } from "./components/assistant/Assistant";
+import {
+  persistDockedMode,
+  persistDockedWidth,
+  readDockedMode,
+  readDockedWidth,
+  type AssistantMode,
+} from "./components/assistant/layoutMode";
 import UserPanel from "./components/UserPanel";
 import { UploadProgressProvider } from "./context/UploadProgressContext";
 import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
@@ -204,6 +211,10 @@ function MainLayout() {
   const location = useLocation();
   const isInvestments = location.pathname === "/investments";
   const [aiDrawerOpen, setAiDrawerOpen] = useState(readDrawerOpen);
+  // Layout of the drawer outlives a reload too: a user who docked it to compare
+  // figures expects it back on that side, at that width.
+  const [aiDrawerMode, setAiDrawerMode] = useState<AssistantMode>(readDockedMode);
+  const [aiDrawerWidth, setAiDrawerWidth] = useState<number>(() => readDockedWidth());
   const [userPanelOpen, setUserPanelOpen] = useState(false);
   const [showMoreNav, setShowMoreNav] = useState(false);
   const queryClient = useQueryClient();
@@ -333,7 +344,9 @@ function MainLayout() {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (aiDrawerOpen) {
+        // Only the floating window is modal. When docked, Escape belongs to
+        // whatever the user is doing on the page next to it.
+        if (aiDrawerOpen && aiDrawerMode === "modal") {
           setAiDrawerOpen(false);
           // Mirror toggleDrawer: without this the drawer reopens on reload.
           persistDrawerOpen(false);
@@ -343,7 +356,7 @@ function MainLayout() {
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [aiDrawerOpen, userPanelOpen]);
+  }, [aiDrawerOpen, aiDrawerMode, userPanelOpen]);
 
   // Listen for open-user-panel event from Dashboard MFA banner
   useEffect(() => {
@@ -382,6 +395,18 @@ function MainLayout() {
       ).virtualKeyboard.overlaysContent = true;
     }
   }, []);
+
+  const changeDrawerMode = (mode: AssistantMode) => {
+    setAiDrawerMode(mode);
+    persistDockedMode(mode);
+  };
+
+  // Writes are throttled: dragging emits a move per frame and localStorage is
+  // synchronous. The trailing edge is what gets stored.
+  useEffect(() => {
+    const id = setTimeout(() => persistDockedWidth(aiDrawerWidth), 200);
+    return () => clearTimeout(id);
+  }, [aiDrawerWidth]);
 
   const toggleDrawer = (open: boolean) => {
     // Open-time instrumentation; AssistantShell closes the measurement on the
@@ -585,14 +610,20 @@ function MainLayout() {
             onOpenAI={() => toggleDrawer(true)}
             onOpenNewExpense={() => setNewExpenseOpen(true)}
           />
-
-          <Assistant
-            open={aiDrawerOpen}
-            onToggle={() => toggleDrawer(!aiDrawerOpen)}
-            initialDomain={isInvestments ? "investments" : "spending"}
-            showTrigger={isInvestments}
-          />
         </div>
+
+        {/* The assistant lives outside the page column: docked, it is a real
+            flex sibling, so the page gives up width instead of being covered. */}
+        <Assistant
+          open={aiDrawerOpen}
+          onToggle={() => toggleDrawer(!aiDrawerOpen)}
+          initialDomain={isInvestments ? "investments" : "spending"}
+          showTrigger={isInvestments}
+          mode={aiDrawerMode}
+          onModeChange={changeDrawerMode}
+          width={aiDrawerWidth}
+          onWidthChange={setAiDrawerWidth}
+        />
 
         <UserPanel
           open={userPanelOpen}

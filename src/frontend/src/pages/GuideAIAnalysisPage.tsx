@@ -131,8 +131,11 @@ export default function GuideAIAnalysisPage() {
             ]}
           />
           <p className="mt-3 text-sm">
-            <strong>Tip:</strong> Podés abrir el asistente desde cualquier página de la app. El
-            drawer se superpone sin perder la página en la que estás.
+            <strong>Tip:</strong> Podés abrir el asistente desde cualquier página de la app. Con el
+            botón de acople del encabezado lo pasás de ventana flotante a panel lateral anclado a la
+            derecha, y arrastrando su borde izquierdo elegís el ancho (doble clic lo vuelve a 400
+            px). Así podés mirar los datos de la página mientras conversás, y la app recuerda tu
+            elección.
           </p>
         </Section>
 

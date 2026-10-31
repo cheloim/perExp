@@ -5,6 +5,7 @@ import { ASSISTANT_CONFIGS } from "./configs";
 import { SHARED_STORAGE } from "./types";
 import type { Message } from "./types";
 import { useVoiceInput } from "../../hooks/useVoiceInput";
+import { DOCKED_WIDTH_DEFAULT, DOCKED_WIDTH_MIN } from "./layoutMode";
 
 vi.mock("../../hooks/useVoiceInput", () => ({ useVoiceInput: vi.fn() }));
 
@@ -782,5 +783,112 @@ describe("AssistantShell", () => {
     );
 
     expect(screen.queryByRole("group", { name: "Período de análisis" })).toBeNull();
+  });
+});
+
+describe("AssistantShell — ventana lateral", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.mocked(useVoiceInput).mockReturnValue({
+      supported: false,
+      state: "idle",
+      error: null,
+      elapsed: 0,
+      start: vi.fn(),
+      stop: vi.fn(),
+      cancel: vi.fn(),
+    });
+  });
+
+  function renderDocked(overrides: { width?: number; onWidthChange?: (w: number) => void } = {}) {
+    return render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+        mode="docked"
+        onModeChange={() => {}}
+        width={overrides.width ?? DOCKED_WIDTH_DEFAULT}
+        onWidthChange={overrides.onWidthChange ?? (() => {})}
+      />,
+    );
+  }
+
+  it("shares the screen instead of covering it with a modal backdrop", () => {
+    renderDocked();
+
+    expect(screen.queryByTestId("assistant-backdrop")).toBeNull();
+    const panel = screen.getByTestId("assistant-docked");
+    expect(panel).toBeInTheDocument();
+    // Not modal: the page behind stays reachable and readable.
+    expect(screen.getByRole("dialog")).toHaveAttribute("aria-modal", "false");
+  });
+
+  it("keeps the width the owner chose", () => {
+    renderDocked({ width: 512 });
+
+    expect(
+      screen.getByTestId("assistant-docked").style.getPropertyValue("--assistant-docked-width"),
+    ).toBe("512px");
+  });
+
+  it("offers docking from the floating window and undocking from the side panel", () => {
+    const onModeChange = vi.fn();
+    const { rerender } = render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+        mode="modal"
+        onModeChange={onModeChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Acoplar a la derecha" }));
+    expect(onModeChange).toHaveBeenCalledWith("docked");
+
+    rerender(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+        mode="docked"
+        onModeChange={onModeChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Volver a ventana flotante" }));
+    expect(onModeChange).toHaveBeenLastCalledWith("modal");
+  });
+
+  it("resizes with the arrow keys, at 16px per press and 64px with Shift", () => {
+    const onWidthChange = vi.fn();
+    renderDocked({ width: 400, onWidthChange });
+
+    const handle = screen.getByRole("separator", { name: "Ajustar ancho del asistente" });
+    expect(handle).toHaveAttribute("aria-valuenow", "400");
+
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    expect(onWidthChange).toHaveBeenLastCalledWith(416);
+
+    fireEvent.keyDown(handle, { key: "ArrowLeft", shiftKey: true });
+    expect(onWidthChange).toHaveBeenLastCalledWith(464);
+
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    expect(onWidthChange).toHaveBeenLastCalledWith(384);
+
+    fireEvent.keyDown(handle, { key: "Home" });
+    expect(onWidthChange).toHaveBeenLastCalledWith(DOCKED_WIDTH_MIN);
+  });
+
+  it("resets the width to 400px on double click", () => {
+    const onWidthChange = vi.fn();
+    renderDocked({ width: 600, onWidthChange });
+
+    fireEvent.doubleClick(screen.getByRole("separator", { name: "Ajustar ancho del asistente" }));
+
+    expect(onWidthChange).toHaveBeenLastCalledWith(DOCKED_WIDTH_DEFAULT);
   });
 });
