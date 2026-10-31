@@ -148,5 +148,7 @@ def test_callback_redirects_with_one_time_code_not_token(db, monkeypatch):
     assert response.status_code in (302, 307)
     location = response.headers["location"]
     assert "code=one-time-code" in location
-    assert "state=good" in location
+    # The state was validated and consumed; reflecting it back would make the
+    # redirect depend on user input (CodeQL url-redirection finding).
+    assert "state=" not in location
     assert "token=" not in location

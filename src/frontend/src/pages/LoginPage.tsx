@@ -196,7 +196,6 @@ function LoginForm({
     setError("");
     try {
       const state = await createTelegramOidcState();
-      sessionStorage.setItem("telegram_oidc_state", state);
       const clientId = import.meta.env.VITE_TELEGRAM_OIDC_CLIENT_ID || "";
       const redirectUri = `${window.location.origin}/api/auth/telegram/callback`;
       const params = new URLSearchParams({
