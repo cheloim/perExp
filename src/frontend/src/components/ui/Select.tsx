@@ -19,6 +19,8 @@ interface SelectProps {
   className?: string;
   disabled?: boolean;
   allowCustomValue?: boolean;
+  /** Field name announced before the current value. */
+  ariaLabel?: string;
 }
 
 export function Select({
@@ -30,6 +32,7 @@ export function Select({
   className = "",
   disabled = false,
   allowCustomValue = true,
+  ariaLabel,
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -58,19 +61,22 @@ export function Select({
   useEffect(() => {
     if (isOpen && ref.current) {
       const rect = ref.current.getBoundingClientRect();
+      // Keep the fixed dropdown inside the viewport, same as MultiSelect.
+      const width = Math.min(rect.width, window.innerWidth - 16);
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
       const spaceBelow = window.innerHeight - rect.bottom;
       const dropdownHeight = 260;
       if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
         setDropdownPos({
           top: rect.top - dropdownHeight - 4,
-          left: rect.left,
-          width: rect.width,
+          left,
+          width,
         });
       } else {
         setDropdownPos({
           top: rect.bottom + 4,
-          left: rect.left,
-          width: rect.width,
+          left,
+          width,
         });
       }
     }
@@ -201,15 +207,19 @@ export function Select({
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
-        className={`w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition flex items-center justify-between ${
-          disabled
-            ? "opacity-50 cursor-not-allowed"
-            : "cursor-pointer hover:border-[var(--color-primary)]"
+        aria-label={ariaLabel ? `${ariaLabel}: ${displayValue}` : undefined}
+        className={`filter-control ${
+          disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
         }`}
       >
-        <span className={value ? "" : "text-[var(--text-tertiary)]"}>{displayValue}</span>
+        <span
+          title={displayValue}
+          className={`truncate ${value ? "" : "text-[var(--text-tertiary)]"}`}
+        >
+          {displayValue}
+        </span>
         <svg
-          className={`w-4 h-4 text-[var(--text-secondary)] transition-transform ${
+          className={`w-4 h-4 text-[var(--text-secondary)] transition-transform flex-shrink-0 ${
             isOpen ? "rotate-180" : ""
           }`}
           fill="none"

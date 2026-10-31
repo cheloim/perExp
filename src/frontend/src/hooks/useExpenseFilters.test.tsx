@@ -242,4 +242,38 @@ describe("useExpenseFilters", () => {
 
     expect(sessionStorage.getItem(EXPENSES_FILTERS_KEY)).toBe("q=netflix");
   });
+
+  it("setCuenta swaps between an account and sin_cuenta", () => {
+    const { result } = renderHook(() => useExpenseFilters(), {
+      wrapper: makeWrapper("/?cuenta_id=7"),
+    });
+
+    act(() => result.current.setCuenta("__sin_cuenta__"));
+    expect(result.current.searchParams.get("sin_cuenta")).toBe("1");
+    expect(result.current.searchParams.get("cuenta_id")).toBeNull();
+
+    act(() => result.current.setCuenta("9"));
+    expect(result.current.searchParams.get("cuenta_id")).toBe("9");
+    expect(result.current.searchParams.get("sin_cuenta")).toBeNull();
+
+    act(() => result.current.setCuenta(""));
+    expect(result.current.searchParams.get("cuenta_id")).toBeNull();
+  });
+
+  it("setEtiqueta swaps between a tag and untagged", () => {
+    const { result } = renderHook(() => useExpenseFilters(), {
+      wrapper: makeWrapper("/?untagged=1"),
+    });
+
+    act(() => result.current.setEtiqueta("4"));
+    expect(result.current.searchParams.get("tag_id")).toBe("4");
+    expect(result.current.searchParams.get("untagged")).toBeNull();
+
+    act(() => result.current.setEtiqueta("__untagged__"));
+    expect(result.current.searchParams.get("untagged")).toBe("1");
+    expect(result.current.searchParams.get("tag_id")).toBeNull();
+
+    act(() => result.current.setEtiqueta(""));
+    expect(result.current.searchParams.get("untagged")).toBeNull();
+  });
 });

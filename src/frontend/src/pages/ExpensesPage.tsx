@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, Fragment } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, Fragment } from "react";
 import { showToast } from "../utils/toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUndoToast } from "../hooks/useUndoToast";
@@ -22,8 +22,6 @@ import {
   discardAllSuggestions,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
-import { Select } from "../components/ui/Select";
-import { MultiSelect } from "../components/ui/MultiSelect";
 import { ExpenseModal } from "../components/ExpenseModals";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import EmptyState from "../components/ui/EmptyState";
@@ -52,9 +50,9 @@ import {
 } from "../utils/format";
 import { useExpenseFilters } from "../hooks/useExpenseFilters";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { presetLabel } from "../utils/dateRange";
 import { expenseQueryKeys, invalidateExpenseQueries } from "../utils/expenseQueries";
-import { DateRangePicker } from "../components/ui/DateRangePicker";
+import { buildFilterChips, type FilterChip } from "../utils/expenseFilterChips";
+import { ExpensesFilterBar } from "../components/expenses/ExpensesFilterBar";
 
 type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
 type SortDir = "asc" | "desc";
@@ -129,6 +127,8 @@ export default function ExpensesPage() {
     setCategoryIds,
     setDateRange,
     clearDateRange,
+    setCuenta,
+    setEtiqueta,
     clearFilters,
     ready,
     searchParams,
@@ -197,19 +197,22 @@ export default function ExpensesPage() {
     search: filterSearch,
   };
 
-  const handleCategorySelection = (values: string[]) => {
-    // "Sin categoría" is exclusive: it is not an id, and it cannot coexist with
-    // a category selection.
-    if (values.includes("__none__")) {
-      const next = new URLSearchParams(searchParams);
-      next.delete("category_id");
-      next.delete("category_ids");
-      next.set("uncategorized", "1");
-      setSearchParams(next);
-      return;
-    }
-    setCategoryIds(values.map(Number).filter((id) => Number.isInteger(id) && id > 0));
-  };
+  const handleCategorySelection = useCallback(
+    (values: string[]) => {
+      // "Sin categoría" is exclusive: it is not an id, and it cannot coexist
+      // with a category selection.
+      if (values.includes("__none__")) {
+        const next = new URLSearchParams(searchParams);
+        next.delete("category_id");
+        next.delete("category_ids");
+        next.set("uncategorized", "1");
+        setSearchParams(next);
+        return;
+      }
+      setCategoryIds(values.map(Number).filter((id) => Number.isInteger(id) && id > 0));
+    },
+    [searchParams, setSearchParams, setCategoryIds],
+  );
 
   // Drilldowns (a slice of the donut, a category row) replace the whole
   // selection with the one category they were clicked for.
@@ -217,26 +220,16 @@ export default function ExpensesPage() {
     handleCategorySelection(value ? [value] : []);
   };
 
-  const activeFiltersCount = [
-    filterCategoryIds.length > 0 || filterUncategorized || undefined,
-    filterPerson,
-    filterDateFrom || filterDateTo || undefined,
-    filterTagId || undefined,
-    filterUntagged || undefined,
-    filterCuentaId || undefined,
-    filterSinCuenta || undefined,
-    filterSearch,
-  ].filter(Boolean).length;
-
   const [visibleCount, setVisibleCount] = useState(100);
 
-  // Reset visible count when filters change
   const filterKey = `${filterCategoryIds.join(",")}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}-${filterCuentaId}-${filterSinCuenta}-${filterSearch}`;
-  const prevFilterKey = useRef(filterKey);
-  if (filterKey !== prevFilterKey.current) {
-    prevFilterKey.current = filterKey;
+
+  // A new filter set starts from the first page again. An effect (instead of a
+  // state update during render) keeps the render path pure; the list keeps the
+  // previous page as placeholder data while the reset settles.
+  useEffect(() => {
     setVisibleCount(100);
-  }
+  }, [filterKey]);
 
   const invalidate = () => invalidateExpenseQueries(queryClient);
 
@@ -723,80 +716,58 @@ export default function ExpensesPage() {
   const cuentaTags = tags.filter((tag) => tag.group_name === "cuenta");
   const otrosTags = tags.filter((tag) => tag.group_name === "otros");
 
-  const filterChips: { key: string; label: string; clear: () => void }[] = [];
-  if (filterSearch) {
-    filterChips.push({
-      key: "q",
-      label: `«${filterSearch}»`,
-      clear: () => {
-        setSearchInput("");
-        setFilter("q", undefined);
-      },
-    });
-  }
-  if (filterCategoryIds.length > 0) {
-    for (const id of filterCategoryIds) {
-      filterChips.push({
-        key: `category-${id}`,
-        label: categories.find((category) => category.id === id)?.name ?? "Categoría",
-        clear: () =>
-          handleCategorySelection(filterCategoryIds.filter((other) => other !== id).map(String)),
-      });
-    }
-  }
-  if (filterUncategorized) {
-    filterChips.push({
-      key: "uncategorized",
-      label: "Sin categoría",
-      clear: () => handleCategorySelection([]),
-    });
-  }
-  if (filterCuentaId) {
-    filterChips.push({
-      key: "cuenta",
-      label: tags.find((tag) => tag.id === filterCuentaId)?.name ?? "Cuenta",
-      clear: () => setFilter("cuenta_id", undefined),
-    });
-  }
-  if (filterSinCuenta) {
-    filterChips.push({
-      key: "sin_cuenta",
-      label: "Sin cuenta",
-      clear: () => setFilter("sin_cuenta", undefined),
-    });
-  }
-  if (filterTagId) {
-    filterChips.push({
-      key: "tag",
-      label: tags.find((tag) => tag.id === filterTagId)?.name ?? "Etiqueta",
-      clear: () => setFilter("tag_id", undefined),
-    });
-  }
-  if (filterUntagged) {
-    filterChips.push({
-      key: "untagged",
-      label: "Sin etiqueta",
-      clear: () => setFilter("untagged", undefined),
-    });
-  }
-  if (filterDateFrom || filterDateTo) {
-    filterChips.push({
-      key: "date_range",
-      label: filters.datePreset
-        ? presetLabel(filters.datePreset)
-        : `${filterDateFrom ? formatDateDMY(filterDateFrom) : "…"} – ${
-            filterDateTo ? formatDateDMY(filterDateTo) : "…"
-          }`,
-      clear: clearDateRange,
-    });
-  }
-  if (filterPerson) {
-    filterChips.push({
-      key: "person",
-      label: `Titular: ${filterPerson}`,
-      clear: () => setFilter("person", undefined),
-    });
-  }
+  const chips = useMemo(
+    () => buildFilterChips(filters, categories, tags),
+    [filters, categories, tags],
+  );
+  const activeFiltersCount = chips.length;
+
+  const clearChip = useCallback(
+    (chip: FilterChip) => {
+      switch (chip.kind) {
+        case "search":
+          setSearchInput("");
+          setFilter("q", undefined);
+          break;
+        case "category":
+          setCategoryIds(filterCategoryIds.filter((id) => id !== chip.value));
+          break;
+        case "uncategorized":
+          handleCategorySelection([]);
+          break;
+        case "cuenta":
+        case "sin_cuenta":
+          setCuenta("");
+          break;
+        case "tag":
+        case "untagged":
+          setEtiqueta("");
+          break;
+        case "date":
+          clearDateRange();
+          break;
+        case "person":
+          setFilter("person", undefined);
+          break;
+      }
+    },
+    [
+      filterCategoryIds,
+      setCategoryIds,
+      handleCategorySelection,
+      setCuenta,
+      setEtiqueta,
+      clearDateRange,
+      setFilter,
+      setSearchInput,
+    ],
+  );
+
+  const resultSummary = filterSearch
+    ? `${expenses.length}${expenses.length >= visibleCount ? "+" : ""} gastos para «${filterSearch}»`
+    : activeFiltersCount > 0 && !isLoading
+      ? `${expenses.length}${expenses.length >= visibleCount ? "+" : ""} gastos con los filtros aplicados`
+      : "";
 
   return (
     <div className={`space-y-6 ${selectedCount > 0 ? "pb-52 md:pb-28" : "pb-20 md:pb-0"}`}>
@@ -868,207 +839,26 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* Filters — the description search lives inside this section (issue #420) */}
-      <div className="card" data-testid="expense-filters">
-        <div className="space-y-3 p-3">
-          <div className="flex items-center gap-2">
-            <div className="relative min-w-0 flex-1">
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") setSearchInput("");
-                }}
-                placeholder="Buscar por descripción, nota o categoría…"
-                aria-label="Buscar gastos"
-                className="input text-sm pl-8 pr-8"
-              />
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-tertiary">
-                <SymbolicIcon name="search" size={14} />
-              </span>
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={() => setSearchInput("")}
-                  aria-label="Limpiar búsqueda"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-tertiary hover:text-primary transition"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setFiltersExpanded(!filtersExpanded)}
-              aria-expanded={filtersExpanded}
-              aria-controls="expense-filter-fields"
-              className="gnome-btn-secondary-round shrink-0 px-3 text-sm"
-            >
-              <span className="flex items-center gap-1.5">
-                Filtros
-                {activeFiltersCount > 0 && (
-                  <span className="rounded-full bg-[var(--color-primary)] px-1.5 py-0.5 text-[10px] leading-none text-[var(--color-on-primary)]">
-                    {activeFiltersCount}
-                  </span>
-                )}
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  aria-hidden="true"
-                  className={`transition-transform ${filtersExpanded ? "rotate-180" : ""}`}
-                >
-                  <path
-                    d="M3 4.5L6 7.5L9 4.5"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-            </button>
-          </div>
-
-          {filterSearch && (
-            <p className="text-xs text-secondary" aria-live="polite">
-              {`${expenses.length}${expenses.length >= visibleCount ? "+" : ""} gastos para «${filterSearch}»`}
-            </p>
-          )}
-
-          {activeFiltersCount > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              {filterChips.map((chip) => (
-                <span
-                  key={chip.key}
-                  className="inline-flex items-center gap-1 rounded-full border border-[var(--border-color)] bg-[var(--color-base-alt)] px-2 py-0.5 text-xs text-[var(--text-primary)]"
-                >
-                  {chip.label}
-                  <button
-                    type="button"
-                    onClick={chip.clear}
-                    aria-label={`Quitar filtro ${chip.label}`}
-                    className="text-[var(--text-tertiary)] transition hover:text-[var(--text-primary)]"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="rounded-full border border-[var(--color-primary)] px-2.5 py-1 text-xs text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/10"
-              >
-                Limpiar ({activeFiltersCount})
-              </button>
-            </div>
-          )}
-
-          {filtersExpanded && (
-            <div id="expense-filter-fields" className="border-t border-[var(--border-color)] pt-3">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                {/* Categoría */}
-                {/* Categoría — multi-select: several categories can be on at once. */}
-                <MultiSelect
-                  values={filterUncategorized ? ["__none__"] : filterCategoryIds.map(String)}
-                  onChange={handleCategorySelection}
-                  options={[{ value: "__none__", label: "Sin categoría" }]}
-                  groups={categoryGroupOptions(categories)}
-                  placeholder="Categoría"
-                />
-
-                {/* Cuenta */}
-                {(() => {
-                  const cuentaTags = tags.filter((t) => t.group_name === "cuenta");
-                  const options: { value: string; label: string }[] = [
-                    { value: "", label: "Todas" },
-                    { value: "__sin_cuenta__", label: "Sin cuenta" },
-                    ...cuentaTags.map((t) => ({ value: String(t.id), label: t.name })),
-                  ];
-                  const currentValue = filterSinCuenta
-                    ? "__sin_cuenta__"
-                    : filterCuentaId
-                      ? String(filterCuentaId)
-                      : "";
-                  return (
-                    <Select
-                      value={currentValue}
-                      onChange={(v) => {
-                        const next = new URLSearchParams(searchParams);
-                        if (v === "__sin_cuenta__") {
-                          next.set("sin_cuenta", "1");
-                          next.delete("cuenta_id");
-                        } else if (v) {
-                          next.set("cuenta_id", v);
-                          next.delete("sin_cuenta");
-                        } else {
-                          next.delete("cuenta_id");
-                          next.delete("sin_cuenta");
-                        }
-                        setSearchParams(next);
-                      }}
-                      options={options}
-                      placeholder="Cuenta"
-                    />
-                  );
-                })()}
-
-                {/* Etiqueta */}
-                {(() => {
-                  const otrosTags = tags.filter((t) => t.group_name === "otros");
-                  const options: { value: string; label: string }[] = [
-                    { value: "", label: "Todas" },
-                    { value: "__untagged__", label: "Sin etiqueta" },
-                    ...otrosTags.map((t) => ({ value: String(t.id), label: t.name })),
-                  ];
-                  const currentTag = filterUntagged
-                    ? "__untagged__"
-                    : filterTagId
-                      ? String(filterTagId)
-                      : "";
-                  return (
-                    <Select
-                      value={currentTag}
-                      onChange={(v) => {
-                        const next = new URLSearchParams(searchParams);
-                        if (v === "__untagged__") {
-                          next.set("untagged", "1");
-                          next.delete("tag_id");
-                        } else if (v) {
-                          next.set("tag_id", v);
-                          next.delete("untagged");
-                        } else {
-                          next.delete("tag_id");
-                          next.delete("untagged");
-                        }
-                        setSearchParams(next);
-                      }}
-                      options={options}
-                      placeholder="Etiqueta"
-                    />
-                  );
-                })()}
-
-                {/* Rango de fechas — presets rápidos o Custom */}
-                <div className="lg:col-span-2">
-                  <DateRangePicker
-                    preset={filters.datePreset}
-                    from={filterDateFrom}
-                    to={filterDateTo}
-                    month={filters.month}
-                    onChange={setDateRange}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <ExpensesFilterBar
+        filters={filters}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        expanded={filtersExpanded}
+        onToggleExpanded={() => setFiltersExpanded((current) => !current)}
+        categories={categories}
+        tags={tags}
+        chips={chips}
+        resultSummary={resultSummary}
+        onCategoryChange={handleCategorySelection}
+        onCuentaChange={setCuenta}
+        onTagChange={setEtiqueta}
+        onDateRangeChange={setDateRange}
+        onClearChip={clearChip}
+        onClearAll={clearFilters}
+      />
 
       {/* Stats cards + Charts */}
-      {expenses.length > 0 &&
+      {ready &&
         (() => {
           const arsExpenses = expenses.filter((e) => (e.currency || "ARS") === "ARS");
           const arsTotal = expenseStats?.total ?? arsExpenses.reduce((s, e) => s + e.amount, 0);

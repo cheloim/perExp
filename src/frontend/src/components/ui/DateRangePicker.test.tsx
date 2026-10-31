@@ -12,7 +12,7 @@ describe("DateRangePicker", () => {
   it("shows the placeholder when there is no range", () => {
     renderPicker();
 
-    expect(screen.getByRole("button", { name: "Fecha" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cualquier fecha" })).toBeInTheDocument();
   });
 
   it("labels a preset in plain Spanish", () => {
@@ -36,7 +36,7 @@ describe("DateRangePicker", () => {
   it("applies a preset in one click", () => {
     const { onChange } = renderPicker();
 
-    fireEvent.click(screen.getByRole("button", { name: "Fecha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cualquier fecha" }));
     fireEvent.click(screen.getByRole("button", { name: "3m" }));
 
     expect(onChange).toHaveBeenLastCalledWith({ preset: "3m" });
@@ -66,7 +66,7 @@ describe("DateRangePicker", () => {
   it("closes on Escape without applying anything", () => {
     const { onChange } = renderPicker();
 
-    fireEvent.click(screen.getByRole("button", { name: "Fecha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cualquier fecha" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });

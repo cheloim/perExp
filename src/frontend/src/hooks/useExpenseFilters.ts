@@ -181,6 +181,42 @@ export function useExpenseFilters() {
 
   const clearDateRange = useCallback(() => setDateRange({}), [setDateRange]);
 
+  const setCuenta = useCallback(
+    (value: string) => {
+      const next = new URLSearchParams(searchParams);
+      if (value === "__sin_cuenta__") {
+        next.set("sin_cuenta", "1");
+        next.delete("cuenta_id");
+      } else if (value) {
+        next.set("cuenta_id", value);
+        next.delete("sin_cuenta");
+      } else {
+        next.delete("cuenta_id");
+        next.delete("sin_cuenta");
+      }
+      setSearchParams(next);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const setEtiqueta = useCallback(
+    (value: string) => {
+      const next = new URLSearchParams(searchParams);
+      if (value === "__untagged__") {
+        next.set("untagged", "1");
+        next.delete("tag_id");
+      } else if (value) {
+        next.set("tag_id", value);
+        next.delete("untagged");
+      } else {
+        next.delete("tag_id");
+        next.delete("untagged");
+      }
+      setSearchParams(next);
+    },
+    [searchParams, setSearchParams],
+  );
+
   // Persist on every settled change. The restore runs first (layout effect), so
   // the empty first render can never overwrite what we are about to restore.
   useEffect(() => {
@@ -214,6 +250,8 @@ export function useExpenseFilters() {
     setCategoryIds,
     setDateRange,
     clearDateRange,
+    setCuenta,
+    setEtiqueta,
     clearFilters,
     ready,
     searchParams,
