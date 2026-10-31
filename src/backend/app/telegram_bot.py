@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import html
 import json
 import logging
 import os
@@ -981,16 +980,6 @@ def _get_user_by_chat_id(chat_id: str) -> User | None:
         db.close()
 
 
-_EXPENSE_IMAGE_SOURCE_LABELS = {
-    "paper_receipt": "ticket en papel",
-    "digital_receipt": "comprobante digital",
-    "bank_notification": "notificación bancaria",
-    "transaction_detail": "detalle de transacción",
-    "wallet_payment": "pago con billetera",
-    "other": "comprobante",
-}
-
-
 async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Extract a single expense draft from a Telegram photo or image document."""
     msg = update.message
@@ -1091,38 +1080,57 @@ async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYP
         from dataclasses import asdict, is_dataclass
 
         draft_data = asdict(draft) if is_dataclass(draft) else dict(draft)
-    draft_id = uuid.uuid4().hex[:10]
-    draft_data["draft_id"] = draft_id
     # Defense in depth: never persist or show a card number, even if a provider
     # (or an older extractor) echoes one in card_hint.
     draft_data["card_hint"] = sanitize_card_hint(draft_data.get("card_hint"))
-    context.user_data["pending_expense_image"] = draft_data
-
-    source_label = _EXPENSE_IMAGE_SOURCE_LABELS.get(source_type, "comprobante")
-    amount_label = _format_amount(float(draft_data["amount"]), draft_data.get("currency", "ARS"))
     date_value = draft_data.get("date")
     if hasattr(date_value, "isoformat"):
         date_value = date_value.isoformat()
-    date_label = date_value or datetime.now(BUE).date().isoformat()
-    date_label = _format_date_es(date_label)
-    card_hint = draft_data.get("card_hint")
-    summary = (
-        f"🧾 Comprobante detectado ({source_label})\n"
-        f"💰 {amount_label}\n"
-        f"🛒 {draft_data['description']}\n"
-        f"📅 {date_label}"
-    )
-    if card_hint:
-        summary += f"\n💳 {card_hint}"
-    summary += "\n\nRevisalo antes de guardar."
+
+    parsed = {
+        "amount": draft_data["amount"],
+        "description": draft_data["description"],
+        "date": date_value or datetime.now(BUE).date().isoformat(),
+        "currency": draft_data.get("currency", "ARS"),
+    }
+
+    db = SessionLocal()
+    try:
+        predicted_category_id, _ = _instant_categorize(parsed, user_id, db)
+        expense = _save_expense(
+            parsed,
+            payment="",
+            person=update.effective_user.full_name if update.effective_user else "",
+            user_id=user_id,
+            predicted_category_id=predicted_category_id,
+            card_id=None,
+            account_id=None,
+            log_content=False,
+        )
+    except Exception as exc:
+        logger.error(
+            "[TELEGRAM_CAPTURE] save_failed error_type=%s",
+            type(exc).__name__,
+        )
+        await msg.reply_text("No pude guardar el gasto. Revisá tus gastos antes de reintentar.")
+        return ConversationHandler.END
+    finally:
+        db.close()
+
+    context.user_data["last_expense_id"] = expense.id
+    context.user_data["last_expense_time"] = time.time()
     keyboard = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("✅ Guardar", callback_data=f"expenseimg:{draft_id}:save")],
-            [InlineKeyboardButton("✏️ Editar", callback_data=f"expenseimg:{draft_id}:edit")],
-            [InlineKeyboardButton("❌ Cancelar", callback_data=f"expenseimg:{draft_id}:cancel")],
+            [
+                InlineKeyboardButton(
+                    "✏️ Editar",
+                    callback_data=f"quickedit:{expense.id}",
+                    style="primary",
+                )
+            ]
         ]
     )
-    await msg.reply_text(summary, reply_markup=keyboard)
+    await msg.reply_text(_quick_saved_text(expense), reply_markup=keyboard)
     return ConversationHandler.END
 
 
@@ -2075,7 +2083,6 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("No pude entender el audio. Probá de nuevo.")
         return ConversationHandler.END
 
-    await update.message.reply_text(f"🎤 Entendí: <i>{html.escape(text)}</i>", parse_mode="HTML")
     return await _process_text_expense(update, context, text=text, source="voice")
 
 

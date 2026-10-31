@@ -36,6 +36,60 @@ def levels_crossed(pct: float, levels: list[float]) -> list[float]:
     return [level for level in sorted(levels) if pct >= level]
 
 
+def existing_alert_levels(
+    db: Session,
+    user_id: int,
+    month_key: str,
+    *,
+    group_name: str | None = None,
+    category_id: int | None = None,
+) -> set[float]:
+    """Levels already notified this month for one budget or macro group.
+
+    Read notifications count too: reading an alert does not mean the level was
+    never reached. Parsing the payload avoids substring collisions such as
+    category 1 matching category 12.
+    """
+    from app.models import Notification
+
+    query = db.query(Notification).filter(
+        Notification.user_id == user_id,
+        Notification.type == "budget_warning",
+        Notification.data.contains(f'"month": "{month_key}"'),
+    )
+    levels: set[float] = set()
+    for notification in query.all():
+        try:
+            data = json.loads(notification.data or "{}")
+        except (TypeError, ValueError):
+            continue
+        if data.get("month") != month_key:
+            continue
+        if group_name is not None and data.get("group_name") != group_name:
+            continue
+        if category_id is not None and data.get("category_id") != category_id:
+            continue
+        try:
+            levels.add(round(float(data["level"]), 4))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return levels
+
+
+def highest_new_alert_level(
+    pct: float, levels: list[float], existing_levels: set[float]
+) -> float | None:
+    """The highest level crossed now that is above everything already notified.
+
+    A single expense can jump from 70% to 146%. Sending 75%, 90% and 100% at
+    once produces three identical-looking Telegram messages. The highest new
+    level carries the news; lower ones are implicitly covered.
+    """
+    already_notified = max(existing_levels, default=0.0)
+    new_levels = [level for level in levels_crossed(pct, levels) if level > already_notified]
+    return max(new_levels) if new_levels else None
+
+
 def get_group_user_ids(user_id: int, db: Session) -> list[int]:
     """Get all user IDs in the same family group."""
     from app.models import GroupMember
@@ -204,7 +258,7 @@ def check_budget_threshold_on_expense(
 
 
 def _check_budget_threshold(db: Session, user_id: int, category_id: int) -> None:
-    from app.models import Budget, BudgetGroup, Category, Notification, Setting
+    from app.models import Budget, BudgetGroup, Category, Setting
     from app.services.notify import notify_user
 
     # Check if alerts enabled for user
@@ -235,23 +289,10 @@ def _check_budget_threshold(db: Session, user_id: int, category_id: int) -> None
     if budget and budget.amount > 0:
         spent = get_spending_for_category(category_id, year, month, uid_list, db)
         pct = spent / budget.amount
+        existing_levels = existing_alert_levels(db, user_id, month_key, category_id=category_id)
+        level = highest_new_alert_level(pct, get_alert_levels(budget), existing_levels)
 
-        for level in levels_crossed(pct, get_alert_levels(budget)):
-            existing = (
-                db.query(Notification)
-                .filter(
-                    Notification.user_id == user_id,
-                    Notification.type == "budget_warning",
-                    Notification.data.contains(f'"category_id": {category_id}'),
-                    Notification.data.contains(f'"month": "{month_key}"'),
-                    Notification.data.contains(f'"level": {level}'),
-                    Notification.read == False,  # noqa: E712
-                )
-                .first()
-            )
-
-            if existing:
-                continue
+        if level is not None:
             is_exceeded = pct >= 1.0 or level >= 1.0
             status = "exceeded" if is_exceeded else "warning"
             notify_user(
@@ -293,24 +334,10 @@ def _check_budget_threshold(db: Session, user_id: int, category_id: int) -> None
     pct = group_spent / group.amount
 
     display_names = {"necesidades": "Necesidades", "gustos": "Gustos", "ahorro": "Ahorro"}
+    existing_levels = existing_alert_levels(db, user_id, month_key, group_name=cat.budget_group)
+    level = highest_new_alert_level(pct, get_alert_levels(group), existing_levels)
 
-    for level in levels_crossed(pct, get_alert_levels(group)):
-        existing = (
-            db.query(Notification)
-            .filter(
-                Notification.user_id == user_id,
-                Notification.type == "budget_warning",
-                Notification.data.contains(f'"group_name": "{cat.budget_group}"'),
-                Notification.data.contains(f'"month": "{month_key}"'),
-                Notification.data.contains(f'"level": {level}'),
-                Notification.read == False,  # noqa: E712
-            )
-            .first()
-        )
-
-        if existing:
-            continue
-
+    if level is not None:
         is_exceeded = pct >= 1.0 or level >= 1.0
         status = "exceeded" if is_exceeded else "warning"
         notify_user(

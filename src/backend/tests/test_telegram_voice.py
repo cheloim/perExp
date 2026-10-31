@@ -68,7 +68,7 @@ def authorized(monkeypatch):
     monkeypatch.setattr(telegram_bot, "check_rate_limit", lambda *args: (True, 0))
 
 
-def test_voice_transcribes_echoes_and_processes_as_text(monkeypatch, authorized):
+def test_voice_transcribes_and_processes_without_an_echo(monkeypatch, authorized):
     update = make_update(media=make_media())
     context = make_context()
     processed = []
@@ -92,7 +92,7 @@ def test_voice_transcribes_echoes_and_processes_as_text(monkeypatch, authorized)
 
     asyncio.run(telegram_bot.handle_voice_message(update, context))
 
-    assert update.message.replies[0] == "🎤 Entendí: <i>supermercado 15200 &lt;x&gt;</i>"
+    assert update.message.replies == []
     assert processed[0]["text"] == "supermercado 15200 <x>"
     assert processed[0]["source"] == "voice"
 

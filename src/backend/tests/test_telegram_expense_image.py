@@ -59,7 +59,7 @@ def fake_context():
     return SimpleNamespace(user_data={})
 
 
-def test_valid_image_shows_confirmation_and_saves_draft(
+def test_valid_image_saves_directly_without_confirmation(
     monkeypatch, fake_photo_update, fake_context, caplog
 ):
     caplog.set_level("INFO")
@@ -80,25 +80,44 @@ def test_valid_image_shows_confirmation_and_saves_draft(
         )
     )
     monkeypatch.setattr(telegram_bot, "extract_expense_from_image", extract)
+    monkeypatch.setattr(telegram_bot, "SessionLocal", lambda: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(
+        telegram_bot,
+        "_instant_categorize",
+        lambda *_: (7, [SimpleNamespace(id=7, name="Alimentos")]),
+    )
+    saved = {}
+
+    def fake_save(parsed, **kwargs):
+        saved.update(parsed=parsed, kwargs=kwargs)
+        return SimpleNamespace(
+            id=99,
+            amount=15200,
+            currency="ARS",
+            description="Supermercado Coto",
+            category_id=7,
+        )
+
+    monkeypatch.setattr(telegram_bot, "_save_expense", fake_save)
+    monkeypatch.setattr(telegram_bot, "_quick_saved_text", lambda *_: "✅ Guardado")
 
     asyncio.run(telegram_bot.handle_expense_image(fake_photo_update, fake_context))
 
-    assert "Comprobante detectado (notificación bancaria)" in fake_photo_update.message.replies[-1]
+    assert saved["parsed"]["amount"] == 15200
+    assert saved["parsed"]["description"] == "Supermercado Coto"
+    assert saved["kwargs"]["predicted_category_id"] == 7
+    assert fake_photo_update.message.replies[-1] == "✅ Guardado"
     buttons = fake_photo_update.message.reply_markups[-1].inline_keyboard
-    callback_parts = [button.callback_data.split(":") for row in buttons for button in row]
-    draft_id = fake_context.user_data["pending_expense_image"]["draft_id"]
-    assert all(len(parts) == 3 for parts in callback_parts)
-    assert [parts[0] for parts in callback_parts] == ["expenseimg"] * 3
-    assert [parts[1] for parts in callback_parts] == [draft_id] * 3
-    assert [parts[2] for parts in callback_parts] == ["save", "edit", "cancel"]
+    assert len(buttons) == 1
+    assert len(buttons[0]) == 1
+    assert buttons[0][0].callback_data == "quickedit:99"
     extract.assert_called_once_with(
         b"image-bytes",
         mime_type="image/jpeg",
         hint="Compra del super",
         api_key_env="MESSAGES_BOT_LLM_API_KEY",
     )
-    assert fake_context.user_data["pending_expense_image"]["amount"] == 15200
-    assert fake_context.user_data["pending_expense_image"]["card_hint"] == "Visa"
+    assert "pending_expense_image" not in fake_context.user_data
     assert "4521" not in fake_photo_update.message.replies[-1]
     assert "15200" not in caplog.text
     assert "Supermercado Coto" not in caplog.text
@@ -198,10 +217,27 @@ def test_missing_file_size_processes_small_downloaded_payload(
         )
     )
     monkeypatch.setattr(telegram_bot, "extract_expense_from_image", extractor)
+    monkeypatch.setattr(telegram_bot, "SessionLocal", lambda: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(telegram_bot, "_instant_categorize", lambda *_: (None, []))
+    saved = []
+
+    def fake_save(parsed, **_kwargs):
+        saved.append(parsed)
+        return SimpleNamespace(
+            id=100,
+            amount=800,
+            currency="ARS",
+            description="Kiosco",
+            category_id=None,
+        )
+
+    monkeypatch.setattr(telegram_bot, "_save_expense", fake_save)
+    monkeypatch.setattr(telegram_bot, "_quick_saved_text", lambda *_: "✅ Guardado")
 
     asyncio.run(telegram_bot.handle_expense_image(fake_photo_update, fake_context))
 
-    assert fake_context.user_data["pending_expense_image"]["description"] == "Kiosco"
+    assert saved[0]["description"] == "Kiosco"
+    assert "pending_expense_image" not in fake_context.user_data
     extractor.assert_called_once()
 
 
@@ -344,7 +380,7 @@ def test_edit_and_cancel_clear_the_pending_draft(monkeypatch, callback_data, exp
     assert "pending_expense_image" not in context.user_data
 
 
-def test_old_confirmation_cannot_save_the_newer_image_draft(
+def test_two_images_are_saved_independently_without_a_pending_draft(
     monkeypatch, fake_photo_update, fake_context
 ):
     results = [
@@ -377,34 +413,40 @@ def test_old_confirmation_cannot_save_the_newer_image_draft(
     ]
     extract = Mock(side_effect=results)
     monkeypatch.setattr(telegram_bot, "extract_expense_from_image", extract)
+    monkeypatch.setattr(telegram_bot, "SessionLocal", lambda: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(
+        telegram_bot,
+        "_instant_categorize",
+        lambda *_: (None, []),
+    )
+    saved = []
+    next_id = iter([101, 102])
+
+    def fake_save(parsed, **_kwargs):
+        saved.append(parsed)
+        return SimpleNamespace(
+            id=next(next_id),
+            amount=parsed["amount"],
+            currency=parsed["currency"],
+            description=parsed["description"],
+            category_id=None,
+        )
+
+    monkeypatch.setattr(telegram_bot, "_save_expense", fake_save)
+    monkeypatch.setattr(telegram_bot, "_quick_saved_text", lambda *_: "✅ Guardado")
 
     asyncio.run(telegram_bot.handle_expense_image(fake_photo_update, fake_context))
-    old_callback_data = (
-        fake_photo_update.message.reply_markups[0].inline_keyboard[0][0].callback_data
-    )
-    first_draft_id = fake_context.user_data["pending_expense_image"]["draft_id"]
-
     fake_photo_update.message.photo = [FakeMedia(data=b"second-image")]
     asyncio.run(telegram_bot.handle_expense_image(fake_photo_update, fake_context))
+
     assert [call.args[0] for call in extract.call_args_list] == [
         b"image-bytes",
         b"second-image",
     ]
-    assert fake_context.user_data["pending_expense_image"]["description"] == "Comercio B"
-    assert fake_context.user_data["pending_expense_image"]["draft_id"] != first_draft_id
-
-    query = FakeCallbackQuery(old_callback_data)
-    update = SimpleNamespace(
-        callback_query=query,
-        effective_chat=SimpleNamespace(id=987),
-        effective_user=SimpleNamespace(full_name="Test"),
-    )
-    save_expense = Mock()
-    monkeypatch.setattr(telegram_bot, "_get_user_by_chat_id", lambda _: SimpleNamespace(id=42))
-    monkeypatch.setattr(telegram_bot, "_save_expense", save_expense)
-
-    asyncio.run(telegram_bot.handle_expense_image_callback(update, fake_context))
-
-    save_expense.assert_not_called()
-    assert query.edited_text == "Este comprobante ya no está vigente. Mandá la imagen de nuevo."
-    assert fake_context.user_data["pending_expense_image"]["description"] == "Comercio B"
+    assert [item["description"] for item in saved] == ["Comercio A", "Comercio B"]
+    assert "pending_expense_image" not in fake_context.user_data
+    callbacks = [
+        markup.inline_keyboard[0][0].callback_data
+        for markup in fake_photo_update.message.reply_markups
+    ]
+    assert callbacks == ["quickedit:101", "quickedit:102"]
