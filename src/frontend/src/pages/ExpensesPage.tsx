@@ -9,7 +9,6 @@ import {
   getTags,
   bulkUpdateTags,
   getExpenseStats,
-  getExpensesByPerson,
   createExpense,
   updateExpense,
   deleteExpense,
@@ -30,7 +29,6 @@ import QuickEditPopover from "../components/QuickEditPopover";
 import BulkActionBar from "../components/BulkActionBar";
 import BulkTagPicker from "../components/BulkTagPicker";
 import { getCategoryIcon } from "../utils/categoryIcon";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import {
   formatCurrency,
   titleCase,
@@ -90,6 +88,37 @@ function selectionSummary(selected: Expense[]): string {
   return [...totals.entries()]
     .map(([currency, total]) => formatCurrency(total, currency))
     .join(" + ");
+}
+
+function SortableHeader({
+  field,
+  label,
+  className,
+  sort,
+  onSort,
+}: {
+  field: SortField;
+  label: string;
+  className: string;
+  sort: { field: SortField; dir: SortDir };
+  onSort: (field: SortField) => void;
+}) {
+  const active = sort.field === field;
+  return (
+    <th
+      scope="col"
+      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
+      className={className}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className="inline-flex w-full items-center gap-1 text-left"
+      >
+        {label} <SortIcon field={field} sort={sort} />
+      </button>
+    </th>
+  );
 }
 
 export default function ExpensesPage() {
@@ -200,7 +229,11 @@ export default function ExpensesPage() {
 
   const invalidate = () => invalidateExpenseQueries(queryClient);
 
-  const { data: expenses = [], isLoading } = useQuery<Expense[]>({
+  const {
+    data: expenses = [],
+    isLoading,
+    isFetching,
+  } = useQuery<Expense[]>({
     queryKey: expenseQueryKeys.list(filterKey, visibleCount),
     queryFn: () => getExpenses({ ...filterParams, limit: visibleCount }),
     placeholderData: (prev) => prev,
@@ -219,15 +252,10 @@ export default function ExpensesPage() {
     staleTime: 300_000,
   });
 
-  const { data: expenseStats } = useQuery({
+  const { data: expenseStats, isFetching: statsFetching } = useQuery({
     queryKey: expenseQueryKeys.stats(filterKey),
     queryFn: () => getExpenseStats(filterParams),
-    enabled: ready,
-  });
-
-  const { data: personBreakdown = [] } = useQuery({
-    queryKey: expenseQueryKeys.byPerson(filterKey),
-    queryFn: () => getExpensesByPerson(filterParams),
+    placeholderData: (prev) => prev,
     enabled: ready,
   });
 
@@ -239,6 +267,12 @@ export default function ExpensesPage() {
     field: "date",
     dir: "desc",
   });
+  const handleSort = (field: SortField) => {
+    setSort((current) => ({
+      field,
+      dir: current.field === field && current.dir === "asc" ? "desc" : "asc",
+    }));
+  };
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkPicker, setBulkPicker] = useState<{
     type: "category" | "cuenta" | "tags";
@@ -846,61 +880,63 @@ export default function ExpensesPage() {
                 </Link>
               </div>
               {/* Stats cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div
+                aria-busy={statsFetching}
+                className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${
+                  statsFetching ? "opacity-70" : ""
+                }`}
+              >
                 <div className="card p-3">
                   <p className="text-[10px] text-tertiary uppercase">Total</p>
-                  <p className="text-lg font-bold text-primary">{formatCurrency(arsTotal)}</p>
+                  <p className="text-lg font-bold text-primary">
+                    {expenseStats === undefined ? (
+                      <span className="inline-block h-5 w-20 animate-pulse rounded bg-[var(--color-base-alt)]" />
+                    ) : (
+                      formatCurrency(arsTotal)
+                    )}
+                  </p>
                 </div>
                 <div className="card p-3">
                   <p className="text-[10px] text-tertiary uppercase">Gastos</p>
-                  <p className="text-lg font-bold text-primary">{totalCount}</p>
+                  <p className="text-lg font-bold text-primary">
+                    {expenseStats === undefined ? (
+                      <span className="inline-block h-5 w-10 animate-pulse rounded bg-[var(--color-base-alt)]" />
+                    ) : (
+                      totalCount
+                    )}
+                  </p>
                 </div>
                 <div className="card p-3">
                   <p className="text-[10px] text-tertiary uppercase">Promedio</p>
-                  <p className="text-lg font-bold text-primary">{formatCurrency(avg)}</p>
+                  <p className="text-lg font-bold text-primary">
+                    {expenseStats === undefined ? (
+                      <span className="inline-block h-5 w-20 animate-pulse rounded bg-[var(--color-base-alt)]" />
+                    ) : (
+                      formatCurrency(avg)
+                    )}
+                  </p>
                 </div>
                 <div className="card p-3">
                   <p className="text-[10px] text-tertiary uppercase">Mayor gasto</p>
-                  <p className="text-lg font-bold text-primary">{formatCurrency(max)}</p>
+                  <p className="text-lg font-bold text-primary">
+                    {expenseStats === undefined ? (
+                      <span className="inline-block h-5 w-20 animate-pulse rounded bg-[var(--color-base-alt)]" />
+                    ) : (
+                      formatCurrency(max)
+                    )}
+                  </p>
                 </div>
               </div>
-
-              {/* Charts row */}
-              {personBreakdown.length > 1 && (
-                <div className="card p-4">
-                  <h3 className="text-sm font-medium text-secondary mb-3">Por Titular</h3>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <BarChart
-                      data={personBreakdown.slice(0, 5)}
-                      layout="vertical"
-                      margin={{ left: 10, right: 10, top: 0, bottom: 0 }}
-                    >
-                      <XAxis type="number" hide />
-                      <YAxis
-                        type="category"
-                        dataKey="person"
-                        width={80}
-                        tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
-                      />
-                      <Tooltip
-                        formatter={(v: number) => formatCurrency(v)}
-                        contentStyle={{ fontSize: 11, borderRadius: 6 }}
-                      />
-                      <Bar
-                        dataKey="total"
-                        fill="var(--color-primary)"
-                        radius={[0, 4, 4, 0]}
-                        barSize={16}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
             </>
           );
         })()}
 
-      <div className="card overflow-hidden">
+      <div
+        aria-busy={isFetching && !isLoading}
+        className={`card overflow-hidden transition-opacity ${
+          isFetching && !isLoading ? "opacity-60" : ""
+        }`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-[var(--color-surface)] border-b border-[var(--border-color)]">
@@ -921,53 +957,37 @@ export default function ExpensesPage() {
                     }
                   />
                 </th>
-                <th
+                <SortableHeader
+                  field="date"
+                  label="Fecha"
                   className={thClass("date") + " hidden sm:table-cell"}
-                  onClick={() =>
-                    setSort({
-                      field: "date",
-                      dir: sort.dir === "asc" && sort.field === "date" ? "desc" : "asc",
-                    })
-                  }
-                >
-                  Fecha <SortIcon field="date" sort={sort} />
-                </th>
-                <th
+                  sort={sort}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  field="description"
+                  label="Descripción"
                   className={thClass("description")}
-                  onClick={() =>
-                    setSort({
-                      field: "description",
-                      dir: sort.dir === "asc" && sort.field === "description" ? "desc" : "asc",
-                    })
-                  }
-                >
-                  Descripción <SortIcon field="description" sort={sort} />
-                </th>
-                <th
+                  sort={sort}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  field="category"
+                  label="Categoría"
                   className={thClass("category") + " hidden sm:table-cell"}
-                  onClick={() =>
-                    setSort({
-                      field: "category",
-                      dir: sort.field === "category" && sort.dir === "asc" ? "desc" : "asc",
-                    })
-                  }
-                >
-                  Categoría <SortIcon field="category" sort={sort} />
-                </th>
+                  sort={sort}
+                  onSort={handleSort}
+                />
                 <th className="px-3 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase hidden md:table-cell">
                   Cuenta
                 </th>
-                <th
+                <SortableHeader
+                  field="amount"
+                  label="Monto"
                   className={thClass("amount")}
-                  onClick={() =>
-                    setSort({
-                      field: "amount",
-                      dir: sort.dir === "asc" && sort.field === "amount" ? "desc" : "asc",
-                    })
-                  }
-                >
-                  Monto <SortIcon field="amount" sort={sort} />
-                </th>
+                  sort={sort}
+                  onSort={handleSort}
+                />
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-color)]">
@@ -1118,6 +1138,7 @@ export default function ExpensesPage() {
                                   e.stopPropagation();
                                   setDetailExpense(exp);
                                 }}
+                                aria-label={`Abrir detalle de ${exp.description}`}
                                 className="text-left hover:text-primary transition flex flex-col sm:flex-row items-start gap-1 sm:gap-2 min-w-0 flex-1"
                               >
                                 {!isDateSort && (
@@ -1137,7 +1158,7 @@ export default function ExpensesPage() {
                                   )}
                                 </span>
                               </button>
-                              <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -1145,6 +1166,7 @@ export default function ExpensesPage() {
                                   }}
                                   className="p-1 rounded text-[var(--text-tertiary)] hover:text-primary hover:bg-[var(--color-base-alt)] transition"
                                   title="Editar"
+                                  aria-label={`Editar ${exp.description}`}
                                 >
                                   <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                                     <path
@@ -1165,6 +1187,7 @@ export default function ExpensesPage() {
                                   }}
                                   className="p-1 rounded text-[var(--text-tertiary)] hover:text-danger hover:bg-[var(--color-base-alt)] transition"
                                   title="Eliminar"
+                                  aria-label={`Eliminar ${exp.description}`}
                                 >
                                   <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                                     <path

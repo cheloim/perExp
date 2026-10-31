@@ -83,7 +83,7 @@ export function ExpensesFilterBar({
   const tagValue = filters.untagged ? "__untagged__" : filters.tagId ? String(filters.tagId) : "";
 
   return (
-    <div className="card" data-testid="expense-filters">
+    <div className={`card ${expanded ? "" : "sticky top-0 z-20"}`} data-testid="expense-filters">
       <div className="space-y-3 p-3">
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
