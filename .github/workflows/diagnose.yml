@@ -1,7 +1,25 @@
 name: Diagnose Server
 
+# Diagnóstico de solo lectura sobre el servidor de producción.
+# Reemplaza la versión anterior, que usaba secrets `LINODE_*` y nombres de
+# contenedores `creditcardanalyzer_*` que ya no existen desde la
+# desagregación de pods (#244).
+
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Qué inspeccionar"
+        required: true
+        default: "landing"
+        type: choice
+        options:
+          - landing
+          - platform
+          - nginx
+          - bots
+          - infra
+          - all
 
 permissions:
   contents: read
@@ -10,58 +28,86 @@ jobs:
   diagnose:
     runs-on: ubuntu-latest
     steps:
-      - name: Check server status
+      - name: Inspect server state
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.LINODE_SERVER_IP }}
-          username: ${{ secrets.LINODE_SSH_USER }}
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 43422
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT || '43422' }}
+          command_timeout: 5m
           script: |
+            set -u
             cd /opt/creditcardanalyzer
-            set -a
-            source .env
-            set +a
+            set -a; source .env 2>/dev/null; set +a
 
-            echo "=== All containers ==="
+            SERVICE="${{ inputs.service }}"
+
+            echo "=== Containers ==="
             podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
             echo ""
-            echo "=== Backend logs (last 100 lines) ==="
-            podman logs creditcardanalyzer_backend_1 --tail 100 2>&1
+            echo "=== Disk / memory ==="
+            df -h / | tail -1
+            free -h | head -2
+
+            dump_service() {
+              local pattern="$1"
+              local name="$2"
+              local c
+              c=$(podman ps -a --format '{{.Names}}' | grep -E "$pattern" | head -1)
+              if [ -z "$c" ]; then
+                echo "[$name] no container matching $pattern"
+                return 0
+              fi
+
+              echo ""
+              echo "=== [$name] $c ==="
+              podman inspect --format='status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}} image={{.ImageName}}' "$c" 2>/dev/null
+
+              echo "--- health log (últimos 5) ---"
+              podman inspect --format='{{range .State.Health.Log}}exit={{.ExitCode}} start={{.Start}} out={{.Output}}{{"\n"}}{{end}}' "$c" 2>/dev/null | tail -10
+
+              echo "--- healthcheck definition ---"
+              podman inspect --format='{{json .Config.Healthcheck}}' "$c" 2>/dev/null
+
+              echo "--- HTTP desde dentro del contenedor ---"
+              podman exec "$c" sh -c 'wget -qO- http://localhost:80/ >/dev/null 2>&1; echo "wget_exit=$?"' 2>/dev/null \
+                || echo "wget no disponible o exec falló"
+              podman exec "$c" sh -c 'curl -s -o /dev/null -w "curl_http=%{http_code}\n" http://localhost:80/' 2>/dev/null \
+                || echo "curl no disponible"
+              podman exec "$c" sh -c 'nginx -t' 2>&1 | tail -3 || true
+
+              echo "--- DNS de upstreams ---"
+              podman exec "$c" sh -c 'getent hosts backend || echo "backend: no resuelve"' 2>/dev/null || true
+
+              echo "--- últimas líneas del contenedor ---"
+              podman logs --tail 25 "$c" 2>&1 | tail -25
+            }
+
+            case "$SERVICE" in
+              landing)  dump_service '_landing_' landing ;;
+              platform) dump_service 'platform_backend' backend; dump_service 'platform_frontend' frontend ;;
+              nginx)    dump_service '_nginx_' nginx ;;
+              bots)     dump_service '_bots_' bots ;;
+              infra)    dump_service 'infra_db' db; dump_service 'infra_redis' redis ;;
+              all)
+                dump_service '_landing_' landing
+                dump_service 'platform_backend' backend
+                dump_service 'platform_frontend' frontend
+                dump_service '_nginx_' nginx
+                dump_service 'infra_db' db
+                dump_service 'infra_redis' redis
+                ;;
+            esac
 
             echo ""
-            echo "=== Backend healthcheck ==="
-            podman inspect --format='{{.State.Health.Status}}' creditcardanalyzer_backend_1 2>/dev/null || echo "no healthcheck"
-            podman inspect --format='{{range .State.Health.Log}}{{.ExitCode}}: {{.Output}}{{end}}' creditcardanalyzer_backend_1 2>/dev/null || echo "no health log"
+            echo "=== Checks desde el host ==="
+            echo -n "landing https: "; curl -sk -o /dev/null -w "%{http_code}\n" "https://$DOMAIN_NAME/" || echo "000"
+            echo -n "platform api:  "; curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8000/docs || echo "000"
+            echo -n "landing local: "; curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/ || echo "000"
 
             echo ""
-            echo "=== Direct backend curl (localhost:8000/docs) ==="
-            curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/docs 2>/dev/null || echo "unreachable"
-            echo ""
-
-            echo ""
-            echo "=== Nginx curl (localhost:443/api/docs) ==="
-            curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1/api/docs 2>/dev/null || echo "unreachable"
-            echo ""
-
-            echo ""
-            echo "=== Edge nginx curl (localhost:443) ==="
-            curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1/ 2>/dev/null || echo "unreachable"
-            echo ""
-
-            echo ""
-            echo "=== Nginx error log ==="
-            podman logs creditcardanalyzer_nginx_1 --tail 30 2>&1
-
-            echo ""
-            echo "=== Frontend nginx log ==="
-            podman logs creditcardanalyzer_frontend_1 --tail 30 2>&1
-
-            echo ""
-            echo "=== Docker compose file ==="
-            cat docker-compose.yml | head -20
-
-            echo ""
-            echo "=== .env IMAGE_TAG ==="
-            grep IMAGE_TAG .env
+            echo "=== Nginx upstream del landing ==="
+            podman exec "$(podman ps --format '{{.Names}}' | grep -E '_nginx_' | head -1)" \
+              sh -c 'nginx -T 2>/dev/null | grep -A3 -B1 "server_name .*oikonomia.ar" | head -20' 2>/dev/null || true

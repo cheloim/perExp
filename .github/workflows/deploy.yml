@@ -12,6 +12,9 @@ on:
       - ".github/**"
       - "LICENSE"
       - ".gitignore"
+      - ".env.example"
+      - "SECURITY.md"
+      - "CONTRIBUTING.md"
       - "assets/**"
       - "tests/**"
   workflow_dispatch:
