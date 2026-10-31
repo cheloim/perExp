@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "@playwright/test";
-import { mockBackend, seedAuth } from "./helpers";
+import { mockBackend, seedAuth, settleOpenAnimations } from "./helpers";
 
 /**
  * Both recurring modals share one shell. The auto-detected review used to paint
@@ -58,6 +58,9 @@ test("the detected review is an accessible Adwaita dialog", async ({ page }) => 
   expect(className).toContain("bg-[var(--color-surface)]");
   expect(className).not.toContain("bg-gradient");
 
+  // The panel and backdrop animate in; scanning mid-animation blends the
+  // colors and produces false contrast failures on slower devices.
+  await settleOpenAnimations(dialog);
   const results = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
   expect(results.violations).toEqual([]);
 
