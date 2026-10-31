@@ -235,6 +235,12 @@ test("the category analysis links out and no chart request is made", async ({ pa
   expect(chartRequests).toHaveLength(0);
 });
 
+test("the footer says how many of the total are shown", async ({ page }) => {
+  await openExpenses(page);
+
+  await expect(page.getByText("Mostrando 3 de 3 gastos")).toBeVisible();
+});
+
 test("the collapsed filter bar is pinned and the expanded one is not", async ({ page }) => {
   await openExpenses(page);
 

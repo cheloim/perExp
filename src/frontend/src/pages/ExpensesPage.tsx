@@ -40,6 +40,7 @@ import { useExpenseFilters } from "../hooks/useExpenseFilters";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { expenseQueryKeys, invalidateExpenseQueries } from "../utils/expenseQueries";
 import { buildFilterChips, type FilterChip } from "../utils/expenseFilterChips";
+import { hasMorePages, paginationLabel } from "../utils/pagination";
 import { ExpensesFilterBar } from "../components/expenses/ExpensesFilterBar";
 
 type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
@@ -1447,8 +1448,10 @@ export default function ExpensesPage() {
 
       {expenses.length > 0 && (
         <div className="flex items-center justify-between">
-          <p className="text-xs text-[var(--text-tertiary)]">{expenses.length} gastos</p>
-          {expenses.length >= visibleCount && (
+          <p className="text-xs text-[var(--text-tertiary)]" aria-live="polite">
+            {paginationLabel(expenses.length, expenseStats?.count)}
+          </p>
+          {hasMorePages(expenses.length, expenseStats?.count, visibleCount) && (
             <button
               onClick={() => setVisibleCount((prev) => prev + 100)}
               className="text-xs text-[var(--color-primary)] hover:underline font-medium"
