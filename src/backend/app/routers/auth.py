@@ -23,8 +23,10 @@ from app.schemas import (
     OAuthRequest,
     ResetPasswordRequest,
     TelegramLoginWidgetRequest,
+    TelegramOidcExchangeRequest,
     TelegramOidcLinkRequest,
     TelegramOidcRequest,
+    TelegramOidcStateResponse,
     TelegramWebAppRequest,
     Token,
     UserCreate,
@@ -42,6 +44,13 @@ from app.services.auth import (
 from app.services.email import send_password_reset_email, send_verification_email
 from app.services.encryption import compute_hmac
 from app.services.mfa import verify_totp
+from app.services.oidc_state import (
+    OidcStateUnavailableError,
+    consume_login_code,
+    consume_state,
+    create_login_code,
+    create_state,
+)
 from app.services.rate_limit import (
     check_rate_limit,
     is_account_locked,
@@ -668,6 +677,70 @@ async def telegram_oidc_login(
 
 
 @router.get(
+    "/telegram/state",
+    response_model=TelegramOidcStateResponse,
+    summary="Create a one-time state for the Telegram OIDC redirect",
+    description="Returns a short-lived state that the client sends to Telegram and the callback validates. Requires Redis; fails closed if unavailable.",
+)
+def telegram_oidc_state(request: Request):
+    client_ip = _get_client_ip(request)
+    allowed, retry_after = check_rate_limit(client_ip, "login")
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados intentos. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
+    try:
+        state = create_state()
+    except OidcStateUnavailableError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No se pudo iniciar el flujo de Telegram. Intentá de nuevo.",
+        )
+    return TelegramOidcStateResponse(state=state)
+
+
+@router.post(
+    "/telegram/exchange",
+    response_model=Token,
+    summary="Exchange a one-time Telegram login code for an access token",
+    description="Consumes a one-time code issued by the Telegram OIDC callback and returns the access token. The code can be used only once.",
+)
+def telegram_oidc_exchange(
+    body: TelegramOidcExchangeRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    client_ip = _get_client_ip(request)
+    allowed, retry_after = check_rate_limit(client_ip, "login")
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados intentos. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    user_id = consume_login_code(body.code)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Código de autenticación inválido o expirado")
+
+    user = db.get(User, user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
+    if user.is_blocked:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cuenta bloqueada")
+
+    _log_audit(db, user.id, "telegram_oidc_login", request)
+    _record_login(db, user)
+    LOGIN_ATTEMPTS.labels(method="telegram_oidc", status="success").inc()
+    token = create_access_token(user.id)
+    _set_auth_cookie(response, token)
+    return Token(access_token=token, token_type="bearer")
+
+
+@router.get(
     "/telegram/callback",
     summary="Telegram OIDC callback",
     description="Handles the redirect from Telegram's OIDC authorization endpoint. Exchanges code for token and redirects to frontend.",
@@ -690,6 +763,11 @@ async def telegram_oidc_callback(
     from fastapi.responses import RedirectResponse
 
     from app.services.telegram_oidc import exchange_code, verify_id_token
+
+    # Validate the state before exchanging the code. The state is consumed
+    # atomically so a replay cannot complete a second login.
+    if not consume_state(state):
+        return RedirectResponse(url=f"{frontend_callback}?error=telegram_state_invalid")
 
     # Exchange code for tokens — must use same redirect_uri as authorization request
     token_data = await exchange_code(code, oidc_redirect_uri)
@@ -727,13 +805,16 @@ async def telegram_oidc_callback(
     if not user.is_active or user.is_blocked:
         return RedirectResponse(url=f"{frontend_callback}?error=telegram_account_issue")
 
-    _log_audit(db, user.id, "telegram_oidc_login", request)
-    _record_login(db, user)
-    LOGIN_ATTEMPTS.labels(method="telegram_oidc", status="success").inc()
+    _log_audit(db, user.id, "telegram_oidc_callback", request)
 
-    # Redirect to frontend with token
-    access_token = create_access_token(user.id)
-    return RedirectResponse(url=f"{frontend_callback}?token={access_token}")
+    try:
+        login_code = create_login_code(user.id)
+    except OidcStateUnavailableError:
+        return RedirectResponse(url=f"{frontend_callback}?error=telegram_state_unavailable")
+
+    # Never put the access token in the URL: the frontend exchanges this
+    # short-lived, single-use code for the token via POST.
+    return RedirectResponse(url=f"{frontend_callback}?code={login_code}&state={state}")
 
 
 @router.post(

@@ -2233,6 +2233,40 @@ paths:
       responses:
         '200':
           description: Login via Telegram OpenID Connect
+  /auth/telegram/state:
+    get:
+      tags:
+        - auth
+      summary: Create a one-time state for the Telegram OIDC redirect
+      description: Returns a short-lived state that the client sends to Telegram and the callback validates. Requires Redis; fails closed if unavailable.
+      operationId: telegram_oidc_state_auth_telegram_state_get
+      responses:
+        '200':
+          description: Create a one-time state for the Telegram OIDC redirect
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramOidcStateResponse'
+  /auth/telegram/exchange:
+    post:
+      tags:
+        - auth
+      summary: Exchange a one-time Telegram login code for an access token
+      description: Consumes a one-time code issued by the Telegram OIDC callback and returns the access token. The code can be used only once.
+      operationId: telegram_oidc_exchange_auth_telegram_exchange_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramOidcExchangeRequest'
+        required: true
+      responses:
+        '200':
+          description: Exchange a one-time Telegram login code for an access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
   /auth/telegram/callback:
     get:
       tags:
@@ -5899,6 +5933,24 @@ components:
         - code
         - redirect_uri
       title: TelegramOidcRequest
+    TelegramOidcExchangeRequest:
+      properties:
+        code:
+          type: string
+          title: Code
+      type: object
+      required:
+        - code
+      title: TelegramOidcExchangeRequest
+    TelegramOidcStateResponse:
+      properties:
+        state:
+          type: string
+          title: State
+      type: object
+      required:
+        - state
+      title: TelegramOidcStateResponse
     AcceptBody:
       properties:
         category_id:
