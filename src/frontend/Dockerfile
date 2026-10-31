@@ -27,5 +27,8 @@ FROM nginx:alpine AS prod
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
+# 127.0.0.1 y no localhost: busybox wget resuelve localhost a ::1 y nginx no
+# escucha IPv6 en este contenedor, así que el healthcheck fallaba con
+# "Connection refused" mientras el sitio respondía 200 por IPv4.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost:80/ || exit 1
+  CMD wget -qO- http://127.0.0.1:80/ || exit 1
