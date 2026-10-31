@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback, Fragment } from "react";
+import { Link } from "react-router-dom";
 import { showToast } from "../utils/toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUndoToast } from "../hooks/useUndoToast";
@@ -8,7 +9,6 @@ import {
   getTags,
   bulkUpdateTags,
   getExpenseStats,
-  getExpensesByCategory,
   getExpensesByPerson,
   createExpense,
   updateExpense,
@@ -30,17 +30,7 @@ import QuickEditPopover from "../components/QuickEditPopover";
 import BulkActionBar from "../components/BulkActionBar";
 import BulkTagPicker from "../components/BulkTagPicker";
 import { getCategoryIcon } from "../utils/categoryIcon";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import {
   formatCurrency,
   titleCase,
@@ -59,23 +49,6 @@ type SortDir = "asc" | "desc";
 
 function hasMissingData(exp: Expense): boolean {
   return !exp.category_id;
-}
-
-function groupSmallCategories(
-  data: {
-    category_name: string;
-    category_color: string | null;
-    total: number;
-    count: number;
-    category_id: number | null;
-  }[],
-  maxItems = 5,
-) {
-  if (data.length <= maxItems) return { shown: data, hidden: [], hiddenTotal: 0 };
-  const shown = data.slice(0, maxItems);
-  const hidden = data.slice(maxItems);
-  const hiddenTotal = hidden.reduce((s, c) => s + c.total, 0);
-  return { shown, hidden, hiddenTotal };
 }
 
 function SelectAllCheckbox({
@@ -214,12 +187,6 @@ export default function ExpensesPage() {
     [searchParams, setSearchParams, setCategoryIds],
   );
 
-  // Drilldowns (a slice of the donut, a category row) replace the whole
-  // selection with the one category they were clicked for.
-  const handleCategoryFilter = (value: string) => {
-    handleCategorySelection(value ? [value] : []);
-  };
-
   const [visibleCount, setVisibleCount] = useState(100);
 
   const filterKey = `${filterCategoryIds.join(",")}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}-${filterCuentaId}-${filterSinCuenta}-${filterSearch}`;
@@ -258,12 +225,6 @@ export default function ExpensesPage() {
     enabled: ready,
   });
 
-  const { data: categoryBreakdown = [] } = useQuery({
-    queryKey: expenseQueryKeys.byCategory(filterKey),
-    queryFn: () => getExpensesByCategory(filterParams),
-    enabled: ready,
-  });
-
   const { data: personBreakdown = [] } = useQuery({
     queryKey: expenseQueryKeys.byPerson(filterKey),
     queryFn: () => getExpensesByPerson(filterParams),
@@ -274,8 +235,6 @@ export default function ExpensesPage() {
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [selectedDonutCategory, setSelectedDonutCategory] = useState<string | null>(null);
-  const [showAllCategories, setShowAllCategories] = useState(false);
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({
     field: "date",
     dir: "desc",
@@ -866,8 +825,26 @@ export default function ExpensesPage() {
           const avg =
             expenseStats?.avg ?? (arsExpenses.length > 0 ? arsTotal / arsExpenses.length : 0);
           const max = arsExpenses.length > 0 ? Math.max(...arsExpenses.map((e) => e.amount)) : 0;
+          // The category analysis lives on its own page. Carry the month when
+          // the active range maps to exactly one calendar month.
+          const monthForLink =
+            filters.month ??
+            (filterDateFrom &&
+            filterDateTo &&
+            filterDateFrom.slice(0, 7) === filterDateTo.slice(0, 7)
+              ? filterDateFrom.slice(0, 7)
+              : undefined);
           return (
             <>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-medium text-secondary">Resumen</h2>
+                <Link
+                  to={monthForLink ? `/cat-dashboard?month=${monthForLink}` : "/cat-dashboard"}
+                  className="text-xs text-[var(--color-primary)] hover:underline"
+                >
+                  Ver análisis por categoría →
+                </Link>
+              </div>
               {/* Stats cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="card p-3">
@@ -889,142 +866,6 @@ export default function ExpensesPage() {
               </div>
 
               {/* Charts row */}
-              {categoryBreakdown.length > 0 &&
-                (() => {
-                  const { shown, hidden, hiddenTotal } = groupSmallCategories(
-                    categoryBreakdown,
-                    12,
-                  );
-                  const displayCategories = showAllCategories ? categoryBreakdown : shown;
-                  const pieData = [
-                    ...displayCategories.map((c) => ({
-                      name: c.category_name,
-                      value: c.total,
-                      color: c.category_color,
-                      categoryId: c.category_id,
-                    })),
-                    ...(!showAllCategories && hidden.length > 0
-                      ? [
-                          {
-                            name: `Otros (${hidden.length})`,
-                            value: hiddenTotal,
-                            color: "#94a3b8",
-                            categoryId: null,
-                          },
-                        ]
-                      : []),
-                  ];
-                  return (
-                    <div className="card p-4">
-                      <h3 className="text-sm font-medium text-secondary mb-3">Por Categoría</h3>
-                      <div className="flex flex-col sm:flex-row items-center gap-4">
-                        <ResponsiveContainer width={200} height={200}>
-                          <PieChart>
-                            <Pie
-                              data={pieData}
-                              dataKey="value"
-                              nameKey="name"
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={80}
-                              innerRadius={45}
-                              paddingAngle={2}
-                              onClick={(entry) => {
-                                const name = entry.name;
-                                if (name.startsWith("Otros")) return;
-                                if (selectedDonutCategory === name) {
-                                  setSelectedDonutCategory(null);
-                                  handleCategoryFilter("");
-                                } else {
-                                  setSelectedDonutCategory(name);
-                                  const cat = categoryBreakdown.find(
-                                    (c) => c.category_name === name,
-                                  );
-                                  if (cat?.category_id)
-                                    handleCategoryFilter(String(cat.category_id));
-                                }
-                              }}
-                              style={{ cursor: "pointer" }}
-                            >
-                              {pieData.map((entry, i) => {
-                                const isSelected = selectedDonutCategory === entry.name;
-                                const isHighlighted = selectedDonutCategory ? isSelected : true;
-                                return (
-                                  <Cell
-                                    key={i}
-                                    fill={entry.color || "#94a3b8"}
-                                    opacity={isHighlighted ? 1 : 0.3}
-                                  />
-                                );
-                              })}
-                            </Pie>
-                            <Tooltip
-                              formatter={(v: number) => formatCurrency(v)}
-                              contentStyle={{ fontSize: 11, borderRadius: 6 }}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="flex-1 max-h-[220px] overflow-y-auto grid grid-cols-2 gap-x-6 gap-y-1.5">
-                          {displayCategories.map((cat, i) => (
-                            <button
-                              key={i}
-                              onClick={() => {
-                                if (selectedDonutCategory === cat.category_name) {
-                                  setSelectedDonutCategory(null);
-                                  handleCategoryFilter("");
-                                } else {
-                                  setSelectedDonutCategory(cat.category_name);
-                                  if (cat.category_id)
-                                    handleCategoryFilter(String(cat.category_id));
-                                }
-                              }}
-                              className={`flex items-center gap-2 text-xs text-left w-full rounded px-1 py-0.5 transition ${
-                                selectedDonutCategory === cat.category_name
-                                  ? "bg-[var(--color-primary)]/10"
-                                  : "hover:bg-[var(--color-base-alt)]"
-                              }`}
-                            >
-                              <span
-                                className="w-2 h-2 rounded-full flex-shrink-0"
-                                style={{
-                                  backgroundColor: cat.category_color || "#94a3b8",
-                                }}
-                              />
-                              <span className="text-secondary truncate flex-1">
-                                {cat.category_name}
-                              </span>
-                              <span className="text-primary font-medium whitespace-nowrap">
-                                {formatCurrency(cat.total)}
-                              </span>
-                            </button>
-                          ))}
-                          {!showAllCategories && hidden.length > 0 && (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="w-2 h-2 rounded-full flex-shrink-0 bg-[#94a3b8]" />
-                              <span className="text-secondary truncate flex-1">
-                                Otros ({hidden.length})
-                              </span>
-                              <span className="text-primary font-medium whitespace-nowrap">
-                                {formatCurrency(hiddenTotal)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {hidden.length > 0 && (
-                        <button
-                          onClick={() => setShowAllCategories(!showAllCategories)}
-                          className="mt-2 text-xs text-[var(--color-primary)] hover:underline"
-                        >
-                          {showAllCategories
-                            ? "Mostrar top 12"
-                            : `Ver todas las ${categoryBreakdown.length} categorías`}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
-
               {personBreakdown.length > 1 && (
                 <div className="card p-4">
                   <h3 className="text-sm font-medium text-secondary mb-3">Por Titular</h3>

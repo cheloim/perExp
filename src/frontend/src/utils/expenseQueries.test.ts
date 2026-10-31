@@ -6,7 +6,6 @@ describe("expense query keys", () => {
   it("keys the optimistic list exactly where the list query lives", () => {
     expect(expenseQueryKeys.list("a-b", 100)).toEqual(["expenses-list", "a-b", 100]);
     expect(expenseQueryKeys.stats("a-b")).toEqual(["expense-stats", "a-b"]);
-    expect(expenseQueryKeys.byCategory("a-b")).toEqual(["expenses-by-category", "a-b"]);
     expect(expenseQueryKeys.byPerson("a-b")).toEqual(["expenses-by-person", "a-b"]);
   });
 
@@ -19,7 +18,6 @@ describe("expense query keys", () => {
     expect(spy.mock.calls.map(([arg]) => arg?.queryKey)).toEqual([
       ["expenses-list"],
       ["expense-stats"],
-      ["expenses-by-category"],
       ["expenses-by-person"],
     ]);
   });

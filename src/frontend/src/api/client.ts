@@ -468,19 +468,6 @@ export const getExpenseStats = (params?: ExpenseFilterParams) =>
 export const getUncategorizedCount = () =>
   api.get<{ count: number }>("/expenses/uncategorized-count").then((r) => r.data);
 
-export const getExpensesByCategory = (params?: ExpenseFilterParams) =>
-  api
-    .get<
-      {
-        category_id: number | null;
-        category_name: string;
-        category_color: string | null;
-        total: number;
-        count: number;
-      }[]
-    >("/expenses/by-category", { params })
-    .then((r) => r.data);
-
 export const getExpensesByPerson = (params?: ExpenseFilterParams) =>
   api
     .get<{ person: string; total: number; count: number }[]>("/expenses/by-person", { params })

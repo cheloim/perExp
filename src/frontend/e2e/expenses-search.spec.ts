@@ -53,9 +53,6 @@ const ROWS: Row[] = [
 
 const OVERRIDES = {
   "/expenses/stats": { total: 19000, count: 3, avg: 6333, last_used: null },
-  "/expenses/by-category": [
-    { category_id: 1, category_name: "Salud", category_color: "#6366f1", total: 1500, count: 1 },
-  ],
   "/expenses/by-person": [{ person: "Ana", total: 19000, count: 3 }],
   "/categories": [
     { id: 1, name: "Salud", color: "#6366f1", keywords: "" },
@@ -206,6 +203,32 @@ test("clearing the filters is remembered across reloads", async ({ page }) => {
 
   await page.reload();
   await expect(page).not.toHaveURL(/[?&]range=/);
+});
+
+test("the category analysis links out instead of duplicating the chart", async ({ page }) => {
+  const categoryRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/expenses/by-category")) categoryRequests.push(request.url());
+  });
+
+  await openExpenses(page);
+
+  const link = page.getByRole("link", { name: /Ver análisis por categoría/ });
+  await expect(link).toHaveAttribute("href", "/cat-dashboard");
+
+  await page.getByRole("button", { name: /Filtros/ }).click();
+  await page.getByRole("button", { name: "Cualquier fecha" }).click();
+  await page.getByRole("button", { name: "1m" }).click();
+
+  // `1m` is the current calendar month, so the analysis page inherits it.
+  const expectedMonth = await page.evaluate(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  await expect(link).toHaveAttribute("href", `/cat-dashboard?month=${expectedMonth}`);
+
+  // The redundant by-category request is gone.
+  expect(categoryRequests).toHaveLength(0);
 });
 
 test("the empty state offers to clear the filters, and clearing restores the list", async ({
