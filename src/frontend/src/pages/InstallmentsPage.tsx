@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { Bar, XAxis, Tooltip, ResponsiveContainer, Cell, ComposedChart, Line } from "recharts";
@@ -15,6 +15,7 @@ import {
 import { formatCurrency, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
 import AutoDetectedBanner from "../components/AutoDetectedBanner";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { DetailModal } from "../components/DetailModal";
 
 type PaymentItem = {
   id: string | number;
@@ -42,16 +43,6 @@ export default function InstallmentsPage() {
     searchParams.get("filter") === "recurring" ? "recurrentes" : "all",
   );
   const [deleteRecurringId, setDeleteRecurringId] = useState<number | null>(null);
-
-  // Close modal on Escape key
-  useEffect(() => {
-    if (!showModal) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeModal();
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [showModal]);
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ["installments"],
@@ -464,192 +455,167 @@ export default function InstallmentsPage() {
       </div>
 
       {/* Gestionar Modal */}
-      {showModal && selectedItem && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop bg-black/60"
-          onClick={closeModal}
-        >
-          <div
-            className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col animate-modal-content"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]">
-              <div className="min-w-0 flex-1">
-                <h2
-                  className="text-base font-semibold truncate"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {selectedItem.description}
-                </h2>
-                <p className="text-xs text-[var(--text-tertiary)]">
-                  {selectedItem.type === "installment" ? "Cuota" : "Suscripción"}
-                </p>
-              </div>
-              <button
-                onClick={closeModal}
-                className="ml-3 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-xl flex-shrink-0"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="overflow-y-auto flex-1 p-5">
-              {/* Info grid */}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-4">
-                <div>
-                  <p className="text-[var(--text-tertiary)] text-xs uppercase">Monto</p>
-                  <p className="font-medium text-[var(--text-primary)]">
-                    {formatCurrency(selectedItem.amount)}
-                  </p>
-                </div>
-                {selectedItem.category_name && (
-                  <div>
-                    <p className="text-[var(--text-tertiary)] text-xs uppercase">Categoría</p>
-                    <p className="text-[var(--text-primary)]">{selectedItem.category_name}</p>
-                  </div>
-                )}
-                {selectedItem.next_date && (
-                  <div>
-                    <p className="text-[var(--text-tertiary)] text-xs uppercase">Próximo pago</p>
-                    <p className="text-[var(--text-primary)]">
-                      {formatDateDMY(selectedItem.next_date)}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-[var(--text-tertiary)] text-xs uppercase">Tipo</p>
-                  <p className="text-[var(--text-primary)]">{selectedItem.installment_info}</p>
-                </div>
-              </div>
-
-              {/* Scheduled payments for installments */}
-              {selectedItem.type === "installment" && scheduledForGroup.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
-                    Próximos pagos ({scheduledForGroup.length})
-                  </h3>
-                  <div className="divide-y divide-[var(--border-color)]">
-                    {scheduledForGroup.slice(0, 5).map((payment: any) => (
-                      <div key={payment.id} className="flex items-center justify-between py-2">
-                        <div>
-                          <p className="text-sm text-[var(--text-primary)]">
-                            Cuota {payment.installment_number}/{payment.installment_total}
-                          </p>
-                          <p className="text-xs text-[var(--text-tertiary)]">
-                            {formatDateDMY(payment.scheduled_date)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-[var(--text-primary)]">
-                            {formatCurrency(payment.amount)}
-                          </span>
-                          <button
-                            onClick={() => executeMut.mutate(payment.id)}
-                            className="text-xs text-[var(--color-primary)] hover:underline"
-                          >
-                            Ejecutar
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {scheduledForGroup.length > 5 && (
-                      <p className="text-xs text-[var(--text-tertiary)] py-2 text-center">
-                        +{scheduledForGroup.length - 5} más...
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Edit form for recurring */}
-              {selectedItem.type === "recurring" && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Editar</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">
-                        Monto
-                      </label>
-                      <input
-                        type="number"
-                        value={editAmount}
-                        onChange={(e) => setEditAmount(e.target.value)}
-                        className="input w-full"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block">
-                        Próximo cargo
-                      </label>
-                      <input
-                        type="date"
-                        value={editDate}
-                        onChange={(e) => setEditDate(e.target.value)}
-                        className="input w-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-5 py-3 border-t border-[var(--border-color)] flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {selectedItem.type === "recurring" && (
-                    <>
-                      <button
-                        onClick={() => {
-                          handlePauseRecurring(selectedItem.recurring_id!);
-                          closeModal();
-                        }}
-                        className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline"
-                      >
-                        {selectedItem.is_active ? "Pausar" : "Reanudar"}
-                      </button>
-                      <span className="text-[var(--border-color)]">·</span>
-                      <button
-                        onClick={() => {
-                          handleDeleteRecurring(selectedItem.recurring_id!);
-                        }}
-                        className="text-xs text-[var(--gnome-red-3)] hover:underline"
-                      >
-                        Eliminar
-                      </button>
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={closeModal}
-                    className="px-3 py-1.5 text-xs font-medium rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
-                  >
-                    Cerrar
-                  </button>
-                  {selectedItem.type === "recurring" && (
+      {selectedItem && (
+        <DetailModal
+          isOpen={showModal}
+          onClose={closeModal}
+          title={selectedItem.description}
+          subtitle={selectedItem.type === "installment" ? "Cuota" : "Suscripción"}
+          size="md"
+          footer={
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {selectedItem.type === "recurring" && (
+                  <>
                     <button
                       onClick={() => {
-                        updateRecurringMut.mutate({
-                          id: selectedItem.recurring_id!,
-                          data: {
-                            amount: parseFloat(editAmount),
-                            next_charge_date: editDate,
-                          },
-                        });
+                        handlePauseRecurring(selectedItem.recurring_id!);
+                        closeModal();
                       }}
-                      className="px-3 py-1.5 text-xs font-medium rounded-md bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:brightness-110 transition"
+                      className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:underline"
                     >
-                      Guardar
+                      {selectedItem.is_active ? "Pausar" : "Reanudar"}
                     </button>
-                  )}
+                    <span className="text-[var(--border-color)]">·</span>
+                    <button
+                      onClick={() => handleDeleteRecurring(selectedItem.recurring_id!)}
+                      className="text-xs text-[var(--gnome-red-4)] hover:underline"
+                    >
+                      Eliminar
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={closeModal} className="gnome-btn-secondary text-xs">
+                  Cerrar
+                </button>
+                {selectedItem.type === "recurring" && (
+                  <button
+                    onClick={() => {
+                      updateRecurringMut.mutate({
+                        id: selectedItem.recurring_id!,
+                        data: {
+                          amount: parseFloat(editAmount),
+                          next_charge_date: editDate,
+                        },
+                      });
+                    }}
+                    className="gnome-btn-primary-strong text-xs"
+                  >
+                    Guardar
+                  </button>
+                )}
+              </div>
+            </div>
+          }
+        >
+          {/* Info grid */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mb-4">
+            <div>
+              <p className="text-[var(--text-tertiary)] text-xs uppercase">Monto</p>
+              <p className="font-medium text-[var(--text-primary)]">
+                {formatCurrency(selectedItem.amount)}
+              </p>
+            </div>
+            {selectedItem.category_name && (
+              <div>
+                <p className="text-[var(--text-tertiary)] text-xs uppercase">Categoría</p>
+                <p className="text-[var(--text-primary)]">{selectedItem.category_name}</p>
+              </div>
+            )}
+            {selectedItem.next_date && (
+              <div>
+                <p className="text-[var(--text-tertiary)] text-xs uppercase">Próximo pago</p>
+                <p className="text-[var(--text-primary)]">
+                  {formatDateDMY(selectedItem.next_date)}
+                </p>
+              </div>
+            )}
+            <div>
+              <p className="text-[var(--text-tertiary)] text-xs uppercase">Tipo</p>
+              <p className="text-[var(--text-primary)]">{selectedItem.installment_info}</p>
+            </div>
+          </div>
+
+          {/* Scheduled payments for installments */}
+          {selectedItem.type === "installment" && scheduledForGroup.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
+                Próximos pagos ({scheduledForGroup.length})
+              </h3>
+              <div className="divide-y divide-[var(--border-color)]">
+                {scheduledForGroup.slice(0, 5).map((payment: any) => (
+                  <div key={payment.id} className="flex items-center justify-between py-2">
+                    <div>
+                      <p className="text-sm text-[var(--text-primary)]">
+                        Cuota {payment.installment_number}/{payment.installment_total}
+                      </p>
+                      <p className="text-xs text-[var(--text-tertiary)]">
+                        {formatDateDMY(payment.scheduled_date)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-[var(--text-primary)]">
+                        {formatCurrency(payment.amount)}
+                      </span>
+                      <button
+                        onClick={() => executeMut.mutate(payment.id)}
+                        className="text-xs text-[var(--color-primary)] hover:underline"
+                      >
+                        Ejecutar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {scheduledForGroup.length > 5 && (
+                  <p className="text-xs text-[var(--text-tertiary)] py-2 text-center">
+                    +{scheduledForGroup.length - 5} más...
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Edit form for recurring */}
+          {selectedItem.type === "recurring" && (
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Editar</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="recurring-amount"
+                    className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block"
+                  >
+                    Monto
+                  </label>
+                  <input
+                    id="recurring-amount"
+                    type="number"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    className="input w-full"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="recurring-next-date"
+                    className="text-xs font-medium text-[var(--text-secondary)] mb-1.5 block"
+                  >
+                    Próximo cargo
+                  </label>
+                  <input
+                    id="recurring-next-date"
+                    type="date"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="input w-full"
+                  />
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          )}
+        </DetailModal>
       )}
 
       {/* Confirm delete recurring */}
