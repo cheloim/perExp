@@ -110,6 +110,9 @@ export async function seedAuth(
       window.localStorage.setItem("ai_drawer_open", JSON.stringify(drawerOpen));
       // The thread is always written, empty by default: an absent key would
       // trigger the one-time migration against stale keys from a previous run.
+      // Persistence is opt-in in the app, so the fixture opts in explicitly.
+      window.localStorage.setItem("assistant_persist_thread", "true");
+      window.localStorage.setItem("assistant_thread_saved_at", String(Date.now()));
       window.localStorage.setItem(threadKey, JSON.stringify(thread ?? []));
       for (const key of staleKeys) window.localStorage.removeItem(key);
       window.localStorage.setItem("whats_new_dont_remind_version", whatsNewDismissedVersion);
