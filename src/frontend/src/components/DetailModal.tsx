@@ -8,9 +8,27 @@ interface DetailModalProps {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
+  /** Fixed action row below the scroll area. */
+  footer?: React.ReactNode;
+  size?: "sm" | "md" | "lg" | "xl";
 }
 
-export function DetailModal({ isOpen, onClose, title, subtitle, children }: DetailModalProps) {
+const SIZE_CLASS: Record<NonNullable<DetailModalProps["size"]>, string> = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+};
+
+export function DetailModal({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  children,
+  footer,
+  size = "lg",
+}: DetailModalProps) {
   const trapRef = useFocusTrap(isOpen);
 
   // Telegram BackButton
@@ -41,7 +59,7 @@ export function DetailModal({ isOpen, onClose, title, subtitle, children }: Deta
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-modal-content"
+        className={`relative bg-[var(--color-surface)] border border-[var(--border-color)] rounded-lg shadow-xl w-full ${SIZE_CLASS[size]} max-h-[90vh] overflow-hidden flex flex-col animate-modal-content`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]">
@@ -62,6 +80,11 @@ export function DetailModal({ isOpen, onClose, title, subtitle, children }: Deta
           </button>
         </div>
         <div className="overflow-y-auto flex-1 p-5">{children}</div>
+        {footer && (
+          <div className="px-5 py-3 border-t border-[var(--border-color)] flex-shrink-0">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
