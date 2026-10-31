@@ -666,7 +666,7 @@ export default function CategoryDashboard() {
                       <button
                         onClick={() =>
                           navigate(
-                            `/expenses?search=${encodeURIComponent(m.description)}&month=${month}`,
+                            `/expenses?q=${encodeURIComponent(m.description)}&month=${month}`,
                           )
                         }
                         className="text-xs text-[var(--text-secondary)] min-w-0 truncate flex-shrink-0 max-w-[180px] text-left hover:text-[var(--text-primary)] transition-colors"

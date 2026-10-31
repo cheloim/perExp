@@ -170,6 +170,44 @@ test("picking several categories filters the table by all of them", async ({ pag
     .toBe("1,2");
 });
 
+test("a date preset filters the API and survives a reload", async ({ page }) => {
+  const requests = await openExpenses(page);
+
+  await page.getByRole("button", { name: /Filtros/ }).click();
+  await page.getByRole("button", { name: "Fecha" }).click();
+  await page.getByRole("button", { name: "3m" }).click();
+
+  await expect(page).toHaveURL(/[?&]range=3m/);
+
+  // The preset is UI state; the request carries concrete dates.
+  await expect
+    .poll(() => requests.filter((u) => u.searchParams.has("date_from")).length)
+    .toBeGreaterThan(0);
+  const dated = requests.find((u) => u.searchParams.has("date_from"));
+  expect(dated?.searchParams.get("range")).toBeNull();
+  expect(dated?.searchParams.get("date_to")).toBeTruthy();
+
+  await page.reload();
+
+  await expect(page).toHaveURL(/[?&]range=3m/);
+  await expect(page.getByText("Últimos 3 meses")).toBeVisible();
+});
+
+test("clearing the filters is remembered across reloads", async ({ page }) => {
+  await openExpenses(page);
+
+  await page.getByRole("button", { name: /Filtros/ }).click();
+  await page.getByRole("button", { name: "Fecha" }).click();
+  await page.getByRole("button", { name: "6m" }).click();
+  await expect(page).toHaveURL(/[?&]range=6m/);
+
+  await page.getByRole("button", { name: /^Limpiar \(\d+\)$/ }).click();
+  await expect(page).not.toHaveURL(/[?&]range=/);
+
+  await page.reload();
+  await expect(page).not.toHaveURL(/[?&]range=/);
+});
+
 test("the empty state offers to clear the filters, and clearing restores the list", async ({
   page,
 }) => {
