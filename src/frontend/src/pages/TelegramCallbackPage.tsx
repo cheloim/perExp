@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { exchangeTelegramOidcCode, getStoredToken, storeToken } from "../api/client";
 
-const STATE_STORAGE_KEY = "telegram_oidc_state";
-
 const ERROR_MESSAGES: Record<string, string> = {
   telegram_oidc_failed: "No se pudo conectar con Telegram. Intentá de nuevo.",
   telegram_token_invalid: "El token de Telegram es inválido o expiró.",
@@ -20,9 +18,10 @@ const ERROR_MESSAGES: Record<string, string> = {
 /**
  * Handles the redirect from Telegram's OIDC authorization endpoint.
  *
- * The backend redirects here with a short-lived, single-use `code` and the
- * original `state`. The access token is never part of the URL: it is obtained
- * by exchanging the code via POST.
+ * The backend redirects here with a short-lived, single-use `code`. The
+ * original `state` was already validated and consumed server-side. The access
+ * token is never part of the URL: it is obtained by exchanging the code via
+ * POST.
  */
 export default function TelegramCallbackPage() {
   const [searchParams] = useSearchParams();
@@ -37,14 +36,13 @@ export default function TelegramCallbackPage() {
     startedRef.current = true;
 
     const code = searchParams.get("code");
-    const state = searchParams.get("state");
     const errorParam = searchParams.get("error");
     const tgId = searchParams.get("tg_id");
     const legacyToken = searchParams.get("token");
 
-    // The code and state are single-use. Remove them from the URL immediately
-    // so they do not remain in history or leak through the Referer header.
-    if (code || state || legacyToken) {
+    // The code is single-use. Remove it from the URL immediately so it does
+    // not remain in history or leak through the Referer header.
+    if (code || legacyToken) {
       window.history.replaceState(null, "", window.location.pathname);
     }
 
@@ -77,15 +75,8 @@ export default function TelegramCallbackPage() {
       return;
     }
 
-    if (!code || !state) {
+    if (!code) {
       setError("No se recibió respuesta de Telegram.");
-      return;
-    }
-
-    const expectedState = sessionStorage.getItem(STATE_STORAGE_KEY);
-    sessionStorage.removeItem(STATE_STORAGE_KEY);
-    if (!expectedState || expectedState !== state) {
-      setError(ERROR_MESSAGES.telegram_state_invalid);
       return;
     }
 

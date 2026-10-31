@@ -813,8 +813,9 @@ async def telegram_oidc_callback(
         return RedirectResponse(url=f"{frontend_callback}?error=telegram_state_unavailable")
 
     # Never put the access token in the URL: the frontend exchanges this
-    # short-lived, single-use code for the token via POST.
-    return RedirectResponse(url=f"{frontend_callback}?code={login_code}&state={state}")
+    # short-lived, single-use code for the token via POST. The state was
+    # already validated and consumed above, so it is not reflected back.
+    return RedirectResponse(url=f"{frontend_callback}?code={login_code}")
 
 
 @router.post(

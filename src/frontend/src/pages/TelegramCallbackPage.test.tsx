@@ -36,23 +36,20 @@ beforeEach(() => {
 
 describe("TelegramCallbackPage", () => {
   it("canjea el código por POST y guarda el token", async () => {
-    sessionStorage.setItem("telegram_oidc_state", "state-123");
     mockedExchange.mockResolvedValue({
       access_token: "access-token",
       token_type: "bearer",
     } as AuthToken);
 
-    renderAt("/auth/telegram/callback?code=one-time&state=state-123");
+    renderAt("/auth/telegram/callback?code=one-time");
 
     await waitFor(() => expect(mockedExchange).toHaveBeenCalledWith("one-time"));
     expect(mockedStoreToken).toHaveBeenCalledWith("access-token");
     expect(await screen.findByText("HOME")).toBeInTheDocument();
   });
 
-  it("rechaza un state que no coincide con el guardado", async () => {
-    sessionStorage.setItem("telegram_oidc_state", "expected");
-
-    renderAt("/auth/telegram/callback?code=one-time&state=attacker");
+  it("muestra el error del backend cuando el state es inválido", async () => {
+    renderAt("/auth/telegram/callback?error=telegram_state_invalid");
 
     expect(await screen.findByText(/no es válido o expiró/i)).toBeInTheDocument();
     expect(mockedExchange).not.toHaveBeenCalled();
@@ -67,23 +64,21 @@ describe("TelegramCallbackPage", () => {
   });
 
   it("muestra un error si el código ya se usó", async () => {
-    sessionStorage.setItem("telegram_oidc_state", "state-123");
     mockedExchange.mockRejectedValue(new Error("401"));
 
-    renderAt("/auth/telegram/callback?code=used&state=state-123");
+    renderAt("/auth/telegram/callback?code=used");
 
     expect(await screen.findByText(/ya se usó o expiró/i)).toBeInTheDocument();
     expect(mockedStoreToken).not.toHaveBeenCalled();
   });
 
-  it("limpia el código y el state de la URL", async () => {
-    sessionStorage.setItem("telegram_oidc_state", "state-123");
+  it("limpia el código de la URL", async () => {
     mockedExchange.mockResolvedValue({
       access_token: "access-token",
       token_type: "bearer",
     } as AuthToken);
 
-    renderAt("/auth/telegram/callback?code=one-time&state=state-123");
+    renderAt("/auth/telegram/callback?code=one-time");
 
     await waitFor(() => expect(window.location.search).toBe(""));
   });
