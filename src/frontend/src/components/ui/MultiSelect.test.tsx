@@ -102,6 +102,18 @@ describe("MultiSelect", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
+  it("closes on Escape from an option too", () => {
+    renderMultiSelect();
+
+    fireEvent.click(screen.getByRole("button", { name: "Categoría" }));
+    const option = screen.getByRole("option", { name: "Supermercado" });
+    fireEvent.click(option);
+
+    fireEvent.keyDown(option, { key: "Escape" });
+
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
   it("toggles the highlighted option with the keyboard", () => {
     const { onChange } = renderMultiSelect();
     const search = () => screen.getByRole("textbox", { name: "Buscar categorías" });

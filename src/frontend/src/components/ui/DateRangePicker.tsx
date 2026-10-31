@@ -50,7 +50,7 @@ function rangeLabel({
 }: Pick<DateRangePickerProps, "preset" | "from" | "to" | "month">): string {
   if (preset) return presetLabel(preset);
   if (month) return monthLabel(month);
-  if (!from && !to) return "Fecha";
+  if (!from && !to) return "Cualquier fecha";
   if (from && to) return `${formatDateDMY(from)} – ${formatDateDMY(to)}`;
   return from ? `Desde ${formatDateDMY(from)}` : `Hasta ${formatDateDMY(to!)}`;
 }
@@ -118,7 +118,7 @@ export function DateRangePicker({ preset, from, to, month, onChange }: DateRange
         onClick={() => (open ? setOpen(false) : openPicker())}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="w-full text-left text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition flex items-center justify-between gap-2 hover:border-[var(--color-primary)]"
+        className="filter-control text-left"
       >
         <span
           className={`truncate ${!preset && !from && !to && !month ? "text-[var(--text-tertiary)]" : ""}`}
@@ -146,7 +146,7 @@ export function DateRangePicker({ preset, from, to, month, onChange }: DateRange
         <div
           role="dialog"
           aria-label="Rango de fechas"
-          className="absolute left-0 z-50 mt-1 w-[calc(100vw-2rem)] max-w-[340px] rounded-xl border border-[var(--border-color)] bg-[var(--color-surface)] p-3 shadow-gnome-lg"
+          className="absolute right-0 z-50 mt-1 w-[calc(100vw-2rem)] max-w-[340px] rounded-xl border border-[var(--border-color)] bg-[var(--color-surface)] p-3 shadow-gnome-lg"
         >
           <div role="group" aria-label="Rangos rápidos" className="grid grid-cols-3 gap-1.5">
             {DATE_RANGE_PRESETS.map((option) => (

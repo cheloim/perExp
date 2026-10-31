@@ -146,9 +146,9 @@ test("picking several categories filters the table by all of them", async ({ pag
   const requests = await openExpenses(page);
 
   await page.getByRole("button", { name: /Filtros/ }).click();
-  await page.getByRole("button", { name: "Categoría" }).click();
+  await page.getByRole("button", { name: "Todas las categorías" }).click();
 
-  const listbox = page.getByRole("listbox", { name: "Categoría" });
+  const listbox = page.getByRole("listbox", { name: "Todas las categorías" });
   await listbox.getByRole("option", { name: "Salud" }).click();
   await listbox.getByRole("option", { name: "Suscripciones" }).click();
 
@@ -174,7 +174,7 @@ test("a date preset filters the API and survives a reload", async ({ page }) => 
   const requests = await openExpenses(page);
 
   await page.getByRole("button", { name: /Filtros/ }).click();
-  await page.getByRole("button", { name: "Fecha" }).click();
+  await page.getByRole("button", { name: "Cualquier fecha" }).click();
   await page.getByRole("button", { name: "3m" }).click();
 
   await expect(page).toHaveURL(/[?&]range=3m/);
@@ -197,7 +197,7 @@ test("clearing the filters is remembered across reloads", async ({ page }) => {
   await openExpenses(page);
 
   await page.getByRole("button", { name: /Filtros/ }).click();
-  await page.getByRole("button", { name: "Fecha" }).click();
+  await page.getByRole("button", { name: "Cualquier fecha" }).click();
   await page.getByRole("button", { name: "6m" }).click();
   await expect(page).toHaveURL(/[?&]range=6m/);
 

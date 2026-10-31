@@ -26,6 +26,8 @@ interface MultiSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Field name announced before the current value. */
+  ariaLabel?: string;
 }
 
 interface DropdownPosition {
@@ -51,6 +53,7 @@ export function MultiSelect({
   placeholder = "",
   className = "",
   disabled = false,
+  ariaLabel,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -117,12 +120,16 @@ export function MultiSelect({
   useEffect(() => {
     if (!isOpen || !ref.current) return;
     const rect = ref.current.getBoundingClientRect();
+    // Keep the fixed dropdown inside the viewport: on a phone the trigger can
+    // sit near the right edge and its natural width would overflow.
+    const width = Math.min(rect.width, window.innerWidth - 16);
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
     const spaceBelow = window.innerHeight - rect.bottom;
     const openAbove = spaceBelow < DROPDOWN_HEIGHT && rect.top > DROPDOWN_HEIGHT;
     setDropdownPos({
       top: openAbove ? rect.top - DROPDOWN_HEIGHT - 4 : rect.bottom + 4,
-      left: rect.left,
-      width: rect.width,
+      left,
+      width,
     });
   }, [isOpen]);
 
@@ -228,7 +235,16 @@ export function MultiSelect({
   let flatIndex = 0;
 
   return (
-    <div ref={ref} className={`relative ${className}`}>
+    <div
+      ref={ref}
+      className={`relative ${className}`}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && isOpen) {
+          event.stopPropagation();
+          close();
+        }
+      }}
+    >
       <button
         type="button"
         disabled={disabled}
@@ -236,11 +252,8 @@ export function MultiSelect({
         onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        className={`w-full text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] border border-[var(--border-color)] rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition flex items-center justify-between gap-2 ${
-          disabled
-            ? "opacity-50 cursor-not-allowed"
-            : "cursor-pointer hover:border-[var(--color-primary)]"
-        }`}
+        aria-label={ariaLabel ? `${ariaLabel}: ${displayValue}` : undefined}
+        className={`filter-control ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
       >
         <span
           className={`truncate text-left ${values.length === 0 ? "text-[var(--text-tertiary)]" : ""}`}
