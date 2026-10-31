@@ -2,7 +2,8 @@
 
 Uses the shared notify_user() service so the per-user channel preference
 (inapp/telegram/both/none) and the budget_alerts_enabled toggle are honored.
-Alerts fire once per crossed level (default 75%/90%/100%) per month.
+Alerts fire once per budget/group per month, at the highest newly crossed
+level (default 75%/90%/100%).
 """
 
 import logging
@@ -10,10 +11,11 @@ from datetime import date
 
 from app.celery_app import celery_app
 from app.database import SessionLocal
-from app.models import Budget, BudgetGroup, Category, Notification, Setting, User
+from app.models import Budget, BudgetGroup, Category, Setting, User
 from app.services.budget_helpers import (
+    existing_alert_levels,
     get_alert_levels,
-    levels_crossed,
+    highest_new_alert_level,
 )
 from app.services.budget_helpers import (
     get_group_user_ids as _get_group_user_ids,
@@ -78,42 +80,32 @@ def check_budget_alerts():
 
                 pct = spent / group.amount
                 label = DISPLAY_NAMES.get(group.name, group.name)
+                existing_levels = existing_alert_levels(
+                    db, user.id, month_key, group_name=group.name
+                )
+                level = highest_new_alert_level(pct, get_alert_levels(group), existing_levels)
+                if level is None:
+                    continue
 
-                for level in levels_crossed(pct, get_alert_levels(group)):
-                    existing = (
-                        db.query(Notification)
-                        .filter(
-                            Notification.user_id == user.id,
-                            Notification.type == "budget_warning",
-                            Notification.data.contains(f'"group_name": "{group.name}"'),
-                            Notification.data.contains(f'"month": "{month_key}"'),
-                            Notification.data.contains(f'"level": {level}'),
-                            Notification.read == False,  # noqa: E712
-                        )
-                        .first()
-                    )
-                    if existing:
-                        continue
-
-                    is_exceeded = pct >= 1.0 or level >= 1.0
-                    status = "exceeded" if is_exceeded else "warning"
-                    notify_user(
-                        db,
-                        user.id,
-                        "budget_warning",
-                        f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {label}",
-                        f"Presupuesto ${group.amount:,.0f} | Gastado ${spent:,.0f} ({pct:.0%})",
-                        {
-                            "group_name": group.name,
-                            "month": month_key,
-                            "budget_amount": group.amount,
-                            "spent_amount": spent,
-                            "percentage": pct,
-                            "status": status,
-                            "level": level,
-                        },
-                    )
-                    alerts_sent += 1
+                is_exceeded = pct >= 1.0 or level >= 1.0
+                status = "exceeded" if is_exceeded else "warning"
+                notify_user(
+                    db,
+                    user.id,
+                    "budget_warning",
+                    f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {label}",
+                    f"Presupuesto ${group.amount:,.0f} | Gastado ${spent:,.0f} ({pct:.0%})",
+                    {
+                        "group_name": group.name,
+                        "month": month_key,
+                        "budget_amount": group.amount,
+                        "spent_amount": spent,
+                        "percentage": pct,
+                        "status": status,
+                        "level": level,
+                    },
+                )
+                alerts_sent += 1
 
             # ─── Check individual category budgets ─────────────────────
             budgets = (
@@ -130,43 +122,33 @@ def check_budget_alerts():
                     continue
 
                 pct = spent / budget.amount
+                existing_levels = existing_alert_levels(
+                    db, user.id, month_key, category_id=budget.category_id
+                )
+                level = highest_new_alert_level(pct, get_alert_levels(budget), existing_levels)
+                if level is None:
+                    continue
 
-                for level in levels_crossed(pct, get_alert_levels(budget)):
-                    existing = (
-                        db.query(Notification)
-                        .filter(
-                            Notification.user_id == user.id,
-                            Notification.type == "budget_warning",
-                            Notification.data.contains(f'"category_id": {budget.category_id}'),
-                            Notification.data.contains(f'"month": "{month_key}"'),
-                            Notification.data.contains(f'"level": {level}'),
-                            Notification.read == False,  # noqa: E712
-                        )
-                        .first()
-                    )
-                    if existing:
-                        continue
-
-                    is_exceeded = pct >= 1.0 or level >= 1.0
-                    status = "exceeded" if is_exceeded else "warning"
-                    notify_user(
-                        db,
-                        user.id,
-                        "budget_warning",
-                        f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {cat.name}",
-                        f"Presupuesto ${budget.amount:,.0f} | Gastado ${spent:,.0f} ({pct:.0%})",
-                        {
-                            "category_id": budget.category_id,
-                            "category_name": cat.name,
-                            "month": month_key,
-                            "budget_amount": budget.amount,
-                            "spent_amount": spent,
-                            "percentage": pct,
-                            "status": status,
-                            "level": level,
-                        },
-                    )
-                    alerts_sent += 1
+                is_exceeded = pct >= 1.0 or level >= 1.0
+                status = "exceeded" if is_exceeded else "warning"
+                notify_user(
+                    db,
+                    user.id,
+                    "budget_warning",
+                    f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {cat.name}",
+                    f"Presupuesto ${budget.amount:,.0f} | Gastado ${spent:,.0f} ({pct:.0%})",
+                    {
+                        "category_id": budget.category_id,
+                        "category_name": cat.name,
+                        "month": month_key,
+                        "budget_amount": budget.amount,
+                        "spent_amount": spent,
+                        "percentage": pct,
+                        "status": status,
+                        "level": level,
+                    },
+                )
+                alerts_sent += 1
 
         db.commit()
         logger.info(f"[BUDGET ALERTS] Sent {alerts_sent} alerts for {month_key}")

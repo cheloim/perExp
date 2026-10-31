@@ -1,6 +1,7 @@
 """Tests for multi-level budget alerts (issue #171).
 
-Levels default to [0.75, 0.90, 1.0]. Alerts fire once per level per month.
+Levels default to [0.75, 0.90, 1.0]. A run sends one alert, at the highest
+newly crossed level; lower levels are covered by the higher one.
 """
 
 from datetime import date
@@ -86,6 +87,18 @@ class TestAlertLevelsHelper:
         assert levels_crossed(0.95, [0.75, 0.9, 1.0]) == [0.75, 0.9]
         assert levels_crossed(1.2, [0.75, 0.9, 1.0]) == [0.75, 0.9, 1.0]
 
+    def test_highest_new_alert_level_collapses_a_jump_into_one_alert(self):
+        from app.services.budget_helpers import highest_new_alert_level
+
+        levels = [0.75, 0.9, 1.0]
+        assert highest_new_alert_level(1.46, levels, set()) == 1.0
+        assert highest_new_alert_level(1.46, levels, {0.75}) == 1.0
+        assert highest_new_alert_level(1.46, levels, {0.75, 0.9}) == 1.0
+        assert highest_new_alert_level(1.46, levels, {0.75, 1.0}) is None
+        assert highest_new_alert_level(0.8, levels, set()) == 0.75
+        assert highest_new_alert_level(0.95, levels, {0.75}) == 0.9
+        assert highest_new_alert_level(0.8, levels, {0.75}) is None
+
 
 class TestEscalatedNotifications:
     def test_first_cross_creates_one_notification_per_level(self, db):
@@ -119,7 +132,7 @@ class TestEscalatedNotifications:
         assert len(notifs) == 1
         assert '"level": 0.75' in notifs[0].data
 
-    def test_second_level_creates_second_notification(self, db):
+    def test_jump_crossing_several_levels_sends_only_the_highest(self, db):
         from app.models import Budget, Notification
         from app.services.budget_helpers import check_budget_threshold_on_expense
 
@@ -153,7 +166,117 @@ class TestEscalatedNotifications:
         levels = sorted(
             __import__("json").loads(n.data)["level"] for n in notifs if "level" in n.data
         )
-        assert levels == [0.75, 0.9, 1.0]
+        assert levels == [0.75, 1.0]
+
+    def test_one_run_at_146_percent_sends_one_alert(self, db):
+        from app.models import Budget, Notification
+        from app.services.budget_helpers import check_budget_threshold_on_expense
+
+        user = _make_user(db, "esc4@test.com")
+        cat = _make_category(db, user, "Necesidades")
+        budget = Budget(
+            user_id=user.id,
+            category_id=cat.id,
+            amount=1_500_000,
+            alert_thresholds="[0.75, 0.9, 1.0]",
+        )
+        db.add(budget)
+        db.flush()
+
+        today = date.today()
+        _make_expense(db, user, 2_191_776, cat.id, today)
+        check_budget_threshold_on_expense(db, user.id, cat.id, 2_191_776)
+        db.commit()
+
+        notifs = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user.id,
+                Notification.type == "budget_warning",
+            )
+            .all()
+        )
+        assert len(notifs) == 1
+        assert '"level": 1.0' in notifs[0].data
+
+    def test_macro_group_crossing_several_levels_sends_one_alert(self, db):
+        from app.models import BudgetGroup, Notification
+        from app.services.budget_helpers import check_budget_threshold_on_expense
+
+        user = _make_user(db, "esc6@test.com")
+        cat = _make_category(db, user, "Necesidades")
+        group = BudgetGroup(
+            user_id=user.id,
+            name="necesidades",
+            display_name="Necesidades",
+            percentage=0.5,
+            amount=1_500_000,
+            alert_thresholds="[0.75, 0.9, 1.0]",
+            is_active=True,
+        )
+        db.add(group)
+        db.flush()
+
+        today = date.today()
+        _make_expense(db, user, 2_191_776, cat.id, today)
+        check_budget_threshold_on_expense(db, user.id, cat.id, 2_191_776)
+        db.commit()
+
+        notifs = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user.id,
+                Notification.type == "budget_warning",
+            )
+            .all()
+        )
+        assert len(notifs) == 1
+        assert '"group_name": "necesidades"' in notifs[0].data
+        assert '"level": 1.0' in notifs[0].data
+
+    def test_a_read_alert_does_not_rearm_the_same_level(self, db):
+        from app.models import Budget, Notification
+        from app.services.budget_helpers import check_budget_threshold_on_expense
+
+        user = _make_user(db, "esc5@test.com")
+        cat = _make_category(db, user, "Combustible")
+        budget = Budget(
+            user_id=user.id,
+            category_id=cat.id,
+            amount=10000,
+            alert_thresholds="[0.75, 0.9, 1.0]",
+        )
+        db.add(budget)
+        db.flush()
+
+        today = date.today()
+        _make_expense(db, user, 8000, cat.id, today)
+        check_budget_threshold_on_expense(db, user.id, cat.id, 8000)
+        db.commit()
+        notification = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user.id,
+                Notification.type == "budget_warning",
+            )
+            .one()
+        )
+        notification.read = True
+        db.commit()
+
+        _make_expense(db, user, 100, cat.id, today)  # still 81%
+        check_budget_threshold_on_expense(db, user.id, cat.id, 100)
+        db.commit()
+
+        assert (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user.id,
+                Notification.type == "budget_warning",
+            )
+            .count()
+            == 1
+        )
 
     def test_no_duplicate_for_same_level(self, db):
         from app.models import Budget, Notification
