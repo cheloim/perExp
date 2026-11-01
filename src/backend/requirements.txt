@@ -1,7 +1,7 @@
-fastapi==0.143.3
+fastapi==0.162.0
 uvicorn[standard]==0.54.0
-sqlalchemy==2.1.5
-pydantic==2.14.1
+sqlalchemy==2.1.6
+pydantic==2.14.2
 python-multipart==0.0.32
 pandas>=2.2.3
 openpyxl==3.1.5
