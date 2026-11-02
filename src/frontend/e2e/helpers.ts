@@ -1,4 +1,9 @@
 import type { Locator, Page } from "@playwright/test";
+import {
+  ASSISTANT_MODE_KEY,
+  ASSISTANT_WIDTH_KEY,
+  type AssistantMode,
+} from "../src/components/assistant/layoutMode";
 import { LEGACY_STORAGE, SHARED_STORAGE } from "../src/components/assistant/types";
 
 /**
@@ -97,17 +102,35 @@ export async function seedAuth(
   opts: {
     drawerOpen?: boolean;
     thread?: unknown[];
+    /** Window shape the drawer should restore. Defaults to the floating modal. */
+    assistantMode?: AssistantMode;
+    /** Docked width in px; the app clamps it to the current viewport. */
+    assistantWidth?: number;
     /** Version this device remembers dismissing. Defaults to a never-matching one. */
     whatsNewDismissedVersion?: string;
   } = {},
 ) {
   await page.addInitScript(
-    ({ token, drawerOpen, thread, threadKey, staleKeys, whatsNewDismissedVersion }) => {
+    ({
+      token,
+      drawerOpen,
+      thread,
+      threadKey,
+      staleKeys,
+      whatsNewDismissedVersion,
+      modeKey,
+      widthKey,
+      assistantMode,
+      assistantWidth,
+    }) => {
       window.localStorage.setItem("auth_token", token);
       // Always set the flag explicitly. Pages in one context share
       // localStorage, so a previous run that opened the drawer would otherwise
       // leak ai_drawer_open=true into the next one and hide the FAB.
       window.localStorage.setItem("ai_drawer_open", JSON.stringify(drawerOpen));
+      window.localStorage.setItem(modeKey, assistantMode);
+      if (assistantWidth === undefined) window.localStorage.removeItem(widthKey);
+      else window.localStorage.setItem(widthKey, String(assistantWidth));
       // The thread is always written, empty by default: an absent key would
       // trigger the one-time migration against stale keys from a previous run.
       window.localStorage.setItem(threadKey, JSON.stringify(thread ?? []));
@@ -121,6 +144,10 @@ export async function seedAuth(
       threadKey: SHARED_STORAGE.thread,
       staleKeys: STALE_KEYS,
       whatsNewDismissedVersion: opts.whatsNewDismissedVersion ?? "999.0.0",
+      modeKey: ASSISTANT_MODE_KEY,
+      widthKey: ASSISTANT_WIDTH_KEY,
+      assistantMode: opts.assistantMode ?? "modal",
+      assistantWidth: opts.assistantWidth,
     },
   );
 }
