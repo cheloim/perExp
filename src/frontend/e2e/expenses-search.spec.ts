@@ -235,6 +235,12 @@ test("the category analysis links out and no chart request is made", async ({ pa
   expect(chartRequests).toHaveLength(0);
 });
 
+test("the footer says how many of the total are shown", async ({ page }) => {
+  await openExpenses(page);
+
+  await expect(page.getByText("3 gastos", { exact: true })).toBeVisible();
+});
+
 test("the collapsed filter bar is pinned and the expanded one is not", async ({ page }) => {
   await openExpenses(page);
 
@@ -314,7 +320,7 @@ test("the result count is announced politely", async ({ page }) => {
   await openExpenses(page);
   await searchBox(page).fill("netflix");
 
-  const live = page.locator('[aria-live="polite"]');
+  const live = page.getByTestId("expense-filters").locator('[aria-live="polite"]');
   await expect(live).toHaveText(/1\+? gastos? para «netflix»/);
 });
 
