@@ -320,7 +320,7 @@ test("the result count is announced politely", async ({ page }) => {
   await openExpenses(page);
   await searchBox(page).fill("netflix");
 
-  const live = page.locator('[aria-live="polite"]');
+  const live = page.getByTestId("expense-filters").locator('[aria-live="polite"]');
   await expect(live).toHaveText(/1\+? gastos? para «netflix»/);
 });
 

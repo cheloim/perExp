@@ -1448,7 +1448,7 @@ export default function ExpensesPage() {
 
       {expenses.length > 0 && (
         <div className="flex items-center justify-between">
-          <p className="text-xs text-[var(--text-tertiary)]" aria-live="polite">
+          <p className="text-xs text-[var(--text-secondary)]" aria-live="polite">
             {paginationLabel(expenses.length, expenseStats?.count)}
           </p>
           {hasMorePages(expenses.length, expenseStats?.count, visibleCount) && (
