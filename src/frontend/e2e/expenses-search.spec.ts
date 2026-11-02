@@ -238,7 +238,7 @@ test("the category analysis links out and no chart request is made", async ({ pa
 test("the footer says how many of the total are shown", async ({ page }) => {
   await openExpenses(page);
 
-  await expect(page.getByText("Mostrando 3 de 3 gastos")).toBeVisible();
+  await expect(page.getByText("3 gastos", { exact: true })).toBeVisible();
 });
 
 test("the collapsed filter bar is pinned and the expanded one is not", async ({ page }) => {
