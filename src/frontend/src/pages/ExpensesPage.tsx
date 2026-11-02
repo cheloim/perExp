@@ -849,6 +849,8 @@ export default function ExpensesPage() {
         onDateRangeChange={setDateRange}
         onClearChip={clearChip}
         onClearAll={clearFilters}
+        searchParams={searchParams}
+        onApplyView={(params) => setSearchParams(params)}
       />
 
       {/* Stats cards + Charts */}

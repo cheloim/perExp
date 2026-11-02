@@ -7,6 +7,7 @@ import SymbolicIcon from "../SymbolicIcon";
 import { DateRangePicker, type DateRangeValue } from "../ui/DateRangePicker";
 import { MultiSelect } from "../ui/MultiSelect";
 import { Select } from "../ui/Select";
+import { SavedViewsMenu } from "./SavedViewsMenu";
 
 interface ExpensesFilterBarProps {
   filters: ExpenseFilters;
@@ -25,6 +26,9 @@ interface ExpensesFilterBarProps {
   onDateRangeChange: (range: DateRangeValue) => void;
   onClearChip: (chip: FilterChip) => void;
   onClearAll: () => void;
+  /** Serialized current filters, for saving a view. */
+  searchParams: URLSearchParams;
+  onApplyView: (params: URLSearchParams) => void;
 }
 
 const CHIP_CLASS =
@@ -51,6 +55,8 @@ export function ExpensesFilterBar({
   onDateRangeChange,
   onClearChip,
   onClearAll,
+  searchParams,
+  onApplyView,
 }: ExpensesFilterBarProps) {
   const categoryGroups = useMemo(() => categoryGroupOptions(categories), [categories]);
 
@@ -144,6 +150,7 @@ export function ExpensesFilterBar({
               </svg>
             </span>
           </button>
+          <SavedViewsMenu searchParams={searchParams} onApply={onApplyView} />
         </div>
 
         {resultSummary && (

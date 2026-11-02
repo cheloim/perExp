@@ -441,6 +441,10 @@ export default function GuidePage() {
                 <strong>Búsqueda</strong> — texto libre en descripciones (búsqueda debounced)
               </li>
               <li>
+                <strong>Vistas guardadas</strong> — guardá una combinación de filtros con nombre y
+                reaplicarla después; se guardan en este navegador
+              </li>
+              <li>
                 <strong>CSV</strong> — exportá los gastos filtrados como archivo CSV
               </li>
             </ul>
