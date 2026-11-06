@@ -23,7 +23,7 @@ alembic>=1.13.0
 
 # Celery + Redis
 celery>=5.4.0
-redis>=5.0.0
+redis>=8.1.0
 
 # PDF generation
 playwright>=1.61.0
