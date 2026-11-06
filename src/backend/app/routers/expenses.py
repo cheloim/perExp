@@ -766,11 +766,10 @@ def bulk_update_tags(
     elif mode == "add":
         for eid in expense_ids:
             assign_tags_validated(db, eid, tag_ids, current_user.id, uid_list)
-    elif mode == "remove":
-        if tag_ids:
-            db.query(ExpenseTag).filter(
-                ExpenseTag.expense_id.in_(expense_ids), ExpenseTag.tag_id.in_(tag_ids)
-            ).delete(synchronize_session=False)
+    elif mode == "remove" and tag_ids:
+        db.query(ExpenseTag).filter(
+            ExpenseTag.expense_id.in_(expense_ids), ExpenseTag.tag_id.in_(tag_ids)
+        ).delete(synchronize_session=False)
 
     db.commit()
     _invalidate_expense_cache(current_user.id, db)
