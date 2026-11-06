@@ -1,3 +1,5 @@
+import { refreshAccessToken } from "../../api/client";
+
 const AUTH_TOKEN_KEY = "auth_token";
 
 /**
@@ -25,16 +27,28 @@ export async function streamTo(
   onChunk: (full: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
+  const send = (token: string | null) =>
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+  let token = localStorage.getItem(AUTH_TOKEN_KEY);
+  let resp = await send(token);
+  // Raw fetch bypasses the axios interceptor: refresh and retry once so a
+  // long-open tab does not fail the first question after the token expires.
+  if (resp.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      token = refreshed;
+      resp = await send(token);
+    }
+  }
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
   const reader = resp.body!.getReader();

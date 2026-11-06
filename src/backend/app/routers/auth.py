@@ -31,10 +31,17 @@ from app.schemas import (
     UserResponse,
 )
 from app.services.auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    REFRESH_TOKEN_EXPIRE_DAYS,
+    RefreshTokenError,
     create_access_token,
+    create_refresh_token,
     exchange_google_code,
     get_current_user,
     get_password_hash,
+    revoke_all_refresh_tokens,
+    revoke_refresh_token,
+    rotate_refresh_token,
     verify_password,
     verify_telegram_login_widget,
     verify_telegram_webapp,
@@ -56,7 +63,9 @@ logger = logging.getLogger(__name__)
 # ── Cookie configuration ─────────────────────────────────────
 
 AUTH_COOKIE_NAME = "oikonomia_auth"
-AUTH_COOKIE_MAX_AGE = 7 * 24 * 3600  # 7 days (matches JWT expiry)
+AUTH_COOKIE_MAX_AGE = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+REFRESH_COOKIE_NAME = "oikonomia_refresh"
+REFRESH_COOKIE_MAX_AGE = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
 
 
 def _set_auth_cookie(response, token: str) -> None:
@@ -76,6 +85,19 @@ def _set_auth_cookie(response, token: str) -> None:
     )
 
 
+def _set_refresh_cookie(response, token: str) -> None:
+    """Long-lived, single-purpose refresh token; JavaScript cannot read it."""
+    response.set_cookie(
+        key=REFRESH_COOKIE_NAME,
+        value=token,
+        max_age=REFRESH_COOKIE_MAX_AGE,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
+
+
 def _clear_auth_cookie(response) -> None:
     """Clear the auth cookie (logout)."""
     response.delete_cookie(
@@ -85,6 +107,34 @@ def _clear_auth_cookie(response) -> None:
         secure=True,
         samesite="lax",
     )
+
+
+def _clear_refresh_cookie(response) -> None:
+    response.delete_cookie(
+        key=REFRESH_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+
+
+def _issue_session(response, db: Session, user: User, request: Request) -> str:
+    """Start a full session: access JWT plus a rotating refresh token.
+
+    Applies the access token, not the 5-minute partial tokens used before MFA
+    or a forced password change.
+    """
+    token = create_access_token(user.id)
+    refresh = create_refresh_token(
+        db,
+        user.id,
+        user_agent=request.headers.get("User-Agent", ""),
+        ip_address=_get_client_ip(request),
+    )
+    _set_auth_cookie(response, token)
+    _set_refresh_cookie(response, refresh)
+    return token
 
 
 def _get_client_ip(request: Request) -> str:
@@ -208,8 +258,7 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
     _log_audit(db, user.id, "login_success", request)
     _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="password", status="success").inc()
-    token = create_access_token(user.id)
-    _set_auth_cookie(response, token)
+    token = _issue_session(response, db, user, request)
     return Token(access_token=token, token_type="bearer")
 
 
@@ -267,8 +316,7 @@ def login_mfa(
 
     _log_audit(db, user.id, "login_success", request, details="mfa_verified")
     _record_login(db, user)
-    token = create_access_token(user.id)
-    _set_auth_cookie(response, token)
+    token = _issue_session(response, db, user, request)
     return Token(access_token=token, token_type="bearer")
 
 
@@ -321,8 +369,7 @@ def register(body: UserCreate, request: Request, response: Response, db: Session
         send_verification_email(user.email, verification_token, base_url)
 
     _log_audit(db, user.id, "register", request)
-    token = create_access_token(user.id)
-    _set_auth_cookie(response, token)
+    token = _issue_session(response, db, user, request)
 
     # Sync user to Grafana (background, non-blocking)
     try:
@@ -455,8 +502,7 @@ async def oauth_callback(
     _log_audit(db, user.id, "oauth_login", request, details=f"{body.provider}_callback")
     _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="google", status="success").inc()
-    token = create_access_token(user.id)
-    _set_auth_cookie(response, token)
+    token = _issue_session(response, db, user, request)
     return Token(access_token=token, token_type="bearer")
 
 
@@ -514,8 +560,7 @@ def telegram_webapp_login(
     _log_audit(db, user.id, "telegram_webapp_login", request)
     _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="telegram", status="success").inc()
-    token = create_access_token(user.id)
-    _set_auth_cookie(response, token)
+    token = _issue_session(response, db, user, request)
     return Token(access_token=token, token_type="bearer")
 
 
@@ -602,8 +647,7 @@ def telegram_widget_login(
 
     _log_audit(db, user.id, "telegram_widget_login", request)
     LOGIN_ATTEMPTS.labels(method="telegram_widget", status="success").inc()
-    token = create_access_token(user.id)
-    _set_auth_cookie(response, token)
+    token = _issue_session(response, db, user, request)
     return Token(access_token=token, token_type="bearer")
 
 
@@ -662,8 +706,7 @@ async def telegram_oidc_login(
     _log_audit(db, user.id, "telegram_oidc_login", request)
     _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="telegram_oidc", status="success").inc()
-    token = create_access_token(user.id)
-    _set_auth_cookie(response, token)
+    token = _issue_session(response, db, user, request)
     return Token(access_token=token, token_type="bearer")
 
 
@@ -733,7 +776,16 @@ async def telegram_oidc_callback(
 
     # Redirect to frontend with token
     access_token = create_access_token(user.id)
-    return RedirectResponse(url=f"{frontend_callback}?token={access_token}")
+    refresh = create_refresh_token(
+        db,
+        user.id,
+        user_agent=(request.headers.get("User-Agent", "") if request else ""),
+        ip_address=_get_client_ip(request) if request else "",
+    )
+    redirect = RedirectResponse(url=f"{frontend_callback}?token={access_token}")
+    _set_auth_cookie(redirect, access_token)
+    _set_refresh_cookie(redirect, refresh)
+    return redirect
 
 
 @router.post(
@@ -858,6 +910,7 @@ def change_password(
         )
     current_user.hashed_password = get_password_hash(body.new_password)
     current_user.force_password_change = False
+    revoke_all_refresh_tokens(db, current_user.id, reason="password_changed")
     db.commit()
     _log_audit(db, current_user.id, "password_changed", request)
 
@@ -906,11 +959,11 @@ def force_change_password(
 
     user.hashed_password = get_password_hash(body.new_password)
     user.force_password_change = False
+    revoke_all_refresh_tokens(db, user.id, reason="password_changed")
     db.commit()
 
     _log_audit(db, user.id, "force_password_changed", request)
-    token = create_access_token(user.id)
-    _set_auth_cookie(response, token)
+    token = _issue_session(response, db, user, request)
     return Token(access_token=token, token_type="bearer")
 
 
@@ -1025,12 +1078,13 @@ def get_telegram_deep_link(
 @router.post(
     "/refresh",
     response_model=Token,
-    summary="Refresh access token",
-    description="Issues a new access token for the currently authenticated user.",
+    summary="Rotate the refresh token",
+    description=(
+        "Exchanges the httpOnly refresh cookie for a new access token and a new "
+        "refresh cookie. Does not need a valid access token: that is the point."
+    ),
 )
-def refresh_token(
-    request: Request, response: Response, current_user: User = Depends(get_current_user)
-):
+def refresh_token(request: Request, response: Response, db: Session = Depends(get_db)):
     ip = _get_client_ip(request)
     allowed, retry_after = check_rate_limit(ip, "token_refresh")
     if not allowed:
@@ -1038,14 +1092,47 @@ def refresh_token(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Demasiados intentos. Probá en {retry_after} segundos.",
         )
-    token = create_access_token(current_user.id)
+
+    raw_refresh = request.cookies.get(REFRESH_COOKIE_NAME)
+    if not raw_refresh:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sesión expirada. Iniciá sesión nuevamente.",
+        )
+
+    try:
+        user, new_refresh = rotate_refresh_token(
+            db,
+            raw_refresh,
+            user_agent=request.headers.get("User-Agent", ""),
+            ip_address=ip,
+        )
+    except RefreshTokenError as exc:
+        _clear_auth_cookie(response)
+        _clear_refresh_cookie(response)
+        logger.warning("Refresh token rejected for %s: %s", ip, exc)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sesión expirada. Iniciá sesión nuevamente.",
+        ) from exc
+
+    token = create_access_token(user.id)
     _set_auth_cookie(response, token)
+    _set_refresh_cookie(response, new_refresh)
     return Token(access_token=token, token_type="bearer")
 
 
-@router.post("/logout", summary="Logout", description="Clears the auth cookie.")
-def logout(response: Response):
+@router.post(
+    "/logout",
+    summary="Logout",
+    description="Revokes this device's refresh token and clears both auth cookies.",
+)
+def logout(request: Request, response: Response, db: Session = Depends(get_db)):
+    raw_refresh = request.cookies.get(REFRESH_COOKIE_NAME)
+    if raw_refresh:
+        revoke_refresh_token(db, raw_refresh)
     _clear_auth_cookie(response)
+    _clear_refresh_cookie(response)
     return {"detail": "Sesión cerrada"}
 
 
@@ -1129,6 +1216,7 @@ def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     user.hashed_password = get_password_hash(body.new_password)
     user.reset_token = None
     user.reset_token_expires = None
+    revoke_all_refresh_tokens(db, user.id, reason="password_reset")
     db.commit()
 
     return {"detail": "Contraseña actualizada correctamente"}

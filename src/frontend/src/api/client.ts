@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 import type {
   Account,
   Budget,
@@ -35,11 +35,9 @@ import type {
   ExpenseImageResponse,
 } from "../types";
 
-// Token storage: Using localStorage for persistence across sessions.
-// This is intentional for SPA architecture. Security relies on:
-// 1. HTTPS in production
-// 2. Short-lived JWT tokens (7 days)
-// 3. No XSS vulnerabilities in the application
+// Token storage: the access JWT lives in localStorage so a reload keeps the
+// session; the 30-day refresh token lives in an httpOnly cookie the JS never
+// reads. The access token is short-lived and rotated transparently.
 const TOKEN_KEY = "auth_token";
 
 let inMemoryAuthToken: string | null = null;
@@ -54,7 +52,93 @@ export const clearToken = () => {
   localStorage.removeItem(TOKEN_KEY);
 };
 
+/** Fired after a silent refresh so long-lived transports (SSE) can reconnect. */
+export const AUTH_TOKEN_REFRESHED_EVENT = "auth-token-refreshed";
+
 export const api = axios.create({ baseURL: "/api" });
+
+// Separate instance: the refresh endpoint must not run the 401 interceptor
+// below, or an expired session would recurse into itself.
+const refreshClient = axios.create({ baseURL: "/api", withCredentials: true });
+
+/** `exp` in milliseconds, or null when the token is absent/malformed. */
+export function tokenExpiresAt(token = getStoredToken()): number | null {
+  if (!token) return null;
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const json = JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")));
+    return typeof json.exp === "number" ? json.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isAccessTokenExpiring(withinSeconds = 120): boolean {
+  const expiresAt = tokenExpiresAt();
+  // Unknown expiry: let the 401 path decide instead of refreshing blindly.
+  if (expiresAt === null) return false;
+  return expiresAt - Date.now() <= withinSeconds * 1000;
+}
+
+let refreshPromise: Promise<string | null> | null = null;
+
+type LockManagerLike = {
+  request: <T>(name: string, callback: () => Promise<T>) => Promise<T>;
+};
+
+/**
+ * Serialize rotations across tabs, not just within one.
+ *
+ * Each tab has its own single-flight promise but they share one cookie. Without
+ * the lock, two tabs refreshing at the same minute would present the same
+ * token; the second would look like a replay and revoke the family.
+ */
+function withCrossTabLock<T>(run: () => Promise<T>): Promise<T> {
+  const locks = (navigator as unknown as { locks?: LockManagerLike }).locks;
+  if (!locks) return run();
+  return locks.request("oikonomia-auth-refresh", run);
+}
+
+/**
+ * Exchange the refresh cookie for a new access token.
+ *
+ * Single-flight: parallel 401s (a dashboard fires a dozen requests) share one
+ * rotation, otherwise the second call would present an already-rotated token
+ * and the backend would revoke the whole family as suspected theft.
+ */
+export function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = withCrossTabLock(() => refreshClient.post<AuthToken>("/auth/refresh"))
+    .then(({ data }) => {
+      if (!data?.access_token) return null;
+      storeToken(data.access_token);
+      window.dispatchEvent(new CustomEvent(AUTH_TOKEN_REFRESHED_EVENT));
+      return data.access_token;
+    })
+    .catch(() => null)
+    .finally(() => {
+      refreshPromise = null;
+    });
+  return refreshPromise;
+}
+
+/** Revoke this device's refresh token, then forget the local access token. */
+export async function logoutSession(): Promise<void> {
+  try {
+    await refreshClient.post("/auth/logout");
+  } catch {
+    /* best effort: the local token must go regardless */
+  }
+  clearToken();
+}
+
+type RetryableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
+
+/** Login is a 401 too: never try to refresh it, or the loop is endless. */
+const AUTH_ENDPOINT =
+  /\/auth\/(login|login\/mfa|register|refresh|logout|forgot-password|reset-password|force-change-password|verify-email)/;
 
 export const transcribeAudio = (
   file: Blob,
@@ -93,10 +177,30 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (r) => r,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Don't redirect if on admin page — let ReAuthModal handle it
-      const isAdminPage = window.location.pathname.startsWith("/x/");
+  async (error) => {
+    const status = error.response?.status;
+    const config = error.config as RetryableConfig | undefined;
+
+    // Don't redirect if on admin page — let ReAuthModal handle it. Its 401 is
+    // a prompt for a fresh login, not an expired session to refresh silently.
+    const isAdminPage = window.location.pathname.startsWith("/x/");
+
+    if (
+      status === 401 &&
+      config &&
+      !config._retried &&
+      !isAdminPage &&
+      !AUTH_ENDPOINT.test(config.url ?? "")
+    ) {
+      config._retried = true;
+      const token = await refreshAccessToken();
+      if (token) {
+        // The request interceptor overwrites Authorization from the store.
+        return api(config);
+      }
+    }
+
+    if (status === 401) {
       if (isAdminPage) {
         window.dispatchEvent(new CustomEvent("admin-reauth-required"));
         return Promise.reject(error);
@@ -111,6 +215,35 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+/**
+ * Refresh shortly before the access token expires.
+ *
+ * The 401 retry covers API calls, but an idle tab with an open SSE stream
+ * would otherwise reconnect with a dead token. Runs while MainLayout is
+ * mounted; the visibility check catches timers throttled in the background.
+ */
+export function startTokenRefreshLoop(intervalMs = 60_000): () => void {
+  let lastFailure = 0;
+  const check = () => {
+    if (!isAccessTokenExpiring(10 * 60)) return;
+    // A dead refresh cookie would otherwise retry every minute forever.
+    if (Date.now() - lastFailure < 5 * 60_000) return;
+    void refreshAccessToken().then((token) => {
+      if (!token) lastFailure = Date.now();
+    });
+  };
+  check();
+  const id = window.setInterval(check, intervalMs);
+  const onVisible = () => {
+    if (document.visibilityState === "visible") check();
+  };
+  document.addEventListener("visibilitychange", onVisible);
+  return () => {
+    window.clearInterval(id);
+    document.removeEventListener("visibilitychange", onVisible);
+  };
+}
 
 // Auth
 export const login = (email: string, password: string) =>

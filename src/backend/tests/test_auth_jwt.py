@@ -86,16 +86,26 @@ class TestTokenCreation:
         diff = (exp - now).total_seconds()
         assert 240 <= diff <= 360
 
-    def test_create_token_default_expiry_is_7_days(self):
-        from app.services.auth import ALGORITHM, JWT_SECRET, create_access_token
+    def test_create_token_default_expiry_is_the_access_window(self):
+        from app.services.auth import (
+            ACCESS_TOKEN_EXPIRE_MINUTES,
+            ALGORITHM,
+            JWT_SECRET,
+            create_access_token,
+        )
 
         token = create_access_token(user_id=1)
         payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
         exp = datetime.fromtimestamp(payload["exp"], tz=UTC)
         now = datetime.now(UTC)
-        diff_days = (exp - now).total_seconds() / 86400
-        # Allow tolerance: between 6.9 and 7.1 days
-        assert 6.9 <= diff_days <= 7.1
+        diff_minutes = (exp - now).total_seconds() / 60
+        # Allow tolerance: within one minute of the configured window
+        assert ACCESS_TOKEN_EXPIRE_MINUTES - 1 <= diff_minutes <= ACCESS_TOKEN_EXPIRE_MINUTES + 1
+
+    def test_two_tokens_are_distinct_even_in_the_same_second(self):
+        from app.services.auth import create_access_token
+
+        assert create_access_token(user_id=1) != create_access_token(user_id=1)
 
 
 # ── JWT Token validation ──────────────────────────────────────
