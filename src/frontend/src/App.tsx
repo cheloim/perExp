@@ -12,7 +12,14 @@ import {
 import UserPanel from "./components/UserPanel";
 import { UploadProgressProvider } from "./context/UploadProgressContext";
 import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
-import { getStoredToken, getMe, getAdminSlug, dismissWhatsNew, createExpense } from "./api/client";
+import {
+  getStoredToken,
+  getMe,
+  getAdminSlug,
+  dismissWhatsNew,
+  createExpense,
+  startTokenRefreshLoop,
+} from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import ToastViewport from "./components/ToastViewport";
 import NotificationCenterModal from "./components/NotificationCenterModal";
@@ -222,6 +229,10 @@ function MainLayout() {
   const [showReAuth, setShowReAuth] = useState(false);
   const [newExpenseOpen, setNewExpenseOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  // Keep the short-lived access token fresh while the app is open. The 401
+  // retry covers API calls; this also keeps the SSE token from going stale.
+  useEffect(() => startTokenRefreshLoop(), []);
 
   // Global expense creation
   const createMut = useMutation({
