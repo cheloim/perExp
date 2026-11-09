@@ -459,7 +459,11 @@ function MainLayout() {
           <UploadProgressBanner />
 
           {/* Scrollable content */}
-          <main className="flex-1 overflow-y-auto overflow-x-auto relative z-10">
+          {/* No z-index on <main>: a stacking context here would trap every
+              page modal below the docked assistant (a root-level z-40 sibling).
+              With `position: relative` alone, a dialog's z-50 competes at the
+              root, so it covers both the page and the panel. */}
+          <main className="flex-1 overflow-y-auto overflow-x-auto relative">
             <div
               className={`w-full px-4 sm:px-6 lg:px-8 ${
                 location.pathname.startsWith("/import-jobs") ? "py-0" : "py-8 md:py-10"
