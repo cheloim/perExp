@@ -825,11 +825,13 @@ export function AssistantShell({
     <>
       {docked ? (
         /* Docked: a real flex column on desktop so the page gives up width
-           instead of being covered. On phones it falls back to full screen. */
+           instead of being covered. On phones it falls back to full screen.
+           Deliberately below dialogs (z-50): the page column no longer creates
+           a stacking context, so a modal opened while docked paints on top. */
         <aside
           data-testid="assistant-docked"
           style={{ "--assistant-docked-width": `${panelWidth}px` } as CSSProperties}
-          className="fixed inset-y-0 right-0 z-50 flex w-full flex-shrink-0 md:static md:inset-auto md:h-full md:w-[var(--assistant-docked-width)]"
+          className="fixed inset-y-0 right-0 z-40 flex w-full flex-shrink-0 md:static md:inset-auto md:h-full md:w-[var(--assistant-docked-width)]"
         >
           {panel}
         </aside>
