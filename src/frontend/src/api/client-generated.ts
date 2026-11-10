@@ -153,7 +153,6 @@ import type {
   RecurringCreate,
   RecurringExpenseResponse,
   RecurringUpdate,
-  RefreshTokenBody,
   RegisterRequest,
   ResetPasswordBody,
   ScanBody,
@@ -171,8 +170,10 @@ import type {
   TelegramKeyResponse,
   TelegramLoginWidgetRequest,
   TelegramOidcCallbackAuthTelegramCallbackGetParams,
+  TelegramOidcExchangeRequest,
   TelegramOidcLinkRequest,
   TelegramOidcRequest,
+  TelegramOidcStateResponse,
   TelegramStatusResponse,
   TelegramWebAppRequest,
   Token,
@@ -458,44 +459,27 @@ export const useLoginMfa = <TError = ErrorType<unknown>, TContext = unknown>(
 };
 
 /**
- * @summary Refresh access token
+ * Exchanges the httpOnly `oikonomia_refresh` cookie for a new access token
+ * and a rotated refresh cookie. Requires no Bearer token, so it still works
+ * after the access token expires.
+ * @summary Rotate the refresh token
  */
 export const refreshToken = (
-  refreshTokenBody: BodyType<RefreshTokenBody>,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
-  return customInstance<Token>(
-    {
-      url: `/auth/refresh`,
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      data: refreshTokenBody,
-      signal,
-    },
-    options,
-  );
+  return customInstance<Token>({ url: `/auth/refresh`, method: "POST", signal }, options);
 };
 
 export const getRefreshTokenMutationKey = () => ["refreshToken"] as const;
 
 export const getRefreshTokenMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof refreshToken>>,
-    TError,
-    RefreshTokenMutationVariables,
-    TContext
-  >;
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof refreshToken>>, TError, void, TContext>;
   request?: SecondParameter<typeof customInstance>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof refreshToken>>,
-  TError,
-  RefreshTokenMutationVariables,
-  TContext
-> => {
+}): UseMutationOptions<Awaited<ReturnType<typeof refreshToken>>, TError, void, TContext> => {
   const mutationKey = getRefreshTokenMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
@@ -503,43 +487,27 @@ export const getRefreshTokenMutationOptions = <
       : { ...options, mutation: { ...options.mutation, mutationKey } }
     : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof refreshToken>>,
-    RefreshTokenMutationVariables
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return refreshToken(data, requestOptions);
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshToken>>, void> = () => {
+    return refreshToken(requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
 export type RefreshTokenMutationResult = NonNullable<Awaited<ReturnType<typeof refreshToken>>>;
-export type RefreshTokenMutationBody = BodyType<RefreshTokenBody>;
-export type RefreshTokenMutationError = ErrorType<unknown>;
-export type RefreshTokenMutationVariables = { data: BodyType<RefreshTokenBody> };
+
+export type RefreshTokenMutationError = ErrorType<void>;
 
 /**
- * @summary Refresh access token
+ * @summary Rotate the refresh token
  */
-export const useRefreshToken = <TError = ErrorType<unknown>, TContext = unknown>(
+export const useRefreshToken = <TError = ErrorType<void>, TContext = unknown>(
   options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof refreshToken>>,
-      TError,
-      RefreshTokenMutationVariables,
-      TContext
-    >;
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof refreshToken>>, TError, void, TContext>;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof refreshToken>>,
-  TError,
-  RefreshTokenMutationVariables,
-  TContext
-> => {
+): UseMutationResult<Awaited<ReturnType<typeof refreshToken>>, TError, void, TContext> => {
   return useMutation(getRefreshTokenMutationOptions(options), queryClient);
 };
 
@@ -9023,6 +8991,249 @@ export const useTelegramOidcLoginAuthTelegramOidcPost = <
 };
 
 /**
+ * Returns a short-lived state that the client sends to Telegram and the callback validates. Requires Redis; fails closed if unavailable.
+ * @summary Create a one-time state for the Telegram OIDC redirect
+ */
+export const telegramOidcStateAuthTelegramStateGet = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<TelegramOidcStateResponse>(
+    { url: `/auth/telegram/state`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getTelegramOidcStateAuthTelegramStateGetQueryKey = () => {
+  return [`/auth/telegram/state`] as const;
+};
+
+export const getTelegramOidcStateAuthTelegramStateGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getTelegramOidcStateAuthTelegramStateGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>
+  > = ({ signal }) => telegramOidcStateAuthTelegramStateGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type TelegramOidcStateAuthTelegramStateGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>
+>;
+export type TelegramOidcStateAuthTelegramStateGetQueryError = ErrorType<unknown>;
+
+export function useTelegramOidcStateAuthTelegramStateGet<
+  TData = Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+          TError,
+          Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTelegramOidcStateAuthTelegramStateGet<
+  TData = Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+          TError,
+          Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useTelegramOidcStateAuthTelegramStateGet<
+  TData = Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Create a one-time state for the Telegram OIDC redirect
+ */
+
+export function useTelegramOidcStateAuthTelegramStateGet<
+  TData = Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof telegramOidcStateAuthTelegramStateGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getTelegramOidcStateAuthTelegramStateGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Consumes a one-time code issued by the Telegram OIDC callback and returns the access token. The code can be used only once.
+ * @summary Exchange a one-time Telegram login code for an access token
+ */
+export const telegramOidcExchangeAuthTelegramExchangePost = (
+  telegramOidcExchangeRequest: BodyType<TelegramOidcExchangeRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<Token>(
+    {
+      url: `/auth/telegram/exchange`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: telegramOidcExchangeRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getTelegramOidcExchangeAuthTelegramExchangePostMutationKey = () =>
+  ["telegramOidcExchangeAuthTelegramExchangePost"] as const;
+
+export const getTelegramOidcExchangeAuthTelegramExchangePostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>,
+    TError,
+    TelegramOidcExchangeAuthTelegramExchangePostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>,
+  TError,
+  TelegramOidcExchangeAuthTelegramExchangePostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getTelegramOidcExchangeAuthTelegramExchangePostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>,
+    TelegramOidcExchangeAuthTelegramExchangePostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return telegramOidcExchangeAuthTelegramExchangePost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TelegramOidcExchangeAuthTelegramExchangePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>
+>;
+export type TelegramOidcExchangeAuthTelegramExchangePostMutationBody =
+  BodyType<TelegramOidcExchangeRequest>;
+export type TelegramOidcExchangeAuthTelegramExchangePostMutationError = ErrorType<unknown>;
+export type TelegramOidcExchangeAuthTelegramExchangePostMutationVariables = {
+  data: BodyType<TelegramOidcExchangeRequest>;
+};
+
+/**
+ * @summary Exchange a one-time Telegram login code for an access token
+ */
+export const useTelegramOidcExchangeAuthTelegramExchangePost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>,
+      TError,
+      TelegramOidcExchangeAuthTelegramExchangePostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof telegramOidcExchangeAuthTelegramExchangePost>>,
+  TError,
+  TelegramOidcExchangeAuthTelegramExchangePostMutationVariables,
+  TContext
+> => {
+  return useMutation(
+    getTelegramOidcExchangeAuthTelegramExchangePostMutationOptions(options),
+    queryClient,
+  );
+};
+
+/**
  * Handles the redirect from Telegram's OIDC authorization endpoint. Exchanges code for token and redirects to frontend.
  * @summary Telegram OIDC callback
  */
@@ -9517,7 +9728,7 @@ export function useGetTelegramDeepLinkAuthMeTelegramDeepLinkGet<
 }
 
 /**
- * Clears the auth cookie.
+ * Revokes this device's refresh token family and clears both auth cookies.
  * @summary Logout
  */
 export const logoutAuthLogoutPost = (
