@@ -284,7 +284,7 @@ export default function InstallmentsPage() {
                   borderColor: "var(--chart-tooltip-border)",
                   color: "var(--chart-tooltip-text)",
                 }}
-                formatter={(v: number) => [formatCurrency(v), "Total"]}
+                formatter={(v) => [formatCurrency(Number(v ?? 0)), "Total"]}
               />
               <Bar dataKey="total" radius={[4, 4, 0, 0]}>
                 {monthlyLoad.map((entry, index) => (
