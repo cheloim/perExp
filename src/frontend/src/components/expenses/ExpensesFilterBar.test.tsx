@@ -53,6 +53,8 @@ function renderBar(overrides: Partial<React.ComponentProps<typeof ExpensesFilter
       onDateRangeChange={vi.fn()}
       onClearChip={onClearChip}
       onClearAll={onClearAll}
+      searchParams={new URLSearchParams()}
+      onApplyView={vi.fn()}
       {...overrides}
     />,
   );

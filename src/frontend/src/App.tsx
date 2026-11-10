@@ -12,7 +12,14 @@ import {
 import UserPanel from "./components/UserPanel";
 import { UploadProgressProvider } from "./context/UploadProgressContext";
 import { NotificationsProvider, useNotifications } from "./context/NotificationsContext";
-import { getStoredToken, getMe, getAdminSlug, dismissWhatsNew, createExpense } from "./api/client";
+import {
+  getStoredToken,
+  getMe,
+  getAdminSlug,
+  dismissWhatsNew,
+  createExpense,
+  startTokenRefreshLoop,
+} from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import ToastViewport from "./components/ToastViewport";
 import NotificationCenterModal from "./components/NotificationCenterModal";
@@ -222,6 +229,10 @@ function MainLayout() {
   const [showReAuth, setShowReAuth] = useState(false);
   const [newExpenseOpen, setNewExpenseOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  // Keep the short-lived access token fresh while the app is open. The 401
+  // retry covers API calls; this also keeps the SSE token from going stale.
+  useEffect(() => startTokenRefreshLoop(), []);
 
   // Global expense creation
   const createMut = useMutation({
@@ -448,7 +459,11 @@ function MainLayout() {
           <UploadProgressBanner />
 
           {/* Scrollable content */}
-          <main className="flex-1 overflow-y-auto overflow-x-auto relative z-10">
+          {/* No z-index on <main>: a stacking context here would trap every
+              page modal below the docked assistant (a root-level z-40 sibling).
+              With `position: relative` alone, a dialog's z-50 competes at the
+              root, so it covers both the page and the panel. */}
+          <main className="flex-1 overflow-y-auto overflow-x-auto relative">
             <div
               className={`w-full px-4 sm:px-6 lg:px-8 ${
                 location.pathname.startsWith("/import-jobs") ? "py-0" : "py-8 md:py-10"

@@ -65,6 +65,33 @@ class User(Base):
     google_refresh_token_hmac = Column(String(64), nullable=True, index=True)
 
 
+class RefreshToken(Base):
+    """One device session.
+
+    Only the SHA-256 of the opaque token is stored, so a database leak cannot
+    be replayed. Rotation keeps the same `family_id`; presenting an already
+    rotated token is treated as theft and revokes the whole family.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    family_id = Column(String(32), nullable=False, index=True)
+    user_agent = Column(String(255), nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    revoked_at = Column(DateTime, nullable=True)
+    revoked_reason = Column(String(32), nullable=True)
+    replaced_by_id = Column(
+        Integer, ForeignKey("refresh_tokens.id", ondelete="SET NULL"), nullable=True
+    )
+
+
 class Group(Base):
     __tablename__ = "groups"
     id = Column(Integer, primary_key=True, index=True)

@@ -8,15 +8,19 @@ Library: **python-jose** (jose.JWTError, jose.jwt)
 |--------------------|------------------------------|----------------|
 | Algorithm          | `HS256` (hardcoded)          |                |
 | Secret             | `SECRET_KEY` env var         | **required**, min 32 chars |
-| Token expiry       | `JWT_EXPIRE_DAYS` env var    | 7 days         |
+| Access token       | `ACCESS_TOKEN_EXPIRE_MINUTES` env var | 60 minutes |
+| Refresh token      | `REFRESH_TOKEN_EXPIRE_DAYS` env var | 30 days, rotating |
 | MFA partial token  | 5 minutes (hardcoded)        |                |
 | Force change token | 5 minutes (hardcoded)        |                |
 
 Token payload:
 
 ```json
-{"sub": "<user_id>", "exp": <unix_timestamp>}
+{"sub": "<user_id>", "iat": <unix_timestamp>, "exp": <unix_timestamp>, "jti": "<random>"}
 ```
+
+Refresh tokens are opaque values stored only as SHA-256 digests in
+`refresh_tokens` (family, expiry, revocation, reuse detection).
 
 Flow:
 1. User calls `POST /auth/login` with email + password
