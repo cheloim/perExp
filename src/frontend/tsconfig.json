@@ -11,6 +11,9 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    // TypeScript 6 no longer pulls every @types/* package in automatically.
+    // playwright.config.ts and e2e/ need Node globals (`process`).
+    "types": ["node"],
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
