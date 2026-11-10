@@ -476,7 +476,7 @@ export default function Dashboard() {
     prevMonthTotal > 0 ? ((totalSpent - prevMonthTotal) / prevMonthTotal) * 100 : 0;
 
   return (
-    <div className="space-y-8">
+    <div className="@container space-y-8">
       {/* Page header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -612,9 +612,9 @@ export default function Dashboard() {
       </div>
 
       {/* Gastos por Categoría + Transacciones — side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 @[900px]:grid-cols-2 gap-6">
         {/* Left: Gastos por Categoría */}
-        <div className="card p-4 flex flex-col overflow-hidden">
+        <div className="card @container p-4 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-primary">Gastos por Categoría</h2>
@@ -643,8 +643,8 @@ export default function Dashboard() {
               description="Los gastos por categoría aparecerán aquí"
             />
           ) : (
-            <div className="flex flex-col lg:flex-row items-center gap-4 flex-1 min-h-0">
-              <ResponsiveContainer width="100%" height={240} className="max-w-[260px]">
+            <div className="flex flex-col @[460px]:flex-row items-center gap-4 flex-1 min-h-0">
+              <ResponsiveContainer width="100%" height={240} className="max-w-[260px] flex-none">
                 <PieChart>
                   <Pie
                     data={pieData}
@@ -652,8 +652,8 @@ export default function Dashboard() {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={95}
-                    innerRadius={45}
+                    outerRadius="79%"
+                    innerRadius="37%"
                     paddingAngle={1}
                     onClick={(entry) => handleCategorySelect(entry.name)}
                     style={{ cursor: "pointer" }}
@@ -688,7 +688,7 @@ export default function Dashboard() {
               </ResponsiveContainer>
 
               {/* Enriched legend (same pattern as Gastos por Cuenta) */}
-              <div className="flex-1 w-full space-y-1.5 min-h-0 pb-2">
+              <div className="flex-1 w-full min-w-0 space-y-1.5 min-h-0 pb-2 overflow-y-auto">
                 {categories.map((cat, i) => {
                   const color =
                     cat.category_color || categoryColorMap.get(cat.category_name) || "#94a3b8";
@@ -892,9 +892,9 @@ export default function Dashboard() {
       </div>
 
       {/* Tarjetas + Programados — side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 @[900px]:grid-cols-2 gap-6">
         {/* Tag donut */}
-        <div className="card p-4">
+        <div className="card @container p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-primary">Gastos por Cuenta</h2>
             <div className="flex items-center gap-3">
@@ -953,8 +953,12 @@ export default function Dashboard() {
                 }
 
                 return (
-                  <div className="flex flex-col lg:flex-row items-center gap-4">
-                    <ResponsiveContainer width="100%" height={240} className="max-w-[260px]">
+                  <div className="flex flex-col @[460px]:flex-row items-center gap-4">
+                    <ResponsiveContainer
+                      width="100%"
+                      height={240}
+                      className="max-w-[260px] flex-none"
+                    >
                       <PieChart>
                         <Pie
                           data={displayed.map((t) => ({
@@ -967,8 +971,8 @@ export default function Dashboard() {
                           nameKey="name"
                           cx="50%"
                           cy="50%"
-                          innerRadius={45}
-                          outerRadius={95}
+                          innerRadius="37%"
+                          outerRadius="79%"
                           paddingAngle={1}
                           onClick={(entry) => {
                             if (entry.tag_id != null) {
@@ -1001,7 +1005,7 @@ export default function Dashboard() {
                       </PieChart>
                     </ResponsiveContainer>
 
-                    <div className="flex-1 w-full space-y-1.5">
+                    <div className="flex-1 w-full min-w-0 space-y-1.5 overflow-y-auto">
                       {displayed.map((t, i) => {
                         const isNull = t.tag_id == null;
                         return (
@@ -1117,7 +1121,7 @@ export default function Dashboard() {
       </div>
 
       {/* Carga de cuotas + Top merchants — side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 @[900px]:grid-cols-2 gap-6">
         {/* Carga de cuotas mini chart */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">

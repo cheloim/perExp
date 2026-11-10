@@ -235,6 +235,35 @@ test("the category analysis links out and no chart request is made", async ({ pa
   expect(chartRequests).toHaveLength(0);
 });
 
+test("saved views can be stored and reapplied", async ({ page }) => {
+  await openExpenses(page);
+
+  await page.getByRole("button", { name: /Filtros/ }).click();
+  await page.getByRole("button", { name: "Cualquier fecha" }).click();
+  await page.getByRole("button", { name: "3m" }).click();
+  await expect(page).toHaveURL(/[?&]range=3m/);
+
+  await page.getByRole("button", { name: "Vistas guardadas" }).click();
+  const viewsDialog = page.getByRole("dialog", { name: "Vistas guardadas" });
+  await viewsDialog.getByRole("textbox", { name: "Nombre de la vista" }).fill("Trimestre");
+  await viewsDialog.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Trimestre", exact: true })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /^Limpiar \(\d+\)$/ }).click();
+  await expect(page).not.toHaveURL(/[?&]range=/);
+
+  await page.getByRole("button", { name: "Vistas guardadas" }).click();
+  await page.getByRole("button", { name: "Trimestre", exact: true }).click();
+  await expect(page).toHaveURL(/[?&]range=3m/);
+});
+
+test("the footer says how many of the total are shown", async ({ page }) => {
+  await openExpenses(page);
+
+  await expect(page.getByText("3 gastos", { exact: true })).toBeVisible();
+});
+
 test("the collapsed filter bar is pinned and the expanded one is not", async ({ page }) => {
   await openExpenses(page);
 
@@ -314,7 +343,7 @@ test("the result count is announced politely", async ({ page }) => {
   await openExpenses(page);
   await searchBox(page).fill("netflix");
 
-  const live = page.locator('[aria-live="polite"]');
+  const live = page.getByTestId("expense-filters").locator('[aria-live="polite"]');
   await expect(live).toHaveText(/1\+? gastos? para «netflix»/);
 });
 

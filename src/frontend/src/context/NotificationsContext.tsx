@@ -17,6 +17,10 @@ import {
   deleteAllReadNotifications,
   deleteAllNotifications,
   downloadReportPdf,
+  AUTH_TOKEN_REFRESHED_EVENT,
+  getStoredToken,
+  isAccessTokenExpiring,
+  refreshAccessToken,
 } from "../api/client";
 import { getNotifActionLabel, resolveNotificationTarget } from "../utils/notifications";
 import { showToast } from "../utils/toast";
@@ -359,6 +363,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         });
       } else if (msg.type === "token_expired") {
         setState((s) => ({ ...s, connected: false }));
+        // The worker reconnects with the same token; when that token is the
+        // one that expired, refresh it and let the event below restart SSE.
+        if (isAccessTokenExpiring(5 * 60)) void refreshAccessToken();
       }
     };
 
@@ -371,6 +378,20 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setPort(null);
     };
   }, [broadcastChannel, handleNewNotification, handleCountsUpdate]);
+
+  // A silent refresh rotates the access token; hand it to the worker so the
+  // SSE stream reconnects with credentials that still work.
+  useEffect(() => {
+    if (!port) return;
+    const onRefreshed = () => {
+      const token = getStoredToken();
+      if (!token) return;
+      port.postMessage({ type: "new_token", token } as WorkerOutgoingMessage);
+      port.postMessage({ type: "force_refresh" } as WorkerOutgoingMessage);
+    };
+    window.addEventListener(AUTH_TOKEN_REFRESHED_EVENT, onRefreshed);
+    return () => window.removeEventListener(AUTH_TOKEN_REFRESHED_EVENT, onRefreshed);
+  }, [port]);
 
   useEffect(() => {
     const handleBroadcast = (e: MessageEvent) => {
