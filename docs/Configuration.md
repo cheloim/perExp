@@ -48,7 +48,8 @@ secrets/<env>/frontend/GOOGLE_CLIENT_ID
 | `DATABASE_URL` | `postgresql://expenses_user:changeme@localhost:5432/expenses` | prod: sí | Conexión SQLAlchemy. En Compose se construye desde `POSTGRES_PASSWORD`. |
 | `SECRET_KEY` | — | **sí** | Clave de cifrado de campos y fallback de firma JWT. Mínimo 32 caracteres. Cambiarla **inutiliza los datos cifrados** (ver `Key-Management.md`). |
 | `JWT_SECRET` | `SECRET_KEY` | no | Clave de firma separada. Permite rotar la firma sin tocar el cifrado. |
-| `JWT_EXPIRE_DAYS` | `7` | no | Vigencia del access token. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | no | Vigencia del access token JWT (corto, renovado en silencio). |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | `30` | no | Vigencia de la cookie de refresh; se renueva en cada rotación. |
 | `ENCRYPTION_KEY` | `SECRET_KEY` | no | Clave de cifrado de columnas `EncryptedType`. |
 | `APP_ENV` | `development` | no | `production` activa nombres de TOTP y desactiva debug de categorización. |
 | `BASE_URL` | — | prod: sí | URL pública del backend (callbacks, emails). |

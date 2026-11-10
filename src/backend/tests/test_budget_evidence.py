@@ -64,6 +64,10 @@ def _last_months(n):
     out = []
     for i in range(n):
         d = (today.replace(day=1) - timedelta(days=30 * i)).replace(day=10)
+        # Early in the month, day 10 is still in the future and the trend
+        # query (date <= today) would exclude it. Keep the fixture in the past.
+        if d > today:
+            d = today
         out.append(d)
     return out
 
