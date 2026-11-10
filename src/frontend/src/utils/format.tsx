@@ -257,3 +257,22 @@ export function categoryGroupOptions(
   }
   return groups;
 }
+
+/**
+ * recharts v3 widened the tooltip `formatter` signature: the value arrives as
+ * `ValueType | undefined` (string, number or an array of both). Narrowing it in
+ * one place keeps the dashboards from repeating the same cast at every chart.
+ */
+export function currencyTooltipFormatter(value: unknown, name: unknown): [string, string] {
+  const amount = typeof value === "number" ? value : Number(value ?? 0);
+  return [formatCurrency(amount), String(name ?? "")];
+}
+
+/** Same as `currencyTooltipFormatter`, for pie slices that also show their share. */
+export function percentCurrencyTooltipFormatter(total: number) {
+  return (value: unknown, name: unknown): [string, string] => {
+    const amount = typeof value === "number" ? value : Number(value ?? 0);
+    const pct = total > 0 ? ((amount / total) * 100).toFixed(1) : "0";
+    return [`${formatCurrency(amount)} (${pct}%)`, String(name ?? "")];
+  };
+}

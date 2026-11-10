@@ -12,7 +12,12 @@ import {
   Legend,
 } from "recharts";
 import { getDashboard, getCategoryTrend, getTopMerchants, getMyGroup } from "../api/client";
-import { formatCurrency, MonthSelector, toUpperCase } from "../utils/format";
+import {
+  currencyTooltipFormatter,
+  formatCurrency,
+  MonthSelector,
+  toUpperCase,
+} from "../utils/format";
 import CategoryTreemap from "../components/CategoryTreemap";
 
 const MONTH_NAMES = [
@@ -553,9 +558,9 @@ export default function CategoryDashboard() {
                       color: "var(--chart-tooltip-text)",
                     }}
                     itemStyle={{ color: "var(--chart-tooltip-text)" }}
-                    formatter={(v: number, name: string) => [formatCurrency(v), name]}
-                    labelFormatter={(l: string) => {
-                      const [y, m] = l.split("-");
+                    formatter={currencyTooltipFormatter}
+                    labelFormatter={(l) => {
+                      const [y, m] = String(l).split("-");
                       return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
                     }}
                   />

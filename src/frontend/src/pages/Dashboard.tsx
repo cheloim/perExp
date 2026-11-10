@@ -33,7 +33,13 @@ import {
   getMe,
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
-import { formatCurrency, toUpperCase, formatDateDMYSlash, MONTHS_ES_SHORT } from "../utils/format";
+import {
+  formatCurrency,
+  percentCurrencyTooltipFormatter,
+  toUpperCase,
+  formatDateDMYSlash,
+  MONTHS_ES_SHORT,
+} from "../utils/format";
 import { getCategoryIcon } from "../utils/categoryIcon";
 import SymbolicIcon from "../components/SymbolicIcon";
 import { ExpenseModal } from "../components/ExpenseModals";
@@ -655,7 +661,7 @@ export default function Dashboard() {
                     outerRadius="79%"
                     innerRadius="37%"
                     paddingAngle={1}
-                    onClick={(entry) => handleCategorySelect(entry.name)}
+                    onClick={(entry) => handleCategorySelect(String(entry.name ?? ""))}
                     style={{ cursor: "pointer" }}
                   >
                     {pieData.map((entry, i) => (
@@ -678,11 +684,9 @@ export default function Dashboard() {
                       padding: "8px 12px",
                       boxShadow: "var(--shadow-md)",
                     }}
-                    formatter={(v: number, name: string) => {
-                      const total = pieData.reduce((s, d) => s + d.total, 0);
-                      const pct = total > 0 ? ((v / total) * 100).toFixed(1) : "0";
-                      return [`${formatCurrency(v)} (${pct}%)`, name];
-                    }}
+                    formatter={percentCurrencyTooltipFormatter(
+                      pieData.reduce((s, d) => s + d.total, 0),
+                    )}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -975,8 +979,12 @@ export default function Dashboard() {
                           outerRadius="79%"
                           paddingAngle={1}
                           onClick={(entry) => {
-                            if (entry.tag_id != null) {
-                              navigate(`/expenses?cuenta_id=${entry.tag_id}`);
+                            // v3 no longer types custom fields on the sector;
+                            // the original datum is exposed as `payload`.
+                            const tagId = (entry.payload as { tag_id?: number | null } | undefined)
+                              ?.tag_id;
+                            if (tagId != null) {
+                              navigate(`/expenses?cuenta_id=${tagId}`);
                             } else {
                               navigate("/expenses?sin_cuenta=1");
                             }
@@ -997,10 +1005,7 @@ export default function Dashboard() {
                             padding: "8px 12px",
                             boxShadow: "var(--shadow-md)",
                           }}
-                          formatter={(v: number, name: string) => {
-                            const pct = total > 0 ? ((v / total) * 100).toFixed(1) : "0";
-                            return [`${formatCurrency(v)} (${pct}%)`, name];
-                          }}
+                          formatter={percentCurrencyTooltipFormatter(total)}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -1191,9 +1196,9 @@ export default function Dashboard() {
                     padding: "8px 12px",
                     boxShadow: "var(--shadow-md)",
                   }}
-                  formatter={(v: number) => [formatCurrency(v), "Cuotas"]}
+                  formatter={(v) => [formatCurrency(Number(v ?? 0)), "Cuotas"]}
                   labelFormatter={(v) => {
-                    const [y, m] = v.split("-");
+                    const [y, m] = String(v).split("-");
                     return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
                   }}
                 />
