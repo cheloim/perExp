@@ -146,6 +146,31 @@ class TestTombstoneFuzzyDedup(unittest.TestCase):
         self.assertEqual(updated, 1)
         self.assertEqual(active_rec.amount, 1500.0)
 
+    def test_confirmed_recurring_keeps_its_future_execution_date(self):
+        """A manual record with a future date is not dragged back by history."""
+        from app.tasks.detect_recurring import _detect_for_user
+
+        db = MagicMock()
+        user_id = 1
+
+        exps = [
+            _make_expense("NETFLIX", 1500, date(2026, 6, 1)),
+            _make_expense("NETFLIX", 1500, date(2026, 7, 1)),
+            _make_expense("NETFLIX", 1500, date(2026, 8, 1)),
+        ]
+        active_rec = _make_recurring("NETFLIX", is_active=True, source="manual")
+        active_rec.next_charge_date = date(2099, 12, 1)
+        db.query.return_value.filter.return_value.all.side_effect = [
+            exps,
+            [active_rec],
+        ]
+
+        created, updated, skipped = _detect_for_user(user_id, db)
+
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+        self.assertEqual(active_rec.next_charge_date, date(2099, 12, 1))
+
     def test_active_takes_precedence_over_tombstone(self):
         """When both active and tombstone fuzzy-match, prefer active (update, not skip)."""
         from app.tasks.detect_recurring import _detect_for_user

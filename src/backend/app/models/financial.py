@@ -12,6 +12,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    text,
 )
 from sqlalchemy.orm import relationship
 
@@ -88,6 +89,11 @@ class Expense(Base):
     )
     recurring_expense_id = Column(
         Integer, ForeignKey("recurring_expenses.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    # True while this row is only the projected charge of a recurring expense.
+    # It flips to False when the real statement row is imported and reconciled.
+    is_recurring_projection = Column(
+        Boolean, default=False, nullable=False, server_default=text("false")
     )
     is_income = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=True)

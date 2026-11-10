@@ -43,6 +43,13 @@ describe("resolveNotificationTarget", () => {
     });
   });
 
+  it("sends an executed recurring charge to the scheduled list", () => {
+    expect(resolveNotificationTarget(notif({ type: "recurring_executed" }))).toEqual({
+      kind: "navigate",
+      path: "/installments?filter=recurring",
+    });
+  });
+
   it("sends an import notification to its job", () => {
     expect(
       resolveNotificationTarget(notif({ type: "import_ready", data: { job_id: 42 } })),
@@ -101,6 +108,7 @@ describe("getNotifActionLabel", () => {
       "uncategorized_expenses",
       "category_suggestions",
       "auto_recurring_detected",
+      "recurring_executed",
       "budget_warning",
       "monthly_report_ready",
       "monthly_report_queued",

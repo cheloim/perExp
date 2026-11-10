@@ -915,6 +915,7 @@ def metrics_system(admin: User = Depends(get_current_admin), db: Session = Depen
 def system_tasks(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     tasks = [
         "execute-due-installments-daily",
+        "execute-due-recurring-daily",
         "cleanup-expired-import-jobs-daily",
         "daily-uncategorized-expenses",
         "send-weekly-reports",
@@ -1116,6 +1117,7 @@ def get_platform_logs(
 
 TASK_NAME_MAP = {
     "execute-due-installments-daily": "app.tasks.scheduled_expenses.execute_due_installments",
+    "execute-due-recurring-daily": "app.tasks.recurring_charges.execute_due_recurring",
     "cleanup-expired-import-jobs-daily": "app.tasks.cleanup_import_jobs.cleanup_expired_import_jobs",
     "daily-uncategorized-expenses": "app.tasks.daily_uncategorized.daily_uncategorized_check",
     "send-weekly-reports": "app.tasks.weekly_summary.send_weekly_reports",

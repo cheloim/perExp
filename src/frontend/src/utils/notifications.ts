@@ -49,6 +49,7 @@ export function resolveNotificationTarget(n: Notification): NotificationTarget |
     case "category_suggestions":
       return { kind: "navigate", path: "/expenses?category_suggestions=1" };
     case "auto_recurring_detected":
+    case "recurring_executed":
       return { kind: "navigate", path: "/installments?filter=recurring" };
     case "budget_warning":
       // #455: this pointed at /budgets, which has no route — every "Ver
@@ -81,6 +82,7 @@ export function getNotifActionLabel(n: Notification): string | null {
     case "category_suggestions":
       return "Ver sugerencias →";
     case "auto_recurring_detected":
+    case "recurring_executed":
       return "Ver programados →";
     case "budget_warning":
       return "Ver presupuestos →";
@@ -106,6 +108,7 @@ export function getNotifIcon(n: Notification): { icon: IconName; color: string }
     case "category_suggestions":
       return { icon: "sparkles", color: "text-purple-500" };
     case "auto_recurring_detected":
+    case "recurring_executed":
       return { icon: "installments", color: "text-indigo-500" };
     case "budget_warning":
       return {
@@ -137,6 +140,7 @@ export function getNotifBorderColor(n: Notification): string {
     case "category_suggestions":
       return "border-l-purple-500";
     case "auto_recurring_detected":
+    case "recurring_executed":
       return "border-l-indigo-500";
     case "budget_warning":
       return dataOf(n).status === "exceeded" ? "border-l-red-500" : "border-l-amber-500";

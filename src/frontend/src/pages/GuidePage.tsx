@@ -624,7 +624,8 @@ export default function GuidePage() {
           >
             <p className="text-sm text-[var(--text-secondary)] mb-3">
               La página Programados muestra todos tus gastos futuros: tanto cuotas pendientes como
-              gastos recurrentes (suscripciones). Se ejecutan automáticamente cuando llega la fecha.
+              gastos recurrentes (suscripciones). Las cuotas y los recurrentes confirmados se
+              ejecutan automáticamente cuando llega la fecha.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mb-2">Filtrar por tipo</h4>

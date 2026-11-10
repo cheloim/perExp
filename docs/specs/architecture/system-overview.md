@@ -94,15 +94,17 @@ podman-compose.yml
 | `platform_log_handler` | Python logging → DB PlatformLog |
 | `price_refresh` | IOL + PPI + manual price fetching |
 | `rate_limit` | slowapi configuration |
+| `recurring_schedule` | Recurring date arithmetic and fuzzy charge matching |
 | `smart_import_core` | Smart bank statement detection |
 | `task_tracker` | Celery task progress tracking |
 | `weekly_report` | Weekly summary generation |
 
-## Celery Tasks (12 Scheduled)
+## Celery Tasks (13 Scheduled)
 
 | Task | Schedule | Purpose |
 |---|---|---|
 | `execute_due_installments` | Daily 02:00 | Create expenses from scheduled installments |
+| `execute_due_recurring` | Daily 02:15 | Materialize due confirmed recurring expenses |
 | `cleanup_expired_import_jobs` | Daily 03:30 | Remove old import job files |
 | `daily_uncategorized_check` | Daily 11:00 | Notify users about uncategorized expenses |
 | `send_weekly_reports` | Monday 01:30 | Email weekly spending summaries |

@@ -10,7 +10,7 @@
 |---|---|---|---|
 | `Base.metadata.create_all()` | `src/backend/main.py:68` (lifespan) | Crea tablas que falten al arrancar | No migra columnas existentes, no versiona, ejecuta DDL en cada boot |
 | `add_indices.py` | `src/backend/app/add_indices.py` | Crea índices al arrancar | DDL implícito, sin control de orden |
-| Alembic | `src/backend/alembic/versions/` (2 revisiones) | Versionado formal | No se ejecuta en el entrypoint; el baseline es no-op |
+| Alembic | `src/backend/alembic/versions/` (3 revisiones) | Versionado formal | No se ejecuta en el entrypoint; el baseline es no-op |
 | Scripts `migrate_*.py` | `src/backend/scripts/`, ejecutados por `.github/workflows/migrations.yml` | Migraciones puntuales con tabla `schema_migrations` | Fuera de Alembic, sin rollback, orden por nombre |
 
 ## Consecuencia
@@ -27,7 +27,9 @@
 2. **No se editan tablas a mano en producción.** Si hace falta un hotfix, se escribe una
    revisión de Alembic, aunque sea de una línea.
 3. **Los scripts `migrate_*.py` no se agregan.** Los existentes se migran a Alembic de a
-   uno y se archivan.
+   uno y se archivan. Excepción transitoria: mientras `migrations.yml` no ejecute Alembic,
+   un cambio de esquema puede incluir un script `migrate_*.py` **idempotente** gemelo de
+   la revisión, para que el workflow actual lo aplique al mergear.
 4. **Toda migración es reversible o declara por qué no lo es.**
 
 ## Anatomía de una migración

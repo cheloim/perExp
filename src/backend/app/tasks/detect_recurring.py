@@ -10,6 +10,8 @@ from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Expense, Notification, RecurringExpense, User
 from app.services.categorization import _normalize_merchant_key
+from app.services.recurring_schedule import add_charge_period
+from app.services.recurring_schedule import merchant_keys_match as _merchant_keys_match
 from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
@@ -19,19 +21,6 @@ BUE = ZoneInfo("America/Argentina/Buenos_Aires")
 LOOKBACK_DAYS = 90
 MIN_OCCURRENCES = 2
 AMOUNT_TOLERANCE = 0.05  # 5%
-
-
-def _merchant_keys_match(a: str, b: str) -> bool:
-    """Fuzzy match two merchant keys.
-
-    Matches if:
-      - Exact match
-      - One is a token-containment subset of the other (e.g. "MAKRO" ⊆ "MAKRO PILAR")
-    """
-    if a == b:
-        return True
-    ta, tb = set(a.split()), set(b.split())
-    return bool(ta and tb and (ta <= tb or tb <= ta))
 
 
 @celery_app.task(name="app.tasks.detect_recurring.detect_recurring_expenses")
@@ -76,7 +65,8 @@ def detect_recurring_expenses():
 
 def _detect_for_user(user_id: int, db) -> tuple[int, int, int]:
     """Detect recurring patterns for a single user. Returns (created, updated, skipped)."""
-    cutoff = datetime.now(BUE).date() - timedelta(days=LOOKBACK_DAYS)
+    today = datetime.now(BUE).date()
+    cutoff = today - timedelta(days=LOOKBACK_DAYS)
 
     expenses = (
         db.query(Expense)
@@ -85,6 +75,7 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int, int]:
             Expense.date >= cutoff,
             Expense.is_income == False,  # noqa: E712
             Expense.installment_group_id.is_(None),  # Exclude installment purchases
+            Expense.is_recurring_projection == False,  # noqa: E712
         )
         .all()
     )
@@ -157,7 +148,15 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int, int]:
             # Update existing active record
             active_match.amount = round(avg_amount, 2)
             active_match.last_seen_at = datetime.now(BUE)
-            active_match.next_charge_date = next_date
+            # Confirmed recurring expenses are advanced by the executor. When
+            # their date is already in the future, detection must not drag it
+            # back to the last real expense and create a second charge.
+            if (
+                active_match.source != "manual"
+                or active_match.next_charge_date is None
+                or active_match.next_charge_date <= today
+            ):
+                active_match.next_charge_date = next_date
             if category_id and not active_match.category_id:
                 active_match.category_id = category_id
             if card_id and not active_match.card_id:
@@ -264,27 +263,12 @@ def _determine_frequency(sorted_dates: list[date]) -> str:
 def _estimate_next_charge(last_date: date, frequency: str) -> date:
     """Estimate next charge date based on last occurrence and frequency."""
     today = datetime.now(BUE).date()
+    next_d = add_charge_period(last_date, frequency)
 
-    if frequency == "weekly":
-        next_d = last_date + timedelta(weeks=1)
-    elif frequency == "monthly":
-        next_d = last_date + timedelta(days=30)
-    elif frequency == "quarterly":
-        next_d = last_date + timedelta(days=90)
-    elif frequency == "yearly":
-        next_d = last_date + timedelta(days=365)
-    else:
-        next_d = last_date + timedelta(days=30)
-
-    # Always return a future date
-    while next_d <= today:
-        if frequency == "weekly":
-            next_d += timedelta(weeks=1)
-        elif frequency == "monthly":
-            next_d += timedelta(days=30)
-        elif frequency == "quarterly":
-            next_d += timedelta(days=90)
-        elif frequency == "yearly":
-            next_d += timedelta(days=365)
+    # Always return a future date. The guard protects against corrupt data.
+    guard = 0
+    while next_d <= today and guard < 120:
+        next_d = add_charge_period(next_d, frequency)
+        guard += 1
 
     return next_d

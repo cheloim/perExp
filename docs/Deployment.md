@@ -258,6 +258,7 @@ repo: 13 reglas cargadas, contact point y política raíz correctos, sin errores
 | Schedule               | Task                          | Description                          |
 | ---------------------- | ----------------------------- | ------------------------------------ |
 | Daily 2:00 AM UTC      | `execute_due_installments`    | Execute pending scheduled expenses   |
+| Daily 2:15 AM UTC      | `execute_due_recurring`       | Materialize confirmed recurring charges |
 | Daily 3:30 AM UTC      | `cleanup_expired_import_jobs` | Delete import jobs older than 24h    |
 | Monday 01:30 UTC       | `send_weekly_reports`         | Generate weekly spending reports     |
 | 1st of month 03:00 UTC | `generate_monthly_reports`    | Generate previous month reports      |
