@@ -153,7 +153,6 @@ import type {
   RecurringCreate,
   RecurringExpenseResponse,
   RecurringUpdate,
-  RefreshTokenBody,
   RegisterRequest,
   ResetPasswordBody,
   ScanBody,
@@ -460,44 +459,27 @@ export const useLoginMfa = <TError = ErrorType<unknown>, TContext = unknown>(
 };
 
 /**
- * @summary Refresh access token
+ * Exchanges the httpOnly `oikonomia_refresh` cookie for a new access token
+ * and a rotated refresh cookie. Requires no Bearer token, so it still works
+ * after the access token expires.
+ * @summary Rotate the refresh token
  */
 export const refreshToken = (
-  refreshTokenBody: BodyType<RefreshTokenBody>,
   options?: SecondParameter<typeof customInstance>,
   signal?: AbortSignal,
 ) => {
-  return customInstance<Token>(
-    {
-      url: `/auth/refresh`,
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      data: refreshTokenBody,
-      signal,
-    },
-    options,
-  );
+  return customInstance<Token>({ url: `/auth/refresh`, method: "POST", signal }, options);
 };
 
 export const getRefreshTokenMutationKey = () => ["refreshToken"] as const;
 
 export const getRefreshTokenMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof refreshToken>>,
-    TError,
-    RefreshTokenMutationVariables,
-    TContext
-  >;
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof refreshToken>>, TError, void, TContext>;
   request?: SecondParameter<typeof customInstance>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof refreshToken>>,
-  TError,
-  RefreshTokenMutationVariables,
-  TContext
-> => {
+}): UseMutationOptions<Awaited<ReturnType<typeof refreshToken>>, TError, void, TContext> => {
   const mutationKey = getRefreshTokenMutationKey();
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
@@ -505,43 +487,27 @@ export const getRefreshTokenMutationOptions = <
       : { ...options, mutation: { ...options.mutation, mutationKey } }
     : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof refreshToken>>,
-    RefreshTokenMutationVariables
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return refreshToken(data, requestOptions);
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshToken>>, void> = () => {
+    return refreshToken(requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
 export type RefreshTokenMutationResult = NonNullable<Awaited<ReturnType<typeof refreshToken>>>;
-export type RefreshTokenMutationBody = BodyType<RefreshTokenBody>;
-export type RefreshTokenMutationError = ErrorType<unknown>;
-export type RefreshTokenMutationVariables = { data: BodyType<RefreshTokenBody> };
+
+export type RefreshTokenMutationError = ErrorType<void>;
 
 /**
- * @summary Refresh access token
+ * @summary Rotate the refresh token
  */
-export const useRefreshToken = <TError = ErrorType<unknown>, TContext = unknown>(
+export const useRefreshToken = <TError = ErrorType<void>, TContext = unknown>(
   options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof refreshToken>>,
-      TError,
-      RefreshTokenMutationVariables,
-      TContext
-    >;
+    mutation?: UseMutationOptions<Awaited<ReturnType<typeof refreshToken>>, TError, void, TContext>;
     request?: SecondParameter<typeof customInstance>;
   },
   queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof refreshToken>>,
-  TError,
-  RefreshTokenMutationVariables,
-  TContext
-> => {
+): UseMutationResult<Awaited<ReturnType<typeof refreshToken>>, TError, void, TContext> => {
   return useMutation(getRefreshTokenMutationOptions(options), queryClient);
 };
 
@@ -9762,7 +9728,7 @@ export function useGetTelegramDeepLinkAuthMeTelegramDeepLinkGet<
 }
 
 /**
- * Clears the auth cookie.
+ * Revokes this device's refresh token family and clears both auth cookies.
  * @summary Logout
  */
 export const logoutAuthLogoutPost = (
