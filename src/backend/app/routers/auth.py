@@ -778,8 +778,10 @@ def telegram_oidc_exchange(
     _log_audit(db, user.id, "telegram_oidc_login", request)
     _record_login(db, user)
     LOGIN_ATTEMPTS.labels(method="telegram_oidc", status="success").inc()
-    token = create_access_token(user.id)
-    _set_auth_cookie(response, token)
+    # Same session shape as every other full login: access JWT plus the
+    # rotating refresh cookie, so the Telegram flow also survives the 60-min
+    # access window instead of logging the user out on every device.
+    token = _issue_session(response, db, user, request)
     return Token(access_token=token, token_type="bearer")
 
 
