@@ -56,7 +56,9 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - run: pip install ruff mypy
+      # Pinned: ruff 0.17.4 turned on SIM102 and failed main out of nowhere.
+      # Bump deliberately, in its own PR, so a new rule is a reviewable change.
+      - run: pip install ruff==0.17.4 mypy==2.4.1
 
       - name: Ruff Lint
         run: ruff check app/ tests/

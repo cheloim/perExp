@@ -165,19 +165,13 @@ paths:
   /auth/refresh:
     post:
       tags: [auth]
-      summary: Refresh access token
+      summary: Rotate the refresh token
+      description: |
+        Exchanges the httpOnly `oikonomia_refresh` cookie for a new access token
+        and a rotated refresh cookie. Requires no Bearer token, so it still works
+        after the access token expires.
       operationId: refreshToken
       security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [refresh_token]
-              properties:
-                refresh_token:
-                  type: string
       responses:
         '200':
           description: Token refreshed
@@ -185,6 +179,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Token'
+        '401':
+          description: Missing, expired, revoked or reused refresh token
 
   /auth/forgot-password:
     post:
@@ -2305,7 +2301,7 @@ paths:
       tags:
         - auth
       summary: Logout
-      description: Clears the auth cookie.
+      description: Revokes this device's refresh token family and clears both auth cookies.
       operationId: logout_auth_logout_post
       responses:
         '200':

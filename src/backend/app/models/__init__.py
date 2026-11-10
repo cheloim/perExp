@@ -32,7 +32,7 @@ from app.models.ai import (
     CategorySuggestion,
     MerchantPreference,
 )
-from app.models.base import Group, GroupMember, User
+from app.models.base import Group, GroupMember, RefreshToken, User
 
 # Budgets
 from app.models.budgets import Budget, BudgetEvent, BudgetGroup
@@ -54,6 +54,7 @@ from app.models.notifications import Notification
 
 __all__ = [
     "User",
+    "RefreshToken",
     "Group",
     "GroupMember",
     "Account",

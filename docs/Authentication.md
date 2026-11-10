@@ -7,8 +7,9 @@
 ## Resumen
 
 - **JWT propio** firmado con `JWT_SECRET` (fallback `SECRET_KEY`), HS256.
-- **Un solo token de acceso de 7 días.** No hay refresh token separado: `/auth/refresh`
-  reemite un token nuevo si el actual sigue vigente.
+- **Access token corto** (60 min por defecto) y **refresh token opaco de 30 días** con
+  rotación. El refresh viaja en la cookie HTTP-only `oikonomia_refresh`; la base guarda
+  sólo su SHA-256. Reusar un token ya rotado revoca toda la familia (detección de robo).
 - **Cookie HTTP-only** `oikonomia_auth` además del bearer, para el flujo de Grafana.
 - **Proveedor OAuth único: Google.** `/auth/oauth/callback` rechaza cualquier otro.
 - **MFA TOTP** opcional por usuario.
@@ -80,8 +81,9 @@ POST /auth/forgot-password {email}   → siempre 200 (no revela si existe)
 POST /auth/reset-password {token, password}
 ```
 
-El reset **no invalida** los tokens emitidos antes. Está trackeado en
-[#536](https://github.com/cheloim/perExp/issues/536).
+El reset revoca **todos los refresh tokens** del usuario. Los access tokens ya emitidos
+siguen vigentes hasta su `exp` (60 min como máximo); la revocación instantánea está
+trackeada en [#536](https://github.com/cheloim/perExp/issues/536).
 
 ### 7. Sesión
 
@@ -91,8 +93,8 @@ PUT  /auth/me                    → perfil
 PUT  /auth/me/onboarding
 PUT  /auth/password              → cambio de contraseña
 POST /auth/force-change-password → cambio obligatorio
-POST /auth/refresh               → reemite con token vigente
-POST /auth/logout                → borra la cookie (no revoca el JWT)
+POST /auth/refresh               → rota el refresh token y emite un access token nuevo
+POST /auth/logout                → revoca la familia de refresh y borra ambas cookies
 ```
 
 ## Modelo de sesión
@@ -100,11 +102,12 @@ POST /auth/logout                → borra la cookie (no revoca el JWT)
 | Aspecto | Implementación |
 |---|---|
 | Formato | JWT HS256, claim `sub` = user id |
-| Vigencia | `JWT_EXPIRE_DAYS` (default 7) |
+| Vigencia | `ACCESS_TOKEN_EXPIRE_MINUTES` (default 60) |
+| Refresh | Opaco de 30 días (`REFRESH_TOKEN_EXPIRE_DAYS`), rotativo, sólo hash en la base |
 | Token parcial | 5 min, sin claim de scope (vulnerabilidad abierta) |
-| Transporte | `Authorization: Bearer` + cookie `oikonomia_auth` |
-| Cookie | `httpOnly`, `secure`, `sameSite=lax`, `path=/` |
-| Revocación | **No existe.** `token_version` y `jti` son trabajo pendiente (#536) |
+| Transporte | `Authorization: Bearer` + cookies `oikonomia_auth` y `oikonomia_refresh` |
+| Cookies | `httpOnly`, `secure`, `sameSite=lax`, `path=/` |
+| Revocación | El refresh se revoca en logout, reset y cambio de contraseña. El access token vive hasta 60 min; la revocación instantánea (`token_version`) sigue pendiente (#536). |
 
 ## MFA y contraseñas
 
