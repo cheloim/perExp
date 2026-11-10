@@ -839,7 +839,10 @@ export function AssistantShell({
           <span className="ml-auto tabular-nums">
             {input.length} / {MAX_INPUT_LENGTH}
           </span>
-          {error && <span className="text-danger">{error}</span>}
+          {/* The thread already shows the failure in the error bubble; repeating
+              it here duplicates the same sentence on screen. Keep the status
+              span for errors that never became a message. */}
+          {error && !hasError && <span className="text-danger">{error}</span>}
           {voiceInput.error && (
             <span className="text-danger" role="status" aria-live="polite">
               {voiceInput.error}
