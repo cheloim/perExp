@@ -27,6 +27,10 @@ vi.mock("../api/client", () => ({
   deleteAllReadNotifications: vi.fn(async () => {}),
   deleteAllNotifications: () => h.deleteAllNotifications(),
   downloadReportPdf: vi.fn(),
+  AUTH_TOKEN_REFRESHED_EVENT: "auth-token-refreshed",
+  getStoredToken: () => localStorage.getItem("auth_token"),
+  isAccessTokenExpiring: () => false,
+  refreshAccessToken: vi.fn(async () => null),
 }));
 
 vi.mock("../utils/toast", () => ({

@@ -54,10 +54,12 @@ para privacidad y **caro** para volúmenes grandes: está trackeado en
 
 ## Sesión y cookies
 
-- JWT en `Authorization: Bearer` **y** cookie `oikonomia_auth`.
-- Cookie: `httpOnly=true`, `secure=true`, `sameSite=lax`, `path=/`.
-- Se usa para el flujo OAuth de Grafana, que necesita una cookie en el mismo dominio.
-- Logout borra la cookie pero **no revoca el JWT** (ver `Authentication.md`).
+- Access JWT corto en `Authorization: Bearer` **y** cookie `oikonomia_auth`.
+- Refresh opaco y rotativo en la cookie `oikonomia_refresh` (sólo su SHA-256 vive en la
+  base). Reusar un token rotado revoca la familia entera.
+- Ambas cookies: `httpOnly=true`, `secure=true`, `sameSite=lax`, `path=/`.
+- Logout y cambio/reset de contraseña revocan los refresh tokens; el access token sigue
+  válido hasta su `exp` (60 min). Ver `Authentication.md`.
 
 ## Aislamiento multi-tenant
 

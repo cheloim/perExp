@@ -183,13 +183,13 @@ class TestRelationshipResolution:
 
 
 class TestTableCount:
-    """Verify all 28 tables are registered after models split."""
+    """Verify all 29 tables are registered after models split."""
 
     def test_all_tables_registered(self):
         from app.database import Base
 
         tables = set(Base.metadata.tables.keys())
-        expected_count = 28
+        expected_count = 29
         assert len(tables) == expected_count, (
             f"Expected {expected_count} tables, got {len(tables)}: {sorted(tables)}"
         )
@@ -197,7 +197,15 @@ class TestTableCount:
     def test_specific_critical_tables(self):
         from app.database import Base
 
-        critical = ["users", "expenses", "cards", "accounts", "categories", "notifications"]
+        critical = [
+            "users",
+            "refresh_tokens",
+            "expenses",
+            "cards",
+            "accounts",
+            "categories",
+            "notifications",
+        ]
         tables = set(Base.metadata.tables.keys())
         for table in critical:
             assert table in tables, f"Critical table '{table}' missing"

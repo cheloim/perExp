@@ -5,6 +5,7 @@ import {
   changePassword,
   deleteMyAccount,
   clearToken,
+  logoutSession,
   getMyGroup,
   inviteToGroup,
   leaveGroup,
@@ -543,8 +544,8 @@ export default function UserPanel({ open, onClose, adminSlug }: Props) {
     },
   });
 
-  const handleLogout = () => {
-    clearToken();
+  const handleLogout = async () => {
+    await logoutSession();
     navigate("/login");
   };
 

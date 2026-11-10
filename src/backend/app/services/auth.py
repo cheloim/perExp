@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import os
+import secrets
 import time
 import urllib.parse
 from datetime import UTC, datetime, timedelta
@@ -15,7 +16,7 @@ from jwt import PyJWTError as JWTError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User
+from app.models import RefreshToken, User
 
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 if not SECRET_KEY:
@@ -28,14 +29,22 @@ if len(SECRET_KEY) < 32:
 
 # JWT_SECRET: separate key for signing JWT tokens.
 # Falls back to SECRET_KEY for backward compatibility with existing tokens.
-# Once all old tokens expire (7 days), set JWT_SECRET to a unique value.
 JWT_SECRET = os.getenv("JWT_SECRET") or SECRET_KEY
 ALGORITHM = "HS256"
-JWT_EXPIRE_DAYS = int(os.getenv("JWT_EXPIRE_DAYS", "7"))
+# Short-lived access token; the long session lives in the rotating refresh
+# token. A stolen access token stops working within the hour.
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+# Two tabs racing on the same cookie must not look like a stolen token.
+REFRESH_REUSE_GRACE_SECONDS = int(os.getenv("REFRESH_REUSE_GRACE_SECONDS", "30"))
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+
+class RefreshTokenError(Exception):
+    """The presented refresh token is missing, expired, revoked or reused."""
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -49,11 +58,163 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(user_id: int, expires_minutes: int | None = None) -> str:
-    if expires_minutes:
-        expire = datetime.now(UTC) + timedelta(minutes=expires_minutes)
-    else:
-        expire = datetime.now(UTC) + timedelta(days=JWT_EXPIRE_DAYS)
-    return jwt.encode({"sub": str(user_id), "exp": expire}, JWT_SECRET, algorithm=ALGORITHM)
+    minutes = expires_minutes if expires_minutes is not None else ACCESS_TOKEN_EXPIRE_MINUTES
+    now = datetime.now(UTC)
+    payload = {
+        "sub": str(user_id),
+        "iat": now,
+        "exp": now + timedelta(minutes=minutes),
+        # Without a unique id, two logins in the same second produce the same
+        # token (and the refresh response would look like a no-op).
+        "jti": secrets.token_hex(16),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
+
+
+def hash_refresh_token(raw_token: str) -> str:
+    """The database only ever sees this digest, never the bearer value."""
+    return hashlib.sha256(raw_token.encode()).hexdigest()
+
+
+def _token_expiry() -> datetime:
+    return datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+
+def create_refresh_token(
+    db: Session,
+    user_id: int,
+    *,
+    user_agent: str = "",
+    ip_address: str = "",
+    family_id: str | None = None,
+) -> str:
+    """Issue a new refresh token and return the opaque value.
+
+    A fresh login starts a new family (one per device); a rotation keeps the
+    family so reuse detection can revoke the whole chain.
+    """
+    # Opportunistic cleanup: expired rows for this user are dead weight and
+    # there is no dedicated retention job.
+    db.query(RefreshToken).filter(
+        RefreshToken.user_id == user_id,
+        RefreshToken.expires_at <= datetime.utcnow(),
+        RefreshToken.revoked_at.is_(None),
+    ).update(
+        {"revoked_at": datetime.utcnow(), "revoked_reason": "expired"}, synchronize_session=False
+    )
+
+    raw_token = secrets.token_urlsafe(48)
+    db.add(
+        RefreshToken(
+            user_id=user_id,
+            token_hash=hash_refresh_token(raw_token),
+            family_id=family_id or secrets.token_hex(16),
+            user_agent=(user_agent or "")[:255] or None,
+            ip_address=(ip_address or "")[:45] or None,
+            expires_at=_token_expiry(),
+        )
+    )
+    db.commit()
+    return raw_token
+
+
+def _revoke_family(db: Session, family_id: str, reason: str, *, commit: bool = True) -> None:
+    db.query(RefreshToken).filter(
+        RefreshToken.family_id == family_id,
+        RefreshToken.revoked_at.is_(None),
+    ).update({"revoked_at": datetime.utcnow(), "revoked_reason": reason}, synchronize_session=False)
+    if commit:
+        db.commit()
+
+
+def rotate_refresh_token(
+    db: Session,
+    raw_token: str,
+    *,
+    user_agent: str = "",
+    ip_address: str = "",
+) -> tuple[User, str]:
+    """Validate and rotate a refresh token, returning the user and the new one.
+
+    Presenting an already-rotated token means someone kept a copy: the whole
+    family is revoked, which logs the device out instead of letting the thief
+    race the legitimate client forever.
+    """
+    row = (
+        db.query(RefreshToken)
+        .filter(RefreshToken.token_hash == hash_refresh_token(raw_token))
+        .with_for_update()
+        .first()
+    )
+    if row is None:
+        raise RefreshTokenError("unknown refresh token")
+
+    now = datetime.utcnow()
+    if row.revoked_at is not None:
+        # A rotation a moment ago is usually two tabs racing, not theft: reject
+        # this one but leave the family alive. An older replay revokes it all.
+        recently_rotated = (
+            row.revoked_reason == "rotated"
+            and (now - row.revoked_at).total_seconds() <= REFRESH_REUSE_GRACE_SECONDS
+        )
+        if recently_rotated:
+            raise RefreshTokenError("concurrent rotation")
+        _revoke_family(db, row.family_id, "reuse_detected")
+        raise RefreshTokenError("refresh token reuse detected")
+
+    if row.expires_at <= now:
+        row.revoked_at = now
+        row.revoked_reason = "expired"
+        db.commit()
+        raise RefreshTokenError("refresh token expired")
+
+    user = db.get(User, row.user_id)
+    if user is None or not user.is_active or user.is_blocked:
+        _revoke_family(db, row.family_id, "user_inactive")
+        raise RefreshTokenError("user cannot refresh")
+
+    new_raw = secrets.token_urlsafe(48)
+    new_row = RefreshToken(
+        user_id=user.id,
+        token_hash=hash_refresh_token(new_raw),
+        family_id=row.family_id,
+        user_agent=(user_agent or "")[:255] or None,
+        ip_address=(ip_address or "")[:45] or None,
+        expires_at=_token_expiry(),
+    )
+    db.add(new_row)
+    db.flush()
+    row.revoked_at = now
+    row.revoked_reason = "rotated"
+    row.replaced_by_id = new_row.id
+    db.commit()
+    return user, new_raw
+
+
+def revoke_refresh_token(db: Session, raw_token: str) -> bool:
+    """Log out this device: the token and the rest of its family go away."""
+    row = (
+        db.query(RefreshToken)
+        .filter(RefreshToken.token_hash == hash_refresh_token(raw_token))
+        .first()
+    )
+    if row is None:
+        return False
+    _revoke_family(db, row.family_id, "logout")
+    return True
+
+
+def revoke_all_refresh_tokens(db: Session, user_id: int, reason: str = "revoked") -> int:
+    """Kill every device session for a user (password change, block, reset)."""
+    revoked = (
+        db.query(RefreshToken)
+        .filter(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
+        .update(
+            {"revoked_at": datetime.utcnow(), "revoked_reason": reason}, synchronize_session=False
+        )
+    )
+    db.commit()
+    return revoked
 
 
 def get_current_user(
