@@ -1,0 +1,105 @@
+name: Migration Fixture
+
+# Aplica `alembic upgrade head` sobre un dump anonimizado de producción.
+#
+# El fixture se genera en el server con `scripts/anonymize-db.sh` y contiene
+# datos reales en forma (nulabilidad, cardinalidad, claves) pero sintéticos en
+# contenido. La key de anonimización es pública: sólo protege datos sintéticos.
+#
+# Requiere que el fixture exista en el server. Se regenera después de cada
+# release, para que represente el esquema que está en producción.
+
+on:
+  pull_request:
+    paths:
+      - "src/backend/alembic/**"
+      - "src/backend/scripts/anonymize_db.py"
+      - "src/backend/scripts/anonymization_registry.py"
+      - "scripts/anonymize-db.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-fixture-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  upgrade-fixture:
+    name: Upgrade anonymized prod fixture
+    runs-on: ubuntu-latest
+    # Los secrets no existen en PRs de forks.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fixture_anon
+          POSTGRES_USER: fixture
+          POSTGRES_PASSWORD: fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: src/backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: pip install -r src/backend/requirements.txt
+
+      - name: Fetch the anonymized fixture
+        env:
+          SSH_HOST: ${{ secrets.SERVER_IP }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_PORT: ${{ vars.SSH_PORT || '43422' }}
+        run: |
+          if [ -z "$SSH_HOST" ]; then
+            echo "::error::Faltan los secrets SERVER_IP/SSH_USER/SSH_KEY"
+            exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          for file in db_anonymized.dump db_anonymized.dump.sha256; do
+            scp -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes \
+              -i ~/.ssh/deploy_key -P "$SSH_PORT" \
+              "$SSH_USER@$SSH_HOST:/opt/creditcardanalyzer/backups/$file" "/tmp/$file"
+          done
+          cd /tmp
+          sha256sum -c db_anonymized.dump.sha256
+          ls -lh db_anonymized.dump
+
+      - name: Restore the fixture
+        env:
+          PGPASSWORD: fixture
+        run: |
+          pg_restore -h localhost -p 5432 -U fixture -d fixture_anon \
+            --no-owner --no-privileges /tmp/db_anonymized.dump
+
+      - name: Apply migrations on prod-shaped data
+        working-directory: src/backend
+        env:
+          DATABASE_URL: postgresql+psycopg://fixture:fixture@localhost:5432/fixture_anon
+          SECRET_KEY: test-secret-key-for-ci-that-is-at-least-32-chars
+        run: |
+          alembic upgrade head
+          alembic current
+
+      - name: Verify the fixture is still anonymized
+        working-directory: src/backend
+        run: |
+          python -m scripts.anonymize_db --verify-only \
+            --dsn "postgresql://fixture:fixture@localhost:5432/fixture_anon"

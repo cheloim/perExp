@@ -65,6 +65,63 @@ Nunca en un solo paso:
 ALTER TABLE expenses RENAME COLUMN card_last4 TO card_id;
 ```
 
+## Fixture anonimizado (gate de migraciones)
+
+Toda revisión de Alembic se prueba antes de mergear sobre un **dump anonimizado
+de producción**: datos reales en forma (nulabilidad, cardinalidad, claves
+foráneas, tipos) y sintéticos en contenido. Una migración que funciona sobre una
+base vacía puede romper con datos reales; esto lo agarra antes del deploy.
+
+### Cómo se genera
+
+En el server, a partir del último backup:
+
+```bash
+# Genera /opt/creditcardanalyzer/backups/db_anonymized.dump (+ .sha256)
+/opt/creditcardanalyzer/anonymize/anonymize-db.sh
+```
+
+El script restaura el backup en una base scratch (`expenses_anon`), corre
+`src/backend/scripts/anonymize_db.py`, verifica y deja el dump. La base de
+producción no se toca. Se regenera después de cada release, para que represente
+el esquema que está en producción.
+
+### Cómo funciona
+
+No descifra: reemplaza cada columna cifrada por el ciphertext de un valor
+sintético, cifrado con una **key de anonimización pública** (sólo protege datos
+sintéticos). La key de producción nunca se usa. Los `*_hmac` se recalculan con
+la misma función que la app (`app/services/encryption.py`), agrupando por la
+columna de lookup para preservar la semántica de dedup.
+
+La cobertura es **fail-closed**: el script enumera las columnas reales y aborta
+si alguna no está declarada en `src/backend/scripts/anonymization_registry.py`.
+Agregar una columna sin clasificarla rompe la generación en vez de filtrar
+datos.
+
+| Qué | Acción |
+|-----|--------|
+| Dominio (`users`, `expenses`, `tags`, `cards`, `budgets`, ...) | Sintético por campo PII; ids, montos, fechas y FKs se conservan |
+| Sumideros de PII (`import_jobs`, `monthly_reports`, `notifications`, `audit_logs`, `platform_logs`, `refresh_tokens`, `settings`, `analysis_history`, `impersonation_*`) | Se vacían |
+| `categories` con `user_id IS NULL` | Se conservan: son del sistema, no del usuario |
+
+Verificación antes de publicar el dump: todas las columnas cifradas descifran
+con la key de anonimización, los `*_hmac` coinciden con su columna origen, no
+quedan emails/teléfonos en columnas preservadas, los conteos por tabla no
+cambian y no hay FKs rotas.
+
+### Uso en CI
+
+`.github/workflows/migration-fixture.yml` baja el dump y su checksum por SSH,
+lo restaura y corre `alembic upgrade head` cuando un PR toca `alembic/**`.
+Requiere que el fixture exista en el server; si falta, el job falla con un
+mensaje explícito.
+
+Mientras no exista el baseline (#527), el fixture no tiene `alembic_version` y
+la cadena completa corre desde cero: cada revisión tiene que ser idempotente.
+Cuando el baseline esté aplicado, el fixture arranca en la revisión de
+producción y sólo corren las nuevas.
+
 ## Verificación antes de mergear
 
 ```bash
@@ -87,6 +144,7 @@ alembic check
 - [ ] `downgrade()` funciona, o el PR explica por qué no aplica.
 - [ ] El backfill es idempotente y no bloquea la tabla.
 - [ ] Está probada en una base con datos representativos, no solo vacía.
+- [ ] Pasa `alembic upgrade head` sobre el fixture anonimizado (`migration-fixture.yml`).
 - [ ] `docs/Data-Model.md` actualizado si cambia una relación.
 - [ ] El deploy no depende de `create_all`.
 

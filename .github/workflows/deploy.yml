@@ -90,6 +90,9 @@ jobs:
               - 'config/blackbox/**'
               - 'scripts/housekeeping.sh'
               - 'scripts/backup-db.sh'
+              - 'scripts/anonymize-db.sh'
+              - 'src/backend/scripts/anonymize_db.py'
+              - 'src/backend/scripts/anonymization_registry.py'
 
   detect-arch:
     runs-on: ubuntu-latest
@@ -348,6 +351,40 @@ jobs:
           source: "scripts/housekeeping.sh,scripts/backup-db.sh"
           target: /opt/creditcardanalyzer
           strip_components: 0
+
+      # El generador del fixture anonimizado vive fuera del repo desplegado.
+      # Se copia plano en /opt/creditcardanalyzer/anonymize/ para poder
+      # regenerar el fixture con el código del release corriente.
+      - name: Copy anonymizer script via SCP
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT || '43422' }}
+          source: "scripts/anonymize-db.sh"
+          target: /opt/creditcardanalyzer/anonymize
+          strip_components: 1
+
+      - name: Copy anonymizer engine via SCP
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT || '43422' }}
+          source: "src/backend/scripts/anonymize_db.py,src/backend/scripts/anonymization_registry.py"
+          target: /opt/creditcardanalyzer/anonymize
+          strip_components: 3
+
+      - name: Make anonymizer executable
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT || '43422' }}
+          script: chmod +x /opt/creditcardanalyzer/anonymize/anonymize-db.sh
 
       - name: Substitute domain variables in nginx.conf
         uses: appleboy/ssh-action@v1
