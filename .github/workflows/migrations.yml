@@ -7,6 +7,12 @@ on:
       - 'src/backend/scripts/migrate_*.py'
       - 'src/backend/scripts/backfill_*.py'
       - 'src/backend/scripts/cleanup_*.py'
+  # The scripts live inside the deployed image, so wait for the Deploy to
+  # finish instead of racing it with the image tag from the previous release.
+  workflow_run:
+    workflows: ["Deploy"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -23,6 +29,7 @@ permissions:
 
 jobs:
   run-migrations:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
     steps:
@@ -62,11 +69,16 @@ jobs:
               );
             " 2>&1
 
-            # ── Scan for migration scripts ──
-            SCRIPTS=$(find src/backend/scripts -maxdepth 1 \( -name 'migrate_*.py' -o -name 'backfill_*.py' -o -name 'cleanup_*.py' \) 2>/dev/null | sort)
+            # ── Scan for migration scripts inside the deployed image ──
+            # The production host does not keep the source tree: only compose
+            # files and the Docker images. Read the scripts from the image.
+            SCRIPTS=$(podman run --rm --entrypoint sh \
+              "${BACKEND_IMAGE}:${IMAGE_TAG}" \
+              -lc "ls scripts/migrate_*.py scripts/backfill_*.py scripts/cleanup_*.py 2>/dev/null" \
+              2>/dev/null | sort)
 
             if [ -z "$SCRIPTS" ]; then
-              echo "No migration scripts found in src/backend/scripts/"
+              echo "No migration scripts found in ${BACKEND_IMAGE}:${IMAGE_TAG}"
               echo ""
               echo "=== Migration History ==="
               podman exec $DB_CONTAINER psql -U expenses_user -d expenses -c \
