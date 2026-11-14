@@ -113,6 +113,18 @@ export default function GuideRecurringPage() {
               detecta automáticamente y te avisa antes de cada cobro.
             </p>
           </div>
+          <div className="p-4 rounded-xl bg-[var(--color-success)]/10 border border-[var(--color-success)]/20 space-y-2">
+            <p className="text-sm">
+              <strong>✅ Ejecución automática:</strong> cuando llega la fecha, un gasto recurrente
+              <strong> confirmado</strong> se registra como gasto real y la fecha avanza al próximo
+              período. Los detectados automáticamente primero tenés que confirmarlos; hasta entonces
+              sólo se muestran como sugerencia.
+            </p>
+            <p className="text-sm">
+              Si después importás el resumen de la tarjeta con ese mismo cobro, la app lo reconcilia
+              con el gasto generado en vez de duplicarlo.
+            </p>
+          </div>
         </Section>
 
         {/* Section 2: Auto-detection */}

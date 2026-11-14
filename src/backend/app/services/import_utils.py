@@ -84,6 +84,7 @@ def _is_duplicate(
                     Expense.transaction_id == transaction_id,
                     Expense.installment_number == installment_number,
                     Expense.installment_total == installment_total,
+                    Expense.is_recurring_projection == False,  # noqa: E712
                 )
                 .first()
             )
@@ -98,7 +99,14 @@ def _is_duplicate(
                 return True
             # Fall through to check ScheduledExpense and installment_group_id
         else:
-            existing = db.query(Expense).filter(Expense.transaction_id == transaction_id).first()
+            existing = (
+                db.query(Expense)
+                .filter(
+                    Expense.transaction_id == transaction_id,
+                    Expense.is_recurring_projection == False,  # noqa: E712
+                )
+                .first()
+            )
             if existing:
                 logger.debug("[DUP by txn_id] txn_id=%s matched id=%d", transaction_id, existing.id)
                 return True
@@ -140,6 +148,7 @@ def _is_duplicate(
                 Expense.installment_total == installment_total,
                 Expense.date >= month_start,
                 Expense.date <= month_end,
+                Expense.is_recurring_projection == False,  # noqa: E712
             )
             .first()
         )
@@ -159,6 +168,7 @@ def _is_duplicate(
         Expense.date == exp_date,
         Expense.amount == amount,
         Expense.description_hmac == compute_hmac(description),
+        Expense.is_recurring_projection == False,  # noqa: E712
     )
     if installment_number is not None:
         q = q.filter(Expense.installment_number == installment_number)

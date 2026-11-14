@@ -11,6 +11,7 @@ import app.tasks.grafana_reconcile  # noqa: F401
 import app.tasks.heartbeat  # noqa: F401
 import app.tasks.import_processor  # noqa: F401
 import app.tasks.monthly_report  # noqa: F401
+import app.tasks.recurring_charges  # noqa: F401
 import app.tasks.scheduled_expenses  # noqa: F401
 import app.tasks.suggest_uncategorized  # noqa: F401
 import app.tasks.weekly_summary  # noqa: F401

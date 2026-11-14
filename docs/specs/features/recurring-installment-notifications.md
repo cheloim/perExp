@@ -2,7 +2,7 @@
 
 ## Overview
 
-Daily Celery tasks check for upcoming recurring charges and installment payments, then send notifications to users via the configured channel(s): in-app, Telegram, or both.
+Daily Celery tasks check for upcoming recurring charges and installment payments, materialize the ones that are due, then send notifications to users via the configured channel(s): in-app, Telegram, or both.
 
 ## Channel Configuration
 
@@ -23,6 +23,7 @@ Resolution priority: user setting → global channel → `both`.
 | **Recurring charge upcoming** | `check_upcoming_recurring` | Daily 8:00 (env `SCHEDULE_CHECK_RECURRING`) | unread `Notification` with same `recurring_id + charge_date` | Per-item `alert_days_before` (default 3) |
 | **Installment upcoming** | `check_upcoming_installments` | Daily 8:15 (env `SCHEDULE_CHECK_INSTALLMENTS`) | unread `Notification` with same `scheduled_id + scheduled_date` | N days before (default 3, per-user configurable via `{user_id}:notify_installments_days_before`) |
 | **Installment executed** | `execute_due_installments` | Daily 2:00 (env `SCHEDULE_DUE_INSTALLMENTS`) | One-shot (triggers on execution) | Immediate (on materialization) |
+| **Recurring charge executed** | `execute_due_recurring` | Daily 2:15 (env `SCHEDULE_DUE_RECURRING`) | Idempotent by recurring + charge date | Immediate (on materialization) |
 
 ## Notification Types
 
@@ -31,6 +32,7 @@ Resolution priority: user setting → global channel → `both`.
 | `upcoming_recurring` | 🔔 Spotify — cobro en 3 días | Se cobra $2,500 el 09/09/2026. |
 | `upcoming_installment` | 💳 Cuota (2/6) — vence mañana | Netflix — $5,000 vence mañana. |
 | `installment_executed` | ✅ 2 cuotas registradas | • Netflix — $5,000 · Disney+ — $3,000 |
+| `recurring_executed` | ✅ 2 cobros recurrentes registrados | • Netflix — $6,990 · Spotify — $3,990 |
 
 ### Installment Execution Grouping
 
@@ -50,6 +52,7 @@ When `execute_due_installments` processes multiple cuotas for the same user, the
 | `app/tasks/check_upcoming_recurring.py` | Daily task — rewritten to use `notify_user()` |
 | `app/tasks/check_upcoming_installments.py` | New daily task — upcoming PENDING installments |
 | `app/tasks/scheduled_expenses.py` | Extended — sends grouped confirmation after executing cuotas |
+| `app/tasks/recurring_charges.py` | Daily task — materializes confirmed recurring charges and sends grouped confirmation |
 | `app/celery_schedule.py` | New `check-upcoming-installments-daily` entry at 8:15 |
 
 ## Decisions

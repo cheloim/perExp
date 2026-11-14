@@ -63,10 +63,10 @@ jobs:
             " 2>&1
 
             # ── Scan for migration scripts ──
-            SCRIPTS=$(find scripts -maxdepth 1 \( -name 'migrate_*.py' -o -name 'backfill_*.py' -o -name 'cleanup_*.py' \) 2>/dev/null | sort)
+            SCRIPTS=$(find src/backend/scripts -maxdepth 1 \( -name 'migrate_*.py' -o -name 'backfill_*.py' -o -name 'cleanup_*.py' \) 2>/dev/null | sort)
 
             if [ -z "$SCRIPTS" ]; then
-              echo "No migration scripts found in scripts/"
+              echo "No migration scripts found in src/backend/scripts/"
               echo ""
               echo "=== Migration History ==="
               podman exec $DB_CONTAINER psql -U expenses_user -d expenses -c \

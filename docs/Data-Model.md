@@ -38,8 +38,9 @@ User 1───N GroupMember N───1 Group
 |---|---|
 | `expenses` | Gasto o ingreso. Campos cifrados: `description`. `description_hmac` para igualdad exacta. |
 | `expense_tags` | N:M entre gasto y tag. |
-| `recurring_expenses` | Detecta patrones (comercio + monto) y propone confirmar/pausar. |
+| `recurring_expenses` | Detecta patrones (comercio + monto) y propone confirmar/pausar. Los confirmados (`source=manual`) se materializan cuando llega `next_charge_date`. |
 | `scheduled_expenses` | Define un gasto futuro recurrente que se materializa por tarea. |
+| `expenses.is_recurring_projection` | `true` mientras el gasto proviene de un recurrente y todavía no fue reconciliado con el resumen real. |
 
 **Invariantes:**
 

@@ -28,6 +28,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.scheduled_expenses.execute_due_installments",
         "schedule": _cron_from_env("SCHEDULE_DUE_INSTALLMENTS", 2, 0),
     },
+    "execute-due-recurring-daily": {
+        "task": "app.tasks.recurring_charges.execute_due_recurring",
+        "schedule": _cron_from_env("SCHEDULE_DUE_RECURRING", 2, 15),
+    },
     "cleanup-expired-import-jobs-daily": {
         "task": "app.tasks.cleanup_import_jobs.cleanup_expired_import_jobs",
         "schedule": _cron_from_env("SCHEDULE_CLEANUP", 3, 30),

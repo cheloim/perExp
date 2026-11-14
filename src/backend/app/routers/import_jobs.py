@@ -325,6 +325,66 @@ async def confirm_import_job(
         if txn_id:
             txn_id = txn_id.lstrip("0") or "0"
 
+        # Card matching via card_header
+        card_header = str(r.get("card_header", "") or "").strip()
+        mapping_entry = cards_mapping.get(card_header, {})
+
+        # A projected recurring charge becomes the real imported row instead
+        # of a second expense. This runs before the duplicate guard because a
+        # projection is not a real charge yet.
+        if not is_scheduled:
+            from app.services.recurring_schedule import apply_imported_fields, find_matching_expense
+
+            projection = find_matching_expense(
+                db,
+                user.id,
+                row_date,
+                amount_value,
+                r.get("description", ""),
+                projection=True,
+            )
+            if projection:
+                reconciled_card_id = None
+                if isinstance(mapping_entry, dict) and mapping_entry.get("card_id"):
+                    reconciled_card_id = mapping_entry["card_id"]
+                elif isinstance(mapping_entry, dict) and mapping_entry.get("bank"):
+                    card_obj, _ = find_or_create_card(
+                        mapping_entry.get("bank", ""),
+                        mapping_entry.get("card_name", ""),
+                        mapping_entry.get(
+                            "holder", user.full_name.split()[0] if user.full_name else ""
+                        ),
+                        mapping_entry.get("card_type", "credito"),
+                    )
+                    reconciled_card_id = card_obj.id if card_obj else None
+
+                apply_imported_fields(
+                    projection,
+                    exp_date=row_date,
+                    description=_normalize_text(r.get("description", "")),
+                    amount=amount_value,
+                    currency=r.get("currency"),
+                    transaction_id=txn_id,
+                    category_id=category_id,
+                    card_id=reconciled_card_id,
+                )
+                from app.services.tag_sync import (
+                    assign_tags_validated,
+                    get_or_create_payment_tag,
+                    sync_category_tag,
+                )
+
+                sync_category_tag(db, projection, projection.category_id)
+
+                if projection.card_id:
+                    card = db.query(Card).filter(Card.id == projection.card_id).first()
+                    if card:
+                        tag = get_or_create_payment_tag(db, user.id, card=card)
+                        assign_tags_validated(db, projection.id, [int(tag.id)], user.id)
+
+                imported_count += 1
+                continue
+
         # Re-check for duplicates against DB (safety net for parallel imports)
         from app.services.import_utils import _is_duplicate, _is_scheduled_duplicate
 

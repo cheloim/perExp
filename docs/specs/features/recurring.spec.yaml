@@ -33,6 +33,12 @@ requirements:
     - id: FR-5
       requirement: Track last_seen_at to identify inactive recurring expenses
       priority: should
+    - id: FR-6
+      requirement: Materialize confirmed recurring expenses when next_charge_date arrives, advancing the date and notifying the user
+      priority: must
+    - id: FR-7
+      requirement: Reconcile a projected recurring charge with the real imported statement row instead of duplicating it
+      priority: must
   non_functional:
     - id: NFR-1
       requirement: Detection task must complete within 5 minutes for active users
@@ -49,7 +55,7 @@ pre_evaluation:
     - Category table for optional categorization
   data_requirements:
     - RecurringExpense table exists (see entities)
-    - Expense table: no schema changes needed
+    - Expense.is_recurring_projection marks auto-generated charges until import reconciliation
   api_changes:
     - GET /recurring - list recurring expenses
     - POST /recurring/{id}/accept - accept detection
@@ -258,11 +264,17 @@ frontend:
 integrations:
   - system: celery_task
     how: detect_recurring_expenses task runs daily, scans expenses grouped by merchant_key
+  - system: celery_task
+    how: execute_due_recurring runs daily and materializes confirmed recurring charges, advancing next_charge_date
+  - system: smart_import
+    how: An imported statement row reconciles a projected recurring charge instead of creating a duplicate
   - system: budgets
     how: Recurring expenses can be factored into budget planning
 
 # === MIGRATIONS ===
-migrations: []
+migrations:
+  - revision: "000000000003"
+    description: Add expenses.is_recurring_projection to mark auto-generated charges until reconciliation
 
 # === TESTS ===
 tests:
@@ -301,6 +313,20 @@ tests:
     when: Detection task runs
     then: Recurring expense marked is_active=false
     priority: medium
+  - id: T-6
+    scenario: Execute a confirmed recurring charge
+    type: integration
+    given: A confirmed recurring expense with next_charge_date <= today
+    when: execute_due_recurring runs
+    then: An Expense is created with is_recurring_projection=true and next_charge_date advances
+    priority: high
+  - id: T-7
+    scenario: Reconcile an imported recurring charge
+    type: integration
+    given: A projected recurring expense exists
+    when: The real statement row is confirmed from an import
+    then: The projection is updated in place, linked to the card, and no duplicate is created
+    priority: high
 
 # === DOCUMENTATION DELIVERABLES ===
 documentation:
