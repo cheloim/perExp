@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Card, User
-from app.routers.groups import get_group_user_ids
 from app.schemas import CardCreate, CardResponse, CardUpdate
+from app.services.access import scoped_user_ids_for
 from app.services.auth import get_current_user
 from app.services.encryption import compute_hmac
 
@@ -33,7 +33,7 @@ def list_cards(
     """List all cards for the current user and group"""
     from sqlalchemy.orm import joinedload
 
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     cards = (
         db.query(Card)
         .options(joinedload(Card.linked_account))

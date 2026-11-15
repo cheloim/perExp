@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import date, datetime
+from typing import cast
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,9 +12,9 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.database import get_db
 from app.metrics import EXPENSES_CREATED
 from app.models import Card, Category, Expense, ExpenseTag, Notification, Tag, User
-from app.routers.groups import get_group_user_ids
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services import fx
+from app.services.access import scoped_user_ids_for
 from app.services.auth import get_current_user
 from app.services.categorization import _normalize_merchant_key, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
@@ -42,7 +43,7 @@ def _invalidate_expense_cache(user_id: int, db: Session) -> None:
     try:
         from app.services.cache import del_prefix, group_hash, invalidate_group
 
-        gh = group_hash(get_group_user_ids(user_id, db))
+        gh = group_hash(scoped_user_ids_for(user_id, db))
         invalidate_group(gh)
         del_prefix(f"v1:uncat:{user_id}")
         del_prefix(f"v1:aitrends:{user_id}")
@@ -136,7 +137,7 @@ def get_expenses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     q = (
         db.query(Expense)
         .options(
@@ -187,7 +188,7 @@ def get_uncategorized_count(
 
     from app.services.cache import get_json, set_json
 
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     cache_key = f"v1:uncat:{current_user.id}"
     cached = get_json(cache_key)
     if cached is not None:
@@ -241,7 +242,7 @@ def get_distinct_values(
 ):
     from app.services.cache import get_json, group_hash, set_json
 
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     gh = group_hash(uid_list)
     key = f"v1:cards:{gh}:distinct"
     cached = get_json(key)
@@ -271,7 +272,7 @@ def get_distinct_values(
 def get_card_options(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.services.cache import get_json, group_hash, set_json
 
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     gh = group_hash(uid_list)
     key = f"v1:cards:{gh}:options"
     cached = get_json(key)
@@ -523,7 +524,7 @@ def create_expense(
     sync_category_tag(db, db_exp, db_exp.category_id)
 
     if tag_ids:
-        uid_list = get_group_user_ids(current_user.id, db)
+        uid_list = scoped_user_ids_for(current_user.id, db)
         _assign_tags(db_exp.id, tag_ids, current_user.id, db, uid_list)
         db.commit()
 
@@ -629,7 +630,7 @@ def update_expense(
             ).delete(synchronize_session=False)
 
         if non_categoria_ids:
-            uid_list = get_group_user_ids(current_user.id, db)
+            uid_list = scoped_user_ids_for(current_user.id, db)
             _assign_tags(db_exp.id, non_categoria_ids, current_user.id, db, uid_list)
 
     # Sync mirror AFTER tag replacement so it's always preserved
@@ -710,7 +711,7 @@ def delete_expense(
     )
     if not db_exp:
         raise HTTPException(404, "Gasto no encontrado")
-    _delete_linked_scheduled_expenses(db, [db_exp.id])
+    _delete_linked_scheduled_expenses(db, [cast(int, db_exp.id)])
     db.delete(db_exp)
     db.commit()
     _invalidate_expense_cache(current_user.id, db)
@@ -819,7 +820,7 @@ def bulk_update_tags(
     if not ids:
         return {"updated": 0}
 
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
 
     expense_ids = [
         r[0]
@@ -900,7 +901,7 @@ def get_expense_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     filters = dict(
         month=month,
         date_from=date_from,
@@ -980,7 +981,7 @@ def get_expenses_by_category(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     cat_map = {c.id: c for c in db.query(Category).all()}
 
     q = (
@@ -1076,7 +1077,7 @@ def get_expenses_by_person(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
 
     q = (
         db.query(
@@ -1142,7 +1143,7 @@ def get_expenses_trend(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     today = date.today()
     start_date = add_months(today, -months + 1).replace(day=1)
 

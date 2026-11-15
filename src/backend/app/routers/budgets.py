@@ -64,16 +64,10 @@ def _levels_from_db(raw: str | None, fallback: float = 0.80) -> list[float]:
 
 
 def _get_group_user_ids(user_id: int, db: Session) -> list[int]:
-    """Get all user IDs in the same family group."""
-    from app.models import GroupMember
+    """Canonical tenant scope."""
+    from app.services.access import scoped_user_ids_for
 
-    member = db.query(GroupMember).filter(GroupMember.user_id == user_id).first()
-    if not member:
-        return [user_id]
-    return [
-        int(m.user_id)
-        for m in db.query(GroupMember).filter(GroupMember.group_id == member.group_id).all()
-    ]
+    return scoped_user_ids_for(user_id, db)
 
 
 def _get_spending_for_category(
@@ -147,7 +141,7 @@ def _get_avg_monthly_spending(category_id: int, uid_list: list[int], db: Session
     children = db.query(Category).filter(Category.parent_id == category_id).all()
     cat_ids.extend([int(c.id) for c in children])
 
-    monthly_totals = []
+    monthly_totals: list[float] = []
     for i in range(3):
         month_date = today.replace(day=1) - timedelta(days=30 * i)
         start = month_date.replace(day=1)
@@ -583,7 +577,7 @@ def suggest_budgets(
         children = db.query(Category).filter(Category.parent_id == cat.id).all()
         cat_ids.extend([int(c.id) for c in children])
 
-        monthly_totals = []
+        monthly_totals: list[float] = []
         for i in range(3):
             month_date = today.replace(day=1) - timedelta(days=30 * i)
             start = month_date.replace(day=1)
