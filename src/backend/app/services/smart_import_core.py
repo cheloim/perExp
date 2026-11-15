@@ -429,6 +429,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                     p["installment_number"],
                     p["installment_total"],
                     p.get("installment_group_id"),
+                    user_id=user_id,
                 )
                 if row_date
                 else False,

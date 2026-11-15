@@ -234,6 +234,7 @@ def update_expense_checked(
             installment_number=expense.installment_number,
             installment_total=expense.installment_total,
             installment_group_id=expense.installment_group_id,
+            user_id=expense.user_id,
         ):
             # Exclude self from duplicate check
             dup_count = (

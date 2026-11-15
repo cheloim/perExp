@@ -73,6 +73,8 @@ def _is_duplicate(
     installment_number: int | None = None,
     installment_total: int | None = None,
     installment_group_id: str | None = None,
+    *,
+    user_id: int,
 ) -> bool:
     from app.models import ScheduledExpense
 
@@ -81,6 +83,7 @@ def _is_duplicate(
             existing = (
                 db.query(Expense)
                 .filter(
+                    Expense.user_id == user_id,
                     Expense.transaction_id == transaction_id,
                     Expense.installment_number == installment_number,
                     Expense.installment_total == installment_total,
@@ -102,6 +105,7 @@ def _is_duplicate(
             existing = (
                 db.query(Expense)
                 .filter(
+                    Expense.user_id == user_id,
                     Expense.transaction_id == transaction_id,
                     Expense.is_recurring_projection == False,  # noqa: E712
                 )
@@ -116,6 +120,7 @@ def _is_duplicate(
             existing_scheduled = (
                 db.query(ScheduledExpense)
                 .filter(
+                    ScheduledExpense.user_id == user_id,
                     ScheduledExpense.installment_group_id == installment_group_id,
                     ScheduledExpense.installment_number == installment_number,
                     ScheduledExpense.installment_total == installment_total,
@@ -142,6 +147,7 @@ def _is_duplicate(
         existing = (
             db.query(Expense)
             .filter(
+                Expense.user_id == user_id,
                 Expense.amount == amount,
                 Expense.description_hmac == compute_hmac(description),
                 Expense.installment_number == installment_number,
@@ -165,6 +171,7 @@ def _is_duplicate(
             return True
 
     q = db.query(Expense).filter(
+        Expense.user_id == user_id,
         Expense.date == exp_date,
         Expense.amount == amount,
         Expense.description_hmac == compute_hmac(description),
@@ -187,6 +194,7 @@ def _is_duplicate(
         existing_scheduled = (
             db.query(ScheduledExpense)
             .filter(
+                ScheduledExpense.user_id == user_id,
                 ScheduledExpense.installment_group_id == installment_group_id,
                 ScheduledExpense.installment_number == installment_number,
                 ScheduledExpense.installment_total == installment_total,
@@ -326,6 +334,7 @@ def _expand_installments(
                 installment_number=i,
                 installment_total=inst_total,
                 installment_group_id=group_id,
+                user_id=user_id,
             ):
                 continue
             generated.add(gen_key)
@@ -368,6 +377,7 @@ def _expand_installments(
                 installment_number=i,
                 installment_total=inst_total,
                 installment_group_id=group_id,
+                user_id=user_id,
             ):
                 continue
 
