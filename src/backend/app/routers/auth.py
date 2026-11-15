@@ -245,8 +245,9 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
 
     # Check MFA
     if user.mfa_enabled:
-        # Return partial token - MFA required
-        partial_token = create_access_token(user.id, expires_minutes=5)
+        # Return a partial token that cannot open the API until the second
+        # factor is verified.
+        partial_token = create_access_token(user.id, expires_minutes=5, scope="mfa")
         _log_audit(db, user.id, "login_mfa_required", request)
         return Token(
             access_token=partial_token,
@@ -256,7 +257,7 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
 
     # Check forced password change
     if user.force_password_change:
-        force_token = create_access_token(user.id, expires_minutes=5)
+        force_token = create_access_token(user.id, expires_minutes=5, scope="password_change")
         _log_audit(db, user.id, "login_force_password_change", request)
         return Token(
             access_token=force_token,
@@ -297,6 +298,8 @@ def login_mfa(
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Token inválido")
+        if payload.get("scope") != "mfa":
+            raise HTTPException(status_code=401, detail="Token inválido para MFA")
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
 
@@ -325,6 +328,13 @@ def login_mfa(
 
     _log_audit(db, user.id, "login_success", request, details="mfa_verified")
     _record_login(db, user)
+    # MFA is done, but a forced password change still applies. Do not start a
+    # full session before the user completes it.
+    if user.force_password_change:
+        token = create_access_token(user.id, expires_minutes=5, scope="password_change")
+        _set_auth_cookie(response, token)
+        return Token(access_token=token, token_type="bearer", force_password_change=True)
+
     token = _issue_session(response, db, user, request)
     return Token(access_token=token, token_type="bearer")
 
@@ -1019,6 +1029,8 @@ def force_change_password(
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Token inválido")
+        if payload.get("scope") != "password_change":
+            raise HTTPException(status_code=401, detail="Token inválido para cambio de contraseña")
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
 

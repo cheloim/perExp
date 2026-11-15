@@ -147,7 +147,15 @@ export default function LoginPage() {
           />
         )}
         {mode === "mfa" && (
-          <MfaForm token={mfaToken} onSuccess={handleSuccess} onBack={() => setMode("login")} />
+          <MfaForm
+            token={mfaToken}
+            onSuccess={handleSuccess}
+            onForceChange={(token) => {
+              setForceToken(token);
+              setMode("force-change");
+            }}
+            onBack={() => setMode("login")}
+          />
         )}
       </div>
     </div>
@@ -796,10 +804,12 @@ function ForceChangeForm({
 function MfaForm({
   token,
   onSuccess,
+  onForceChange,
   onBack,
 }: {
   token: string;
   onSuccess: () => void;
+  onForceChange: (token: string) => void;
   onBack: () => void;
 }) {
   const [code, setCode] = useState("");
@@ -812,6 +822,10 @@ function MfaForm({
     setLoading(true);
     try {
       const result = await loginMfa(token, code);
+      if (result.force_password_change) {
+        onForceChange(result.access_token);
+        return;
+      }
       storeToken(result.access_token);
       onSuccess();
     } catch (err: any) {

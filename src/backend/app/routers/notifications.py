@@ -65,6 +65,10 @@ def _validate_token(token: str, db: Session) -> User:
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exc
+        # The SSE endpoint validates tokens itself; keep the same rule as
+        # get_current_user so a partial MFA token cannot open the stream.
+        if payload.get("scope", "access") != "access":
+            raise credentials_exc
     except JWTError:
         raise credentials_exc
     user = db.get(User, int(user_id))

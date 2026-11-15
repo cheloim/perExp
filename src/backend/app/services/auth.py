@@ -57,7 +57,15 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
-def create_access_token(user_id: int, expires_minutes: int | None = None) -> str:
+def create_access_token(
+    user_id: int, expires_minutes: int | None = None, scope: str = "access"
+) -> str:
+    """Issue a JWT.
+
+    ``scope`` separates a full session from the short-lived tokens issued
+    between factors. Intermediate tokens ("mfa", "password_change") must not
+    open the API: ``get_current_user`` rejects anything but "access".
+    """
     minutes = expires_minutes if expires_minutes is not None else ACCESS_TOKEN_EXPIRE_MINUTES
     now = datetime.now(UTC)
     payload = {
@@ -67,6 +75,7 @@ def create_access_token(user_id: int, expires_minutes: int | None = None) -> str
         # Without a unique id, two logins in the same second produce the same
         # token (and the refresh response would look like a no-op).
         "jti": secrets.token_hex(16),
+        "scope": scope,
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
 
@@ -238,6 +247,14 @@ def get_current_user(
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise credentials_exc
+        # Tokens issued between factors are deliberately not access tokens.
+        # Old tokens have no scope: treat them as access for compatibility.
+        if payload.get("scope", "access") != "access":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token incompleto: completá el inicio de sesión",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     except JWTError:
         raise credentials_exc
     user = db.get(User, int(user_id))
