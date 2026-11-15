@@ -5,6 +5,14 @@ from datetime import date
 import pytest
 
 
+def _delete_test_user(db, user) -> None:
+    """Remove the committed fixture user and everything that cascades from it."""
+    from app.models import User
+
+    db.query(User).filter(User.id == user.id).delete()
+    db.commit()
+
+
 def test_split_installments_sums_exactly_to_total():
     from app.services.installments import split_installments
 
@@ -104,7 +112,7 @@ def test_create_future_installments_copies_fields_and_dates(db):
 
 
 def test_create_expense_with_total_mode_creates_the_series(db, test_user):
-    from app.models import Card, Category, Expense, ScheduledExpense
+    from app.models import Card, Category, ScheduledExpense
     from app.routers.expenses import create_expense
     from app.schemas import ExpenseCreate
 
@@ -143,13 +151,11 @@ def test_create_expense_with_total_mode_creates_the_series(db, test_user):
     assert created.amount + sum(row.amount for row in future) == pytest.approx(120000)
 
     # The committed rows outlive the fixture rollback; clean them up explicitly.
-    db.query(ScheduledExpense).filter(ScheduledExpense.expense_id == created.id).delete()
-    db.query(Expense).filter(Expense.id == created.id).delete()
-    db.commit()
+    _delete_test_user(db, test_user)
 
 
 def test_create_expense_with_current_mode_does_not_divide(db, test_user):
-    from app.models import Card, Category, Expense, ScheduledExpense
+    from app.models import Card, Category, ScheduledExpense
     from app.routers.expenses import create_expense
     from app.schemas import ExpenseCreate
 
@@ -184,13 +190,11 @@ def test_create_expense_with_current_mode_does_not_divide(db, test_user):
     assert [row.installment_number for row in future] == list(range(4, 13))
     assert all(row.amount == pytest.approx(15000) for row in future)
 
-    db.query(ScheduledExpense).filter(ScheduledExpense.expense_id == created.id).delete()
-    db.query(Expense).filter(Expense.id == created.id).delete()
-    db.commit()
+    _delete_test_user(db, test_user)
 
 
 def test_create_expense_without_mode_keeps_single_row(db, test_user):
-    from app.models import Expense, ScheduledExpense
+    from app.models import ScheduledExpense
     from app.routers.expenses import create_expense
     from app.schemas import ExpenseCreate
 
@@ -208,8 +212,7 @@ def test_create_expense_without_mode_keeps_single_row(db, test_user):
     assert created.installment_group_id is None
     assert db.query(ScheduledExpense).filter(ScheduledExpense.expense_id == created.id).count() == 0
 
-    db.query(Expense).filter(Expense.id == created.id).delete()
-    db.commit()
+    _delete_test_user(db, test_user)
 
 
 def test_deleting_the_template_expense_removes_pending_installments(db, test_user):
@@ -237,3 +240,5 @@ def test_deleting_the_template_expense_removes_pending_installments(db, test_use
 
     assert db.query(Expense).filter(Expense.id == created.id).count() == 0
     assert db.query(ScheduledExpense).filter(ScheduledExpense.expense_id == created.id).count() == 0
+
+    _delete_test_user(db, test_user)
