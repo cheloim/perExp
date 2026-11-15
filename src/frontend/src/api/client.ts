@@ -929,7 +929,8 @@ export const getUsdRate = () =>
       rate: number;
       date: string;
       source: string;
-    }>("/investments/usd-rate")
+      warning?: string;
+    }>("/fx/usd-rate", { params: { purpose: "display" } })
     .then((r) => r.data);
 
 export const refreshManualPrices = () =>
