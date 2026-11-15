@@ -2,12 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import LoginPage from "./LoginPage";
+import {
+  clearPartialAuthToken,
+  setPartialAuthToken,
+  takePartialAuthToken,
+} from "../auth/partialToken";
 
 const requestCode = vi.fn();
 const initCodeClient = vi.fn(() => ({ requestCode }));
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
+  clearPartialAuthToken();
   initCodeClient.mockClear();
   requestCode.mockClear();
   window.google = {
@@ -38,5 +45,33 @@ describe("LoginPage — Google OAuth", () => {
       }),
     );
     expect(requestCode).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("LoginPage — OAuth partial tokens", () => {
+  it("abre MFA con el token parcial que dejó el callback", () => {
+    setPartialAuthToken("partial-mfa", "mfa");
+
+    render(
+      <MemoryRouter initialEntries={["/login?mfa=required"]}>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Verificación de seguridad")).toBeInTheDocument();
+    expect(takePartialAuthToken("mfa")).toBeNull();
+  });
+
+  it("abre el cambio obligatorio con su token parcial", () => {
+    setPartialAuthToken("partial-force", "password_change");
+
+    render(
+      <MemoryRouter initialEntries={["/login?force_change=1"]}>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Cambio de contraseña obligatorio")).toBeInTheDocument();
+    expect(takePartialAuthToken("password_change")).toBeNull();
   });
 });

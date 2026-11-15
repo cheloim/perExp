@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { oauthCallback, storeToken } from "../api/client";
+import { setPartialAuthToken } from "../auth/partialToken";
 import { APP_NAME } from "../config";
 
 export default function OAuthCallbackPage() {
@@ -28,16 +29,16 @@ export default function OAuthCallbackPage() {
     const handleCallback = async () => {
       try {
         const token = await oauthCallback("google", code);
+        // Google proves identity, not the second factor or a pending password
+        // change. Keep the partial token out of the auth slot and out of the URL.
         if (token.force_password_change) {
-          storeToken(token.access_token);
+          setPartialAuthToken(token.access_token, "password_change");
           navigate("/login?force_change=1", { replace: true });
           return;
         }
         if (token.mfa_required) {
-          navigate("/login?mfa=1", {
-            replace: true,
-            state: { token: token.access_token },
-          });
+          setPartialAuthToken(token.access_token, "mfa");
+          navigate("/login?mfa=required", { replace: true });
           return;
         }
         storeToken(token.access_token);

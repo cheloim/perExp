@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { takePartialAuthToken } from "../auth/partialToken";
 import {
   createTelegramOidcState,
   forgotPassword,
   forceChangePassword,
-  getStoredToken,
   login,
   loginMfa,
   register,
@@ -86,13 +86,21 @@ export default function LoginPage() {
     navigate("/");
   };
 
-  // Check for ?mfa=required from OAuth callback
+  // OAuth callback contract: the partial token is in memory, never
+  // in the URL and never in the full-session auth slot.
   useEffect(() => {
     if (searchParams.get("mfa") === "required") {
-      const savedToken = getStoredToken();
-      if (savedToken) {
-        setMfaToken(savedToken);
+      const partial = takePartialAuthToken("mfa");
+      if (partial) {
+        setMfaToken(partial);
         setMode("mfa");
+      }
+    }
+    if (searchParams.get("force_change") === "1") {
+      const partial = takePartialAuthToken("password_change");
+      if (partial) {
+        setForceToken(partial);
+        setMode("force-change");
       }
     }
   }, [searchParams]);
