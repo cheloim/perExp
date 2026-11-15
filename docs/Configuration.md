@@ -96,14 +96,19 @@ secrets/<env>/frontend/GOOGLE_CLIENT_ID
 | `BUDGET_AHORRO_ENABLED` | `true` | Habilita el grupo "Ahorro" del 50/30/20. |
 | `DEBUG_CATEGORIZATION` | `0` | Logging verboso del categorizador. |
 
-### Seed (peligroso)
+### Administrador inicial
 
-`SEED_USER_EMAIL`, `SEED_USER_NAME` y `SEED_USER_PASSWORD` controlan el usuario que se crea
-al arrancar si la tabla está vacía. **El comportamiento por defecto es inseguro y está
-registrado en un advisory privado** (`GHSA-p86h-c2xv-j859`): no se detalla acá para no
-divulgar una superficie explotable mientras no esté corregido. Definí las tres variables en
-producción con una contraseña fuerte y verificá que el usuario sembrado no conserve la
-credencial inicial.
+El arranque **no crea ningún administrador**. Un deploy limpio queda sin admin hasta que
+lo crees explícitamente:
+
+```bash
+cd src/backend
+python -m scripts.create_admin --email admin@example.com --name "Admin"
+```
+
+El script pide la contraseña sin mostrarla y aplica la misma política que el registro.
+También sirve para promover un usuario existente o resetear su contraseña. Las variables
+`SEED_USER_*` ya no se usan.
 
 ## Variables del frontend
 
