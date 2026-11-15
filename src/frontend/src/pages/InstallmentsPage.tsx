@@ -92,7 +92,7 @@ export default function InstallmentsPage() {
         category_name: g.category_name,
         category_color: g.category_color,
         next_date: g.next_date,
-        installment_info: `Cuota ${g.installments_paid + 1}/${g.installment_total}`,
+        installment_info: `Cuota ${g.installment_total - g.remaining_installments + 1}/${g.installment_total}`,
       });
     }
 

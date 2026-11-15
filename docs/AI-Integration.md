@@ -156,10 +156,13 @@ to WAV by the client; the server rejects WebM sent directly.
 `POST /capture/expense-image` accepts JPEG, PNG, or WebP (up to 8 MB / 20 MP);
 Pillow strips EXIF and downsizes images to at most 1600 px per side before
 OpenAI Vision receives them. `LLM_VISION_MODEL` defaults to `LLM_MODEL_NAME`.
-The model returns a single-expense draft or a rejection reason; the user must
-review and save it. A receipt with many line items is valid when it has one
-clear final total, while multiple transactions, credits, balances, and pending
-payments are rejected. HEIC is not supported in v1.
+The model returns a list of completed debit expenses or a rejection reason.
+A receipt with many line items is one expense when it has one clear final total;
+a statement or screen with several transactions returns one draft per expense
+(up to 20). Each draft can carry `installment_number`, `installment_total`, and
+`amount_kind` so the caller knows whether the amount is the purchase total or the
+current installment. Credits, balances, and pending payments are skipped. HEIC
+is not supported in v1.
 
 Audio and image bytes are not stored persistently by the application and are
 not logged. Starlette may spool a multipart upload to a temporary file during

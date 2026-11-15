@@ -49,6 +49,7 @@ from app.services.capture import (
 from app.services.categorization import auto_categorize, llm_categorize
 from app.services.encryption import compute_hmac
 from app.services.import_utils import _normalize_text
+from app.services.installments import create_future_installments, split_installments
 from app.services.llm import LLMMessage, get_client, is_configured, parse_json_block
 from app.services.rate_limit import check_rate_limit
 
@@ -512,6 +513,8 @@ def _save_expense(
     user_id: int | None = None,
     installment_total: int | None = None,
     installment_group_id: str | None = None,
+    installment_number: int | None = None,
+    amount_is_total: bool = True,
     predicted_category_id: int | None = None,
     account_id: int | None = None,
     card_id: int | None = None,
@@ -534,9 +537,25 @@ def _save_expense(
             expense_date = datetime.now(BUE).date()
 
         raw_amount = float(parsed.get("amount") or 0)
-        if installment_total and installment_total >= 2:
-            installment_amount = round(raw_amount / installment_total, 2)
+        start_number: int | None = None
+        future_amounts: list[tuple[int, float]] = []
+        if installment_total and 2 <= installment_total <= 60:
+            start_number = installment_number or 1
+            if start_number < 1 or start_number > installment_total:
+                start_number = 1
+            if amount_is_total:
+                plan = split_installments(raw_amount, installment_total, start=start_number)
+                installment_amount = plan[0][1]
+                future_amounts = plan[1:]
+            else:
+                installment_amount = raw_amount
+                future_amounts = [
+                    (number, raw_amount)
+                    for number in range(start_number + 1, installment_total + 1)
+                ]
+            installment_group_id = installment_group_id or str(uuid.uuid4())
         else:
+            installment_total = None
             installment_amount = raw_amount
 
         expense = Expense(
@@ -547,7 +566,7 @@ def _save_expense(
             currency=parsed.get("currency", "ARS"),
             category_id=category_id,
             user_id=user_id,
-            installment_number=1 if installment_total else None,
+            installment_number=start_number if installment_total else None,
             installment_total=installment_total,
             installment_group_id=installment_group_id,
             account_id=account_id,
@@ -555,6 +574,13 @@ def _save_expense(
         )
         db.add(expense)
         db.flush()  # Assign ID without committing
+        if future_amounts:
+            create_future_installments(
+                db,
+                expense=expense,
+                installment_total=installment_total or 0,
+                amounts=future_amounts,
+            )
         if log_content:
             logger.info(
                 "[SAVE_EXPENSE] id=%d card_id=%s account_id=%s tag_ids=%s payment_tag_name=%s",
@@ -652,6 +678,40 @@ def _save_expense(
         return expense
     finally:
         db.close()
+
+
+def _installment_args(parsed: dict) -> dict:
+    """Translate parser output into _save_expense installment arguments.
+
+    ``amount_kind`` is authoritative when the model returns it. Otherwise a
+    current installment number above 1 means the amount is per-installment; a
+    first installment means the amount is the purchase total.
+    """
+    raw_total = parsed.get("installment_total")
+    try:
+        total = int(raw_total)
+    except (TypeError, ValueError):
+        return {}
+    if total < 2 or total > 60:
+        return {}
+    try:
+        number = int(parsed.get("installment_number") or 1)
+    except (TypeError, ValueError):
+        number = 1
+    if number < 1 or number > total:
+        number = 1
+    kind = parsed.get("amount_kind")
+    if kind == "total":
+        amount_is_total = True
+    elif kind == "installment":
+        amount_is_total = False
+    else:
+        amount_is_total = number <= 1
+    return {
+        "installment_total": total,
+        "installment_number": number,
+        "amount_is_total": amount_is_total,
+    }
 
 
 def _should_ask_installments(
@@ -771,11 +831,17 @@ def _confirm_text(
             cat_tree += f"{indent}{_cat_emoji(name)} {name}\n"
     debug_line = f"\n<code>{debug_info}</code>" if debug_info else ""
     if installments and installments >= 2:
-        per_cuota = round(total_amount / installments, 2)
-        amount_line = (
-            f"💰 {_format_amount(total_amount, currency)} → "
-            f"{installments}× {_format_amount(per_cuota, currency)}"
-        )
+        number = parsed.get("installment_number") or 1
+        if parsed.get("amount_kind") == "installment" or number > 1:
+            amount_line = (
+                f"💰 {_format_amount(total_amount, currency)} (Cuota {number} de {installments})"
+            )
+        else:
+            per_cuota = round(total_amount / installments, 2)
+            amount_line = (
+                f"💰 {_format_amount(total_amount, currency)} → "
+                f"{installments}× {_format_amount(per_cuota, currency)}"
+            )
     else:
         amount_line = f"💰 {_format_amount(total_amount, currency)}"
     return (
@@ -926,11 +992,17 @@ def _saved_text(expense: "Expense", payment_label: str = "", tags: list | None =
     tags = tags or getattr(expense, "_tags", [])
 
     if expense.installment_total and expense.installment_total >= 2:
-        total = round(expense.amount * expense.installment_total, 2)
-        amount_line = (
-            f"💰 {_format_amount(total, expense.currency)} "
-            f"({expense.installment_total} cuotas de {amount_str})"
-        )
+        if (expense.installment_number or 1) > 1:
+            amount_line = (
+                f"💰 {amount_str} "
+                f"(Cuota {expense.installment_number} de {expense.installment_total})"
+            )
+        else:
+            total = round(expense.amount * expense.installment_total, 2)
+            amount_line = (
+                f"💰 {_format_amount(total, expense.currency)} "
+                f"({expense.installment_total} cuotas de {amount_str})"
+            )
     else:
         amount_line = f"💰 {amount_str}"
 
@@ -981,7 +1053,7 @@ def _get_user_by_chat_id(chat_id: str) -> User | None:
 
 
 async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Extract a single expense draft from a Telegram photo or image document."""
+    """Extract one or more expense drafts from a Telegram photo or image document."""
     msg = update.message
     if not msg:
         return ConversationHandler.END
@@ -1060,77 +1132,119 @@ async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYP
         await msg.reply_text("No pude analizar la imagen. Probá de nuevo más tarde.")
         return ConversationHandler.END
 
-    draft = result.draft
-    source_type = getattr(draft, "source_type", "unknown") if draft else "unknown"
-    confidence = getattr(draft, "confidence", "unknown") if draft else "unknown"
+    drafts = result.drafts
+    source_type = drafts[0].source_type if drafts else "unknown"
+    confidence = drafts[0].confidence if drafts else "unknown"
     logger.info(
-        "[TELEGRAM_CAPTURE] source_type=%s reason=%s bytes=%d confidence=%s",
+        "[TELEGRAM_CAPTURE] source_type=%s reason=%s bytes=%d confidence=%s count=%d",
         source_type,
         result.reason or "none",
         len(image_bytes),
         confidence,
+        len(drafts),
     )
-    if result.status != "ok" or not draft:
+    if result.status != "ok" or not drafts:
         await msg.reply_text(result.message)
         return ConversationHandler.END
 
-    if hasattr(draft, "model_dump"):
-        draft_data = draft.model_dump(mode="json")
-    else:
-        from dataclasses import asdict, is_dataclass
+    def _parsed_from_draft(draft) -> dict:
+        if hasattr(draft, "model_dump"):
+            draft_data = draft.model_dump(mode="json")
+        else:
+            from dataclasses import asdict, is_dataclass
 
-        draft_data = asdict(draft) if is_dataclass(draft) else dict(draft)
-    # Defense in depth: never persist or show a card number, even if a provider
-    # (or an older extractor) echoes one in card_hint.
-    draft_data["card_hint"] = sanitize_card_hint(draft_data.get("card_hint"))
-    date_value = draft_data.get("date")
-    if hasattr(date_value, "isoformat"):
-        date_value = date_value.isoformat()
-
-    parsed = {
-        "amount": draft_data["amount"],
-        "description": draft_data["description"],
-        "date": date_value or datetime.now(BUE).date().isoformat(),
-        "currency": draft_data.get("currency", "ARS"),
-    }
+            draft_data = asdict(draft) if is_dataclass(draft) else dict(draft)
+        # Defense in depth: never persist or show a card number, even if a provider
+        # (or an older extractor) echoes one in card_hint.
+        draft_data["card_hint"] = sanitize_card_hint(draft_data.get("card_hint"))
+        date_value = draft_data.get("date")
+        if hasattr(date_value, "isoformat"):
+            date_value = date_value.isoformat()
+        return {
+            "amount": draft_data["amount"],
+            "description": draft_data["description"],
+            "date": date_value or datetime.now(BUE).date().isoformat(),
+            "currency": draft_data.get("currency", "ARS"),
+        }
 
     db = SessionLocal()
+    saved = []
+    failed = 0
     try:
-        predicted_category_id, _ = _instant_categorize(parsed, user_id, db)
-        expense = _save_expense(
-            parsed,
-            payment="",
-            person=update.effective_user.full_name if update.effective_user else "",
-            user_id=user_id,
-            predicted_category_id=predicted_category_id,
-            card_id=None,
-            account_id=None,
-            log_content=False,
-        )
-    except Exception as exc:
-        logger.error(
-            "[TELEGRAM_CAPTURE] save_failed error_type=%s",
-            type(exc).__name__,
-        )
-        await msg.reply_text("No pude guardar el gasto. Revisá tus gastos antes de reintentar.")
-        return ConversationHandler.END
+        for draft in drafts:
+            parsed = _parsed_from_draft(draft)
+            try:
+                predicted_category_id, _ = _instant_categorize(parsed, user_id, db)
+                expense = _save_expense(
+                    parsed,
+                    payment="",
+                    person=update.effective_user.full_name if update.effective_user else "",
+                    user_id=user_id,
+                    predicted_category_id=predicted_category_id,
+                    card_id=None,
+                    account_id=None,
+                    installment_total=draft.installment_total,
+                    installment_number=draft.installment_number,
+                    amount_is_total=draft.amount_kind != "installment",
+                    log_content=False,
+                )
+                saved.append(expense)
+            except Exception as exc:
+                failed += 1
+                logger.error(
+                    "[TELEGRAM_CAPTURE] save_failed error_type=%s",
+                    type(exc).__name__,
+                )
     finally:
         db.close()
 
-    context.user_data["last_expense_id"] = expense.id
+    if not saved:
+        await msg.reply_text("No pude guardar el gasto. Revisá tus gastos antes de reintentar.")
+        return ConversationHandler.END
+
+    context.user_data["last_expense_id"] = saved[-1].id
     context.user_data["last_expense_time"] = time.time()
+
+    if len(saved) == 1 and not failed:
+        expense = saved[0]
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "✏️ Editar",
+                        callback_data=f"quickedit:{expense.id}",
+                        style="primary",
+                    )
+                ]
+            ]
+        )
+        await msg.reply_text(_quick_saved_text(expense), reply_markup=keyboard)
+        return ConversationHandler.END
+
+    header = f"✅ {len(saved)} gastos guardados:"
+    if failed:
+        header = f"✅ {len(saved)} gastos guardados ({failed} no se pudieron guardar):"
+    lines = [header]
+    expense_ids = []
+    for i, expense in enumerate(saved, 1):
+        amount_str = _format_amount(expense.amount, expense.currency)
+        detail = ""
+        if expense.installment_total and expense.installment_number:
+            detail = f" (cuota {expense.installment_number}/{expense.installment_total})"
+        lines.append(f"  {i}. {amount_str} — {expense.description}{detail}")
+        expense_ids.append(str(expense.id))
+    context.user_data["last_batch_ids"] = ",".join(expense_ids)
     keyboard = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    "✏️ Editar",
-                    callback_data=f"quickedit:{expense.id}",
-                    style="primary",
+                    "🗑 Deshacer todo",
+                    callback_data="undobatch:last",
                 )
             ]
         ]
     )
-    await msg.reply_text(_quick_saved_text(expense), reply_markup=keyboard)
+    await msg.reply_text("\n".join(lines), reply_markup=keyboard)
     return ConversationHandler.END
 
 
@@ -1691,6 +1805,7 @@ async def _handle_bank_notification(
             tag_ids=matched_tag_ids or None,
             payment_tag_name=payment_tag_name,
             log_content=log_content,
+            **_installment_args(parsed),
         )
 
         cat = (
@@ -1909,6 +2024,7 @@ async def _process_text_expense(
                 tag_ids=matched_tag_ids or None,
                 payment_tag_name=payment_tag_name,
                 log_content=source == "text",
+                **_installment_args(parsed_item),
             )
             saved_expenses.append(expense)
 
@@ -1970,7 +2086,7 @@ async def _process_text_expense(
                     [
                         InlineKeyboardButton(
                             "🗑 Deshacer todo",
-                            callback_data=f"undobatch:{','.join(expense_ids)}",
+                            callback_data="undobatch:last",
                         )
                     ]
                 ]
@@ -2860,6 +2976,8 @@ def _save_expense_from_context(context, db):
     )
     installment_total = context.user_data.get("installment_total")
     installment_group_id = context.user_data.get("installment_group_id")
+    installment_number = context.user_data.get("installment_number")
+    amount_is_total = context.user_data.get("amount_is_total", True)
     predicted_category_id = context.user_data.get("predicted_category_id")
 
     if method == "tarjeta":
@@ -2875,6 +2993,8 @@ def _save_expense_from_context(context, db):
             user_id=user_id,
             installment_total=installment_total,
             installment_group_id=installment_group_id,
+            installment_number=installment_number,
+            amount_is_total=amount_is_total,
             predicted_category_id=predicted_category_id,
             card_id=card_id,
         )
@@ -2896,30 +3016,6 @@ def _save_expense_from_context(context, db):
             user_id=user_id,
             predicted_category_id=predicted_category_id,
         )
-
-    # Create ScheduledExpenses for future installments
-    if installment_total and installment_group_id and installment_total >= 2:
-        from app.models import ScheduledExpense
-        from app.services.date_utils import add_months
-
-        for i in range(2, installment_total + 1):
-            scheduled = ScheduledExpense(
-                installment_group_id=installment_group_id,
-                installment_number=i,
-                installment_total=installment_total,
-                scheduled_date=add_months(expense.date, i - 1),
-                amount=expense.amount,
-                currency=expense.currency,
-                description=expense.description,
-                description_hmac=compute_hmac(expense.description),
-                card_id=expense.card_id,
-                account_id=expense.account_id,
-                category_id=expense.category_id,
-                status="PENDING",
-                user_id=user_id,
-            )
-            db.add(scheduled)
-        db.commit()
 
     return expense
 
@@ -3154,7 +3250,9 @@ async def handle_undo_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
 
-    ids_str = query.data.split(":")[1]
+    ids_str = query.data.split(":", 1)[1]
+    if ids_str == "last":
+        ids_str = context.user_data.get("last_batch_ids", "")
     expense_ids = [int(x) for x in ids_str.split(",") if x.isdigit()]
     if not expense_ids:
         await query.edit_message_text("❌ No hay gastos para deshacer.")

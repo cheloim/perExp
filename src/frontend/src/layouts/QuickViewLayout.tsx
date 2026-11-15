@@ -96,9 +96,11 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
   const createMut = useMutation({
     mutationFn: (data: ExpenseCreate) => createExpense(data),
     onSuccess: () => {
-      setNewExpenseOpen(false);
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["installments"] });
+      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-expenses"] });
     },
   });
 
@@ -194,7 +196,9 @@ export default function QuickViewLayout({ onSwitchToFull }: { onSwitchToFull: ()
       {isAuthenticated && newExpenseOpen && (
         <ExpenseModal
           onClose={() => setNewExpenseOpen(false)}
-          onSave={(data) => createMut.mutate(data)}
+          onSave={async (data) => {
+            await createMut.mutateAsync(data);
+          }}
           saveError={createMut.error?.message ?? null}
           isSaving={createMut.isPending}
         />

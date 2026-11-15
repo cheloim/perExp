@@ -1,4 +1,5 @@
 import re
+import uuid
 from datetime import date, datetime
 
 import pandas as pd
@@ -18,6 +19,7 @@ from app.services.date_utils import _normalize_date_str, add_months
 from app.services.encryption import compute_hmac
 from app.services.expense_filters import apply_expense_filters
 from app.services.import_utils import _is_duplicate, _normalize_text
+from app.services.installments import create_future_installments, split_installments
 from app.services.notify import notification_excerpt
 from app.services.tag_sync import assign_tags_validated, sync_category_tag
 
@@ -45,6 +47,17 @@ def _invalidate_expense_cache(user_id: int, db: Session) -> None:
         del_prefix(f"v1:aitrends:{user_id}")
     except Exception:
         pass
+
+
+def _delete_linked_scheduled_expenses(db: Session, expense_ids: list[int]) -> None:
+    """Remove pending installments that belong to deleted template expenses."""
+    if not expense_ids:
+        return
+    from app.models import ScheduledExpense
+
+    db.query(ScheduledExpense).filter(ScheduledExpense.expense_id.in_(expense_ids)).delete(
+        synchronize_session=False
+    )
 
 
 def _derive_account_from_tags(tags: list[Tag]) -> tuple[int | None, int | None]:
@@ -371,20 +384,53 @@ def create_expense(
 ):
     from app.services.categorization import is_income_category
 
+    data = expense.model_dump()
+
+    # Extract API-only fields (not columns on Expense)
+    installment_mode = data.pop("installment_mode", "none")
+    tag_ids = data.pop("tag_ids", None) or []
+
+    # Installments: the API can receive either the purchase total or the value
+    # of the current installment. Calculate the amount before duplicate checks
+    # so a 12-installment purchase is not compared against its total.
+    future_amounts: list[tuple[int, float]] = []
+    installment_total = data.get("installment_total")
+    installment_number = data.get("installment_number") or 1
+    if installment_mode in {"total", "current"}:
+        if not installment_total or installment_total < 2 or installment_total > 60:
+            raise HTTPException(422, "El total de cuotas debe estar entre 2 y 60.")
+        if installment_number < 1 or installment_number > installment_total:
+            raise HTTPException(422, "La cuota actual debe estar entre 1 y el total de cuotas.")
+        data["installment_number"] = installment_number
+        data["installment_total"] = installment_total
+        data["installment_group_id"] = data.get("installment_group_id") or str(uuid.uuid4())
+        data["amount"] = abs(data["amount"])
+        if installment_mode == "total":
+            try:
+                plan = split_installments(
+                    data["amount"], installment_total, start=installment_number
+                )
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from exc
+            data["amount"] = plan[0][1]
+            future_amounts = plan[1:]
+        else:
+            future_amounts = [
+                (number, data["amount"])
+                for number in range(installment_number + 1, installment_total + 1)
+            ]
+    else:
+        data["amount"] = abs(data["amount"])
+
     if _is_duplicate(
         db,
         expense.date,
-        expense.amount,
+        data["amount"],
         expense.description,
         expense.transaction_id,
         user_id=current_user.id,
     ):
         raise HTTPException(409, "Ya existe un gasto con la misma fecha, monto y descripción.")
-
-    data = expense.model_dump()
-
-    # Extract tag_ids (M2M, not a column on Expense)
-    tag_ids = data.pop("tag_ids", None) or []
 
     # Auto-derive card_id/account_id from tags if not explicitly set
     if tag_ids and not data.get("card_id") and not data.get("account_id"):
@@ -409,9 +455,6 @@ def create_expense(
     if data.get("description"):
         data["description"] = _normalize_text(data["description"])
         data["description_hmac"] = compute_hmac(data["description"])
-
-    # Always store amount as positive (no sign convention)
-    data["amount"] = abs(data["amount"])
 
     # Note: account_required validation removed (Issue 199).
     # Cards/accounts are now optional; tags are the primary classification.
@@ -464,6 +507,14 @@ def create_expense(
 
     db_exp = Expense(**data, user_id=current_user.id)
     db.add(db_exp)
+    db.flush()
+    if future_amounts:
+        create_future_installments(
+            db,
+            expense=db_exp,
+            installment_total=installment_total or 0,
+            amounts=future_amounts,
+        )
     db.commit()
     db.refresh(db_exp)
 
@@ -602,9 +653,16 @@ def bulk_delete_expenses(
     ids: list = payload.get("ids", [])
     if not ids:
         return {"deleted": 0}
+    owned_ids = [
+        row[0]
+        for row in db.query(Expense.id)
+        .filter(Expense.id.in_(ids), Expense.user_id == current_user.id)
+        .all()
+    ]
+    _delete_linked_scheduled_expenses(db, owned_ids)
     deleted = (
         db.query(Expense)
-        .filter(Expense.id.in_(ids), Expense.user_id == current_user.id)
+        .filter(Expense.id.in_(owned_ids), Expense.user_id == current_user.id)
         .delete(synchronize_session=False)
     )
     db.commit()
@@ -625,6 +683,12 @@ def delete_all_expenses(
     if payload.get("confirm") != "DELETE_ALL":
         raise HTTPException(400, detail='Send {"confirm": "DELETE_ALL"} to proceed')
     count = db.query(Expense).filter(Expense.user_id == current_user.id).count()
+    from app.models import ScheduledExpense
+
+    db.query(ScheduledExpense).filter(
+        ScheduledExpense.user_id == current_user.id,
+        ScheduledExpense.expense_id.isnot(None),
+    ).delete(synchronize_session=False)
     db.query(Expense).filter(Expense.user_id == current_user.id).delete()
     db.commit()
     _invalidate_expense_cache(current_user.id, db)
@@ -644,6 +708,7 @@ def delete_expense(
     )
     if not db_exp:
         raise HTTPException(404, "Gasto no encontrado")
+    _delete_linked_scheduled_expenses(db, [db_exp.id])
     db.delete(db_exp)
     db.commit()
     _invalidate_expense_cache(current_user.id, db)

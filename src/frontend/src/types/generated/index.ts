@@ -93,7 +93,9 @@ export * from "./downloadMonthlyReportDashboardMonthlyReportDownloadGetParams.ts
 export * from "./executeScheduledExpense201.ts";
 export * from "./expenseCreate.ts";
 export * from "./expenseCreateCurrency.ts";
+export * from "./expenseCreateInstallmentMode.ts";
 export * from "./expenseDraftResponse.ts";
+export * from "./expenseDraftResponseAmountKind.ts";
 export * from "./expenseDraftResponseConfidence.ts";
 export * from "./expenseDraftResponseCurrency.ts";
 export * from "./expenseImageResponse.ts";

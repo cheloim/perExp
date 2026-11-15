@@ -78,25 +78,22 @@ WAITING_CONFIRM → handle_confirm:
 ## Voz y comprobantes por imagen
 
 - **Nota de voz:** se aceptan audios de hasta 10 MB y 120 segundos en OGG, WAV, MP3 o
-  M4A. El bot transcribe el audio y muestra el texto detectado. Ese texto
-  sigue el mismo flujo que un mensaje escrito; después de guardar, ofrece **Editar** y
-  **Deshacer** para corregir o revertir el gasto.
+  M4A. El bot transcribe el audio y lo procesa como un mensaje escrito. Un mismo audio
+  puede contener varios gastos; se guardan todos y aparece **Deshacer todo**.
 - **Foto o archivo de imagen:** se aceptan fotos y documentos JPEG, PNG o WebP de hasta
   8 MB y 20 megapíxeles; las imágenes se reducen a un máximo de 1600 px por lado. El bot
-  intenta detectar un único gasto y muestra el tipo de comprobante, total,
-  comercio, fecha y, si está disponible, una pista de tarjeta. El usuario debe elegir
-  **Guardar**, **Editar** o **Cancelar**; la extracción nunca crea el gasto por sí sola.
-- **Editar** descarta el borrador y pide enviar el gasto corregido como texto. **Cancelar**
-  descarta el borrador. Al guardar, se asigna una categoría por reglas y aparecen las
-  acciones habituales **Editar** y **Deshacer**. La tarjeta o cuenta sugerida por el
-  comprobante no se asigna automáticamente.
-- Si la imagen no demuestra un pago único completado —por ejemplo, un ingreso, una
-  operación pendiente o rechazada, un saldo aislado o varios movimientos— el bot muestra
-  el motivo de rechazo y no crea ningún gasto. Un ticket con varios artículos sí puede
-  aceptarse cuando tiene un total final claro.
+  extrae todos los consumos completados que encuentre: un ticket con varios ítems sigue
+  siendo un gasto, pero una pantalla o resumen con varios movimientos genera varios
+  gastos. Si hay más de uno, muestra un resumen con **Deshacer todo**.
+- **Cuotas:** si el mensaje, la notificación o la imagen dicen “cuota 3 de 12” o
+  “12 cuotas de $100.000”, el bot registra la cuota actual y programa las futuras. Si la
+  compra dice “$1.200.000 en 12 cuotas”, divide el total.
+- Si la imagen no demuestra un gasto completado —por ejemplo, un ingreso, una
+  operación pendiente o rechazada, un saldo aislado o un ticket con varios totales
+  ambiguos— el bot muestra el motivo de rechazo y no crea nada.
 - El servicio no persiste imágenes ni audio en la base de datos, archivos ni logs de
   contenido. El procesamiento es transitorio; se registran únicamente metadatos
-  operativos acotados, como tipo de fuente, motivo, tamaño y confianza.
+  operativos acotados, como tipo de fuente, motivo, tamaño, cantidad y confianza.
 
 ## Conversation States
 
@@ -156,6 +153,11 @@ Certain categories trigger installment questions:
 - **Indumentaria** (Clothing)
 
 The bot asks: "¿Lo pagaste en cuotas?" → then "¿Cuántas cuotas?"
+
+When the message, bank notification, or image already carries installment
+metadata, the bot skips the question and creates the series directly. The amount
+is treated as the purchase total when the current installment is 1, and as the
+current installment value when it is greater than 1.
 
 ## Markdown Escaping
 

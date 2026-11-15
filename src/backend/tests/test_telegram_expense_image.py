@@ -66,15 +66,17 @@ def test_valid_image_saves_directly_without_confirmation(
     extract = Mock(
         return_value=ExpenseImageResult(
             status="ok",
-            draft=ExpenseDraft(
-                amount=15200,
-                currency="ARS",
-                description="Supermercado Coto",
-                date=date(2026, 10, 29),
-                confidence="high",
-                source_type="bank_notification",
-                card_hint="Visa ****4521",
-            ),
+            drafts=[
+                ExpenseDraft(
+                    amount=15200,
+                    currency="ARS",
+                    description="Supermercado Coto",
+                    date=date(2026, 10, 29),
+                    confidence="high",
+                    source_type="bank_notification",
+                    card_hint="Visa ****4521",
+                ),
+            ],
             reason=None,
             message="Detecté un total.",
         )
@@ -129,7 +131,7 @@ def test_rejected_image_is_not_stored(monkeypatch, fake_photo_update, fake_conte
         "extract_expense_from_image",
         lambda *_args, **_kwargs: ExpenseImageResult(
             status="rejected",
-            draft=None,
+            drafts=[],
             reason="not_an_expense",
             message="Parece un ingreso, no un gasto.",
         ),
@@ -204,14 +206,16 @@ def test_missing_file_size_processes_small_downloaded_payload(
     extractor = Mock(
         return_value=ExpenseImageResult(
             status="ok",
-            draft=ExpenseDraft(
-                amount=800,
-                currency="ARS",
-                description="Kiosco",
-                date=date(2026, 10, 29),
-                confidence="high",
-                source_type="paper_receipt",
-            ),
+            drafts=[
+                ExpenseDraft(
+                    amount=800,
+                    currency="ARS",
+                    description="Kiosco",
+                    date=date(2026, 10, 29),
+                    confidence="high",
+                    source_type="paper_receipt",
+                ),
+            ],
             reason=None,
             message="Detecté un total.",
         )
@@ -386,27 +390,31 @@ def test_two_images_are_saved_independently_without_a_pending_draft(
     results = [
         ExpenseImageResult(
             status="ok",
-            draft=ExpenseDraft(
-                amount=100,
-                currency="ARS",
-                description="Comercio A",
-                date=date(2026, 10, 29),
-                confidence="high",
-                source_type="paper_receipt",
-            ),
+            drafts=[
+                ExpenseDraft(
+                    amount=100,
+                    currency="ARS",
+                    description="Comercio A",
+                    date=date(2026, 10, 29),
+                    confidence="high",
+                    source_type="paper_receipt",
+                ),
+            ],
             reason=None,
             message="Detecté un total.",
         ),
         ExpenseImageResult(
             status="ok",
-            draft=ExpenseDraft(
-                amount=200,
-                currency="ARS",
-                description="Comercio B",
-                date=date(2026, 10, 30),
-                confidence="high",
-                source_type="paper_receipt",
-            ),
+            drafts=[
+                ExpenseDraft(
+                    amount=200,
+                    currency="ARS",
+                    description="Comercio B",
+                    date=date(2026, 10, 30),
+                    confidence="high",
+                    source_type="paper_receipt",
+                ),
+            ],
             reason=None,
             message="Detecté un total.",
         ),
@@ -450,3 +458,144 @@ def test_two_images_are_saved_independently_without_a_pending_draft(
         for markup in fake_photo_update.message.reply_markups
     ]
     assert callbacks == ["quickedit:101", "quickedit:102"]
+
+
+def test_image_with_two_drafts_saves_both_and_offers_batch_undo(
+    monkeypatch, fake_photo_update, fake_context
+):
+    extract = Mock(
+        return_value=ExpenseImageResult(
+            status="ok",
+            drafts=[
+                ExpenseDraft(
+                    amount=100,
+                    description="Comercio A",
+                    date=date(2026, 10, 29),
+                    source_type="statement",
+                ),
+                ExpenseDraft(
+                    amount=200,
+                    description="Comercio B",
+                    date=date(2026, 10, 29),
+                    source_type="statement",
+                ),
+            ],
+            message="Detecté 2 gastos.",
+        )
+    )
+    monkeypatch.setattr(telegram_bot, "extract_expense_from_image", extract)
+    monkeypatch.setattr(telegram_bot, "SessionLocal", lambda: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(telegram_bot, "_instant_categorize", lambda *_: (None, []))
+    saved = []
+    ids = iter([201, 202])
+
+    def fake_save(parsed, **kwargs):
+        saved.append(parsed)
+        return SimpleNamespace(
+            id=next(ids),
+            amount=parsed["amount"],
+            currency=parsed["currency"],
+            description=parsed["description"],
+            installment_total=None,
+            installment_number=None,
+        )
+
+    monkeypatch.setattr(telegram_bot, "_save_expense", fake_save)
+
+    asyncio.run(telegram_bot.handle_expense_image(fake_photo_update, fake_context))
+
+    assert [item["description"] for item in saved] == ["Comercio A", "Comercio B"]
+    assert "2 gastos guardados" in fake_photo_update.message.replies[-1]
+    callback = fake_photo_update.message.reply_markups[-1].inline_keyboard[0][0].callback_data
+    assert callback == "undobatch:last"
+    assert fake_context.user_data["last_batch_ids"] == "201,202"
+
+
+def test_image_draft_passes_installment_metadata(monkeypatch, fake_photo_update, fake_context):
+    extract = Mock(
+        return_value=ExpenseImageResult(
+            status="ok",
+            drafts=[
+                ExpenseDraft(
+                    amount=15000,
+                    description="Netflix",
+                    date=date(2026, 10, 29),
+                    source_type="statement",
+                    installment_number=3,
+                    installment_total=12,
+                    amount_kind="installment",
+                )
+            ],
+            message="Detecté un gasto.",
+        )
+    )
+    monkeypatch.setattr(telegram_bot, "extract_expense_from_image", extract)
+    monkeypatch.setattr(telegram_bot, "SessionLocal", lambda: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(telegram_bot, "_instant_categorize", lambda *_: (None, []))
+    captured = {}
+
+    def fake_save(parsed, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            id=203,
+            amount=15000,
+            currency="ARS",
+            description="Netflix",
+            installment_total=12,
+            installment_number=3,
+        )
+
+    monkeypatch.setattr(telegram_bot, "_save_expense", fake_save)
+    monkeypatch.setattr(telegram_bot, "_quick_saved_text", lambda *_: "✅ Guardado")
+
+    asyncio.run(telegram_bot.handle_expense_image(fake_photo_update, fake_context))
+
+    assert captured["installment_total"] == 12
+    assert captured["installment_number"] == 3
+    assert captured["amount_is_total"] is False
+
+
+def test_image_draft_passes_total_installment_metadata(
+    monkeypatch, fake_photo_update, fake_context
+):
+    extract = Mock(
+        return_value=ExpenseImageResult(
+            status="ok",
+            drafts=[
+                ExpenseDraft(
+                    amount=24000,
+                    description="Fravega",
+                    date=date(2026, 10, 29),
+                    source_type="bank_notification",
+                    installment_number=1,
+                    installment_total=6,
+                    amount_kind="total",
+                )
+            ],
+            message="Detecté un gasto.",
+        )
+    )
+    monkeypatch.setattr(telegram_bot, "extract_expense_from_image", extract)
+    monkeypatch.setattr(telegram_bot, "SessionLocal", lambda: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(telegram_bot, "_instant_categorize", lambda *_: (None, []))
+    captured = {}
+
+    def fake_save(parsed, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            id=204,
+            amount=4000,
+            currency="ARS",
+            description="Fravega",
+            installment_total=6,
+            installment_number=1,
+        )
+
+    monkeypatch.setattr(telegram_bot, "_save_expense", fake_save)
+    monkeypatch.setattr(telegram_bot, "_quick_saved_text", lambda *_: "✅ Guardado")
+
+    asyncio.run(telegram_bot.handle_expense_image(fake_photo_update, fake_context))
+
+    assert captured["installment_total"] == 6
+    assert captured["installment_number"] == 1
+    assert captured["amount_is_total"] is True

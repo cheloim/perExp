@@ -28,4 +28,11 @@ describe("release changelog", () => {
     expect(latest?.summary).toBeTruthy();
     expect(latest?.features).toHaveLength(6);
   });
+
+  it("ships v1.7 with a summary and the seven UX blocks", () => {
+    const latest = getVersion("v1.7");
+
+    expect(latest?.summary).toBeTruthy();
+    expect(latest?.features).toHaveLength(7);
+  });
 });

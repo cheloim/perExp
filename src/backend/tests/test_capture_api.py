@@ -81,9 +81,9 @@ def test_returns_rejected_receipt_without_writing(client, auth_headers, monkeypa
         "extract_expense_from_image",
         lambda **_: ExpenseImageResult(
             status="rejected",
-            draft=None,
-            reason="multiple_transactions",
-            message="Detecté más de un movimiento en la imagen. Cargá uno por vez.",
+            drafts=[],
+            reason="multiple_totals",
+            message="Detecté más de un total en la imagen. Revisala antes de cargarla.",
         ),
     )
     response = client.post(
@@ -117,3 +117,45 @@ def test_returns_429_when_rate_limited(client, auth_headers, monkeypatch):
     )
     assert response.status_code == 429
     assert response.headers["Retry-After"] == "30"
+
+
+def test_returns_multiple_drafts_with_installment_fields(client, auth_headers, monkeypatch):
+    from datetime import date
+
+    from app.services.capture import ExpenseDraft
+
+    monkeypatch.setattr(
+        capture_router,
+        "extract_expense_from_image",
+        lambda **_: ExpenseImageResult(
+            status="ok",
+            drafts=[
+                ExpenseDraft(
+                    amount=1500,
+                    description="Café",
+                    source_type="transaction_detail",
+                    date=date(2026, 11, 1),
+                ),
+                ExpenseDraft(
+                    amount=15000,
+                    description="Netflix",
+                    source_type="statement",
+                    date=date(2026, 11, 1),
+                    installment_number=3,
+                    installment_total=12,
+                    amount_kind="installment",
+                ),
+            ],
+            message="Detecté 2 gastos.",
+        ),
+    )
+    response = client.post(
+        "/capture/expense-image",
+        files={"file": ("p.png", _png(), "image/png")},
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["drafts"]) == 2
+    assert payload["drafts"][1]["installment_number"] == 3
+    assert payload["drafts"][1]["amount_kind"] == "installment"

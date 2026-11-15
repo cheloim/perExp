@@ -150,17 +150,19 @@ export default function Dashboard() {
   const createMut = useMutation({
     mutationFn: (data: ExpenseCreate) => createExpense(data),
     onSuccess: () => {
-      setEditing(undefined);
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["card-summary"] });
       queryClient.invalidateQueries({ queryKey: ["tag-summary"] });
       queryClient.invalidateQueries({ queryKey: ["expenses-month"] });
+      queryClient.invalidateQueries({ queryKey: ["installments"] });
+      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-expenses"] });
     },
   });
 
-  const handleSave = (data: ExpenseCreate) => {
+  const handleSave = async (data: ExpenseCreate) => {
     setSaveError(null);
-    createMut.mutate(data);
+    await createMut.mutateAsync(data);
   };
 
   const { data: dashData } = useQuery({

@@ -37,7 +37,7 @@ import type { ExpenseImageResponseStatus } from "./expenseImageResponseStatus.ts
 
 export interface ExpenseImageResponse {
   status: ExpenseImageResponseStatus;
-  draft: ExpenseDraftResponse | null;
+  drafts: ExpenseDraftResponse[];
   /** @nullable */
   reason: string | null;
   message: string;
