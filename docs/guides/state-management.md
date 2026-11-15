@@ -140,12 +140,5 @@ When implementing a user preference that should sync across devices:
 
 ## Automated Validation
 
-Run the state management validator:
-
-```bash
-python scripts/validate_state_sync.py
-```
-
-This script checks for:
-- Fire-and-forget mutations that return User data
-- localStorage preferences without backend API calls
+There is no source-scanning validator. State synchronization is covered by the
+frontend tests that exercise the mutation and the query cache.

@@ -1,61 +1,16 @@
 """Contract validation tests.
 
-Verifies that the API contracts (OpenAPI spec, router registration, schema exports)
-stay consistent as the codebase evolves.
+Verifies that the curated OpenAPI spec and the app configuration stay
+consistent with the code.
+
+Router registration is covered indirectly by ``test_openapi_contract.py``:
+an unmounted router drops its operations from the generated spec, which that
+gate reports as a stale contract.
 """
 
 import os
 
 import pytest
-
-
-class TestRouterRegistration:
-    """Every router module must be registered in main.py."""
-
-    def test_all_routers_in_main(self):
-
-        main_path = os.path.join(os.path.dirname(__file__), "..", "main.py")
-        with open(main_path) as f:
-            content = f.read()
-
-        registered = set()
-        for line in content.split("\n"):
-            if "include_router" in line and "." in line:
-                parts = line.strip().split("include_router(")
-                if len(parts) > 1:
-                    module = parts[1].split(".")[0].strip()
-                    registered.add(module)
-
-        routers_dir = os.path.join(os.path.dirname(__file__), "..", "app", "routers")
-        router_files = {
-            f[:-3] for f in os.listdir(routers_dir) if f.endswith(".py") and f != "__init__.py"
-        }
-
-        missing = router_files - registered
-        assert not missing, f"Routers not registered: {missing}"
-
-    def test_no_extra_registrations(self):
-        """No router registered that doesn't exist as a module."""
-
-        main_path = os.path.join(os.path.dirname(__file__), "..", "main.py")
-        with open(main_path) as f:
-            content = f.read()
-
-        registered = set()
-        for line in content.split("\n"):
-            if "include_router" in line and "." in line:
-                parts = line.strip().split("include_router(")
-                if len(parts) > 1:
-                    module = parts[1].split(".")[0].strip()
-                    registered.add(module)
-
-        routers_dir = os.path.join(os.path.dirname(__file__), "..", "app", "routers")
-        router_files = {
-            f[:-3] for f in os.listdir(routers_dir) if f.endswith(".py") and f != "__init__.py"
-        }
-
-        extra = registered - router_files
-        assert not extra, f"Registered but missing module: {extra}"
 
 
 class TestOpenAPIConsistency:

@@ -108,7 +108,7 @@ jobs:
           SECRET_KEY: test-secret-key-for-ci-that-is-at-least-32-chars
           TEST_DATABASE_URL: postgresql://expenses_user:test_password_ci@localhost:5432/expenses_test
         run: |
-          python -m pytest tests/ -v --tb=short \
+          python -m pytest tests/ -x -q --tb=short \
             --cov=app --cov-report=json:coverage.json --cov-report=term:skip-covered
 
       - name: Enforce coverage floors
@@ -247,35 +247,3 @@ jobs:
 
       - name: Validate docs matrix and feature specs
         run: python config/scripts/validate_docs.py
-
-  oauth-config:
-    name: OAuth Configuration Validation
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: src/backend
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      - name: Validate OAuth configuration
-        run: python scripts/validate_oauth_config.py
-
-  state-sync:
-    name: State Management Validation
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: src/backend
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      - name: Validate state management patterns
-        run: python scripts/validate_state_sync.py

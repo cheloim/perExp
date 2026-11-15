@@ -136,16 +136,8 @@ Before merging any OAuth-related PR:
 
 ## Automated Validation
 
-Run the OAuth configuration validator:
-
-```bash
-python scripts/validate_oauth_config.py
-```
-
-This script checks:
-- All required parameters are present
-- `prompt` is set when `access_type` is `"offline"`
-- TypeScript type definition includes all used parameters
+The parameters are exercised by `LoginPage.test.tsx`, which asserts the
+`initCodeClient` call arguments. There is no source-scanning validator.
 
 ## Common Pitfalls
 
