@@ -91,24 +91,10 @@ def highest_new_alert_level(
 
 
 def get_group_user_ids(user_id: int, db: Session) -> list[int]:
-    """Legacy budget scope, kept unchanged during #524a shadow mode.
+    """Canonical scope: self + accepted members of the accepted group."""
+    from app.services.access import scoped_user_ids_for
 
-    It still includes pending members; the canonical helper logs the divergence
-    without changing the returned list. #524b replaces this call.
-    """
-    from app.models import GroupMember
-    from app.services.access import shadow_scoped_user_ids_for
-
-    member = db.query(GroupMember).filter(GroupMember.user_id == user_id).first()
-    if not member:
-        legacy = [user_id]
-    else:
-        legacy = [
-            int(m.user_id)
-            for m in db.query(GroupMember).filter(GroupMember.group_id == member.group_id).all()
-        ]
-    shadow_scoped_user_ids_for(user_id, db, legacy)
-    return legacy
+    return scoped_user_ids_for(user_id, db)
 
 
 def get_spending_for_category(

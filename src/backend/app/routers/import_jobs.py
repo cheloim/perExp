@@ -278,7 +278,7 @@ async def confirm_import_job(
         return new_card, True
 
     # Reuse rows-confirm logic
-    cats = db.query(Category).all()
+    cats = db.query(Category).filter(Category.user_id == user.id).all()
     user_cards = db.query(Card).filter(Card.user_id == user.id).all()
 
     imported_count = 0

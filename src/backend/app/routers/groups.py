@@ -51,10 +51,10 @@ def _get_user_group(user_id: int, db: Session) -> GroupMember | None:
 
 
 def get_group_user_ids(user_id: int, db: Session) -> list[int]:
-    """Return all user_ids in the same family group (accepted members). Falls back to [user_id]."""
-    from app.services.group_helpers import get_group_user_ids
+    """Backward-compatible alias of the canonical tenant scope."""
+    from app.services.access import scoped_user_ids_for
 
-    return get_group_user_ids(user_id, db)
+    return scoped_user_ids_for(user_id, db)
 
 
 @router.get(

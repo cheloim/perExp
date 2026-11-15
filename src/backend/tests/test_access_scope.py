@@ -86,17 +86,12 @@ def test_assert_owned_cross_tenant_is_404(db):
     assert exc.value.status_code == 404
 
 
-def test_budget_shadow_logs_divergence_and_keeps_legacy(db, caplog):
+def test_budget_scope_now_excludes_pending_members(db):
     owner = _user(db, "shadow-owner@example.com")
     pending = _user(db, "shadow-pending@example.com")
     _group(db, owner, [(owner, "accepted"), (pending, "pending")])
 
-    with caplog.at_level(logging.WARNING, logger="app.services.access"):
-        legacy = budget_helpers.get_group_user_ids(owner.id, db)
-
-    # #524a must not change behavior yet: the legacy list still includes pending.
-    assert pending.id in legacy
-    assert any("tenant scope divergence" in record.message for record in caplog.records)
+    assert budget_helpers.get_group_user_ids(owner.id, db) == [owner.id]
 
 
 def test_shadow_does_not_log_when_scopes_match(db, caplog):

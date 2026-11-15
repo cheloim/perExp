@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import CategorySuggestion, Expense, MerchantPreference, Notification
+from app.services.access import assert_owned
 from app.services.auth import get_current_user
 from app.services.categorization import _normalize_merchant_key
 from app.services.tag_sync import sync_category_tag
@@ -54,7 +55,11 @@ def get_pending_suggestions(
 
     result = []
     for s in suggestions:
-        expense = db.query(Expense).filter(Expense.id == s.expense_id).first()
+        expense = (
+            db.query(Expense)
+            .filter(Expense.id == s.expense_id, Expense.user_id == current_user.id)
+            .first()
+        )
         if not expense:
             continue
         result.append(
@@ -102,37 +107,37 @@ def approve_suggestion(
     if not suggestion:
         raise HTTPException(status_code=404, detail="Sugerencia no encontrada")
 
-    # Apply category to expense
-    expense = db.query(Expense).filter(Expense.id == suggestion.expense_id).first()
-    if expense:
-        expense.category_id = suggestion.suggested_category_id
-        sync_category_tag(db, expense, expense.category_id)
+    # Apply category to the user's expense. A suggestion that points to a
+    # foreign expense is a 404, not a silent no-op.
+    expense = assert_owned(db, Expense, suggestion.expense_id, current_user.id)
+    expense.category_id = suggestion.suggested_category_id
+    sync_category_tag(db, expense, expense.category_id)
 
-        # Track merchant preference
-        merchant_key = _normalize_merchant_key(expense.description)
-        if merchant_key:
-            pref = (
-                db.query(MerchantPreference)
-                .filter(
-                    MerchantPreference.user_id == current_user.id,
-                    MerchantPreference.merchant_key == merchant_key,
-                )
-                .first()
+    # Track merchant preference
+    merchant_key = _normalize_merchant_key(expense.description)
+    if merchant_key:
+        pref = (
+            db.query(MerchantPreference)
+            .filter(
+                MerchantPreference.user_id == current_user.id,
+                MerchantPreference.merchant_key == merchant_key,
             )
-            if pref:
-                pref.category_id = suggestion.suggested_category_id
-                pref.usage_count += 1
-                pref.confidence = min(1.0, pref.confidence + 0.1)
-                pref.last_used_at = datetime.utcnow()
-            else:
-                pref = MerchantPreference(
-                    user_id=current_user.id,
-                    merchant_key=merchant_key,
-                    category_id=suggestion.suggested_category_id,
-                    confidence=1.0,
-                    usage_count=1,
-                )
-                db.add(pref)
+            .first()
+        )
+        if pref:
+            pref.category_id = suggestion.suggested_category_id
+            pref.usage_count += 1
+            pref.confidence = min(1.0, pref.confidence + 0.1)
+            pref.last_used_at = datetime.utcnow()
+        else:
+            pref = MerchantPreference(
+                user_id=current_user.id,
+                merchant_key=merchant_key,
+                category_id=suggestion.suggested_category_id,
+                confidence=1.0,
+                usage_count=1,
+            )
+            db.add(pref)
 
     # Mark suggestion as approved
     suggestion.status = "approved"
@@ -198,7 +203,11 @@ def approve_all_suggestions(
 
     count = 0
     for s in suggestions:
-        expense = db.query(Expense).filter(Expense.id == s.expense_id).first()
+        expense = (
+            db.query(Expense)
+            .filter(Expense.id == s.expense_id, Expense.user_id == current_user.id)
+            .first()
+        )
         if expense:
             expense.category_id = s.suggested_category_id
             sync_category_tag(db, expense, expense.category_id)
@@ -229,8 +238,8 @@ def approve_all_suggestions(
                     )
                     db.add(pref)
 
-        s.status = "approved"
-        count += 1
+            s.status = "approved"
+            count += 1
 
     _cleanup_notification_if_done(current_user.id, db)
     db.commit()
