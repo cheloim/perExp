@@ -136,7 +136,8 @@ class _ExtractedExpense(BaseModel):
     card_hint: str | None = None
     installment_number: int | None = None
     installment_total: int | None = None
-    direction: Literal["debit", "credit", "unknown"] = "debit"
+    direction: Literal["debit", "credit", "unknown"] = "unknown"
+    completed: bool = False
     confidence: Literal["high", "medium", "low"] = "low"
 
 
@@ -341,7 +342,7 @@ def _rejected(reason: str) -> ExpenseImageResult:
 
 
 def _draft_from_extraction(item: _ExtractedExpense, source_type: str) -> ExpenseDraft | None:
-    if item.direction == "credit":
+    if not item.completed or item.direction != "debit":
         return None
     amount = item.amount
     if amount is None or isinstance(amount, bool):
@@ -413,7 +414,13 @@ def _extract_expense_from_image(
         if (draft := _draft_from_extraction(item, extraction.source_type)) is not None
     ]
     if not drafts:
-        return _rejected(extraction.reason or "not_a_payment_proof")
+        reason = extraction.reason
+        if reason is None and extraction.expenses:
+            if all(not item.completed for item in extraction.expenses):
+                reason = "not_completed"
+            elif all(item.direction == "credit" for item in extraction.expenses):
+                reason = "not_an_expense"
+        return _rejected(reason or "not_a_payment_proof")
     if len(drafts) == 1:
         message = "Listo, revisá los datos antes de guardar el gasto."
     else:

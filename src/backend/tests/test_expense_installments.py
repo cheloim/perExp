@@ -210,3 +210,30 @@ def test_create_expense_without_mode_keeps_single_row(db, test_user):
 
     db.query(Expense).filter(Expense.id == created.id).delete()
     db.commit()
+
+
+def test_deleting_the_template_expense_removes_pending_installments(db, test_user):
+    from app.models import Expense, ScheduledExpense
+    from app.routers.expenses import create_expense, delete_expense
+    from app.schemas import ExpenseCreate
+
+    created = create_expense(
+        ExpenseCreate(
+            date=date(2026, 11, 1),
+            description="TV para borrar",
+            amount=120000,
+            installment_total=12,
+            installment_number=1,
+            installment_mode="total",
+        ),
+        db=db,
+        current_user=test_user,
+    )
+    assert (
+        db.query(ScheduledExpense).filter(ScheduledExpense.expense_id == created.id).count() == 11
+    )
+
+    delete_expense(created.id, db=db, current_user=test_user)
+
+    assert db.query(Expense).filter(Expense.id == created.id).count() == 0
+    assert db.query(ScheduledExpense).filter(ScheduledExpense.expense_id == created.id).count() == 0

@@ -73,11 +73,11 @@ export function ExpenseModal({
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeGuardRef.current();
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [onClose]);
+  }, []);
 
   const [aiSuggested, setAiSuggested] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -105,6 +105,7 @@ export function ExpenseModal({
     return { ...EMPTY_FORM };
   });
   const formRef = useRef(form);
+  const closeGuardRef = useRef<() => void>(onClose);
   const updateForm = (updater: ExpenseCreate | ((current: ExpenseCreate) => ExpenseCreate)) => {
     const nextForm = typeof updater === "function" ? updater(formRef.current) : updater;
     formRef.current = nextForm;
@@ -173,7 +174,9 @@ export function ExpenseModal({
       description: draft.description,
       date,
       currency: draft.currency,
+      category_id: null,
     }));
+    setAiSuggested(false);
     const inferredKind =
       draft.amount_kind === "installment" || draft.amount_kind === "total"
         ? draft.amount_kind
@@ -190,7 +193,7 @@ export function ExpenseModal({
         ...current,
         installment_number: draft.installment_number ?? 1,
         installment_total: draft.installment_total ?? null,
-        installment_group_id: current.installment_group_id || crypto.randomUUID(),
+        installment_group_id: crypto.randomUUID(),
       }));
     } else {
       setCuotasEnabled(false);
@@ -495,6 +498,10 @@ export function ExpenseModal({
     }
     onClose();
   };
+
+  useEffect(() => {
+    closeGuardRef.current = requestClose;
+  });
 
   return (
     <div

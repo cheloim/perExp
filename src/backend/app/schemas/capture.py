@@ -22,7 +22,7 @@ class ExpenseDraftResponse(BaseModel):
     card_hint: str | None
     installment_number: int | None = None
     installment_total: int | None = None
-    amount_kind: str = "none"
+    amount_kind: Literal["none", "total", "installment"] = "none"
 
 
 class ExpenseImageResponse(BaseModel):

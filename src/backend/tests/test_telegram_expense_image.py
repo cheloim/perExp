@@ -507,7 +507,8 @@ def test_image_with_two_drafts_saves_both_and_offers_batch_undo(
     assert [item["description"] for item in saved] == ["Comercio A", "Comercio B"]
     assert "2 gastos guardados" in fake_photo_update.message.replies[-1]
     callback = fake_photo_update.message.reply_markups[-1].inline_keyboard[0][0].callback_data
-    assert callback == "undobatch:201,202"
+    assert callback == "undobatch:last"
+    assert fake_context.user_data["last_batch_ids"] == "201,202"
 
 
 def test_image_draft_passes_installment_metadata(monkeypatch, fake_photo_update, fake_context):

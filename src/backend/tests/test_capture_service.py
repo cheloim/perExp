@@ -210,6 +210,7 @@ def test_accepts_supermarket_receipt_with_items_and_one_total(monkeypatch):
                     "date": "2026-10-29",
                     "confidence": "high",
                     "direction": "debit",
+                    "completed": True,
                 }
             ],
             "reason": None,
@@ -253,6 +254,7 @@ def test_image_extraction_strips_card_digits_from_the_hint(monkeypatch):
                     "card_hint": "Visa ****4521",
                     "confidence": "high",
                     "direction": "debit",
+                    "completed": True,
                 }
             ],
             "reason": None,
@@ -280,6 +282,7 @@ def _expense(amount=1000, merchant="Kiosco", **overrides):
         "installment_number": None,
         "installment_total": None,
         "direction": "debit",
+        "completed": True,
         "confidence": "high",
     }
     item.update(overrides)
@@ -421,4 +424,45 @@ def test_drops_invalid_amounts_but_keeps_valid_rows(monkeypatch):
     )
     result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
     assert result.status == "ok"
+    assert [draft.description for draft in result.drafts] == ["Farmacia"]
+
+
+def test_skips_a_row_without_an_explicit_debit_direction(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: _extraction(
+            [
+                _expense(amount=1500, merchant="Café", direction="unknown"),
+                _expense(amount=2500, merchant="Farmacia"),
+            ]
+        ),
+    )
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
+    assert [draft.description for draft in result.drafts] == ["Farmacia"]
+
+
+def test_skips_a_pending_payment(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: _extraction([_expense(amount=1500, merchant="Pendiente", completed=False)]),
+    )
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
+    assert result.status == "rejected"
+    assert result.reason == "not_completed"
+
+
+def test_keeps_completed_debits_when_a_pending_row_is_mixed_in(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: _extraction(
+            [
+                _expense(amount=1500, merchant="Pendiente", completed=False),
+                _expense(amount=2500, merchant="Farmacia"),
+            ]
+        ),
+    )
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
     assert [draft.description for draft in result.drafts] == ["Farmacia"]

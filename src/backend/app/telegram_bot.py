@@ -1053,7 +1053,7 @@ def _get_user_by_chat_id(chat_id: str) -> User | None:
 
 
 async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Extract a single expense draft from a Telegram photo or image document."""
+    """Extract one or more expense drafts from a Telegram photo or image document."""
     msg = update.message
     if not msg:
         return ConversationHandler.END
@@ -1239,7 +1239,7 @@ async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYP
             [
                 InlineKeyboardButton(
                     "🗑 Deshacer todo",
-                    callback_data=f"undobatch:{','.join(expense_ids)}",
+                    callback_data="undobatch:last",
                 )
             ]
         ]
@@ -2086,7 +2086,7 @@ async def _process_text_expense(
                     [
                         InlineKeyboardButton(
                             "🗑 Deshacer todo",
-                            callback_data=f"undobatch:{','.join(expense_ids)}",
+                            callback_data="undobatch:last",
                         )
                     ]
                 ]
@@ -3250,7 +3250,9 @@ async def handle_undo_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
 
-    ids_str = query.data.split(":")[1]
+    ids_str = query.data.split(":", 1)[1]
+    if ids_str == "last":
+        ids_str = context.user_data.get("last_batch_ids", "")
     expense_ids = [int(x) for x in ids_str.split(",") if x.isdigit()]
     if not expense_ids:
         await query.edit_message_text("❌ No hay gastos para deshacer.")

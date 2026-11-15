@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { extractExpenseFromImage } from "../api/client";
+import { extractExpenseFromImage, getCategories } from "../api/client";
 import type { Expense } from "../types";
 import { ExpenseModal } from "./ExpenseModals";
 
@@ -495,5 +495,122 @@ describe("ExpenseModal cuotas y cola de revisión", () => {
       installment_number: 1,
       installment_total: 6,
     });
+  });
+});
+
+describe("ExpenseModal cola: aislamiento entre gastos", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("asigna un grupo de cuotas distinto a cada compra de la cola", async () => {
+    vi.mocked(extractExpenseFromImage).mockResolvedValue({
+      status: "ok",
+      drafts: [
+        {
+          amount: 60000,
+          currency: "ARS",
+          description: "TV",
+          date: "2026-10-29",
+          confidence: "high",
+          source_type: "statement",
+          card_hint: null,
+          installment_number: 1,
+          installment_total: 6,
+          amount_kind: "total",
+        },
+        {
+          amount: 60000,
+          currency: "ARS",
+          description: "Heladera",
+          date: "2026-10-29",
+          confidence: "high",
+          source_type: "statement",
+          card_hint: null,
+          installment_number: 1,
+          installment_total: 6,
+          amount_kind: "total",
+        },
+      ],
+      reason: null,
+      message: "Detecté 2 gastos.",
+    });
+    const onSave = vi.fn();
+    renderExpenseModal({ onSave });
+    fireEvent.change(screen.getByLabelText(/escanear comprobante/i), {
+      target: { files: [new File(["image"], "resumen.png", { type: "image/png" })] },
+    });
+
+    await screen.findByText(/Detecté 2 gastos/);
+    fireEvent.click(screen.getByRole("button", { name: "Guardar y siguiente" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(60000));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+
+    const first = onSave.mock.calls[0][0];
+    const second = onSave.mock.calls[1][0];
+    expect(first.installment_group_id).toBeTruthy();
+    expect(second.installment_group_id).toBeTruthy();
+    expect(first.installment_group_id).not.toBe(second.installment_group_id);
+  });
+
+  it("no arrastra la categoría del gasto anterior al siguiente", async () => {
+    vi.mocked(getCategories).mockResolvedValue([
+      {
+        id: 7,
+        name: "Comida",
+        parent_id: null,
+        color: "#6366f1",
+        keywords: "",
+      } as unknown as Awaited<ReturnType<typeof getCategories>>[number],
+    ]);
+    vi.mocked(extractExpenseFromImage).mockResolvedValue({
+      status: "ok",
+      drafts: [
+        {
+          amount: 1500,
+          currency: "ARS",
+          description: "Café",
+          date: "2026-10-29",
+          confidence: "high",
+          source_type: "statement",
+          card_hint: null,
+        },
+        {
+          amount: 2500,
+          currency: "ARS",
+          description: "Farmacia",
+          date: "2026-10-29",
+          confidence: "high",
+          source_type: "statement",
+          card_hint: null,
+        },
+      ],
+      reason: null,
+      message: "Detecté 2 gastos.",
+    });
+    const onSave = vi.fn();
+    renderExpenseModal({ onSave });
+    fireEvent.change(screen.getByLabelText(/escanear comprobante/i), {
+      target: { files: [new File(["image"], "resumen.png", { type: "image/png" })] },
+    });
+
+    await screen.findByText(/Detecté 2 gastos/);
+    fireEvent.click(screen.getByRole("button", { name: "Sin categoría" }));
+    fireEvent.change(screen.getByPlaceholderText("Buscar o escribir..."), {
+      target: { value: "Comida" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Comida" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar y siguiente" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0].category_id).toBe(7);
+    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(2500));
+    expect(screen.getByRole("button", { name: "Sin categoría" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(onSave.mock.calls[1][0].category_id).toBeNull();
   });
 });

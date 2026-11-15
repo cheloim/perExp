@@ -27,6 +27,7 @@ Devolvé SOLO JSON con esta forma:
       "installment_number": number | null,
       "installment_total": number | null,
       "direction": "debit" | "credit" | "unknown",
+      "completed": true | false,
       "confidence": "high" | "medium" | "low"
     }
   ],
@@ -37,6 +38,7 @@ Reglas:
 - Un ticket o factura con muchos ítems y UN total final es UN gasto: amount es el total final y amount_kind="none".
 - Una pantalla o resumen con varias transacciones: devolvé una entrada por cada consumo. No las unas ni devuelvas solo la primera.
 - Ignorá saldos, límites, totales de resumen, pagos de tarjeta, ingresos, reintegros, devoluciones y transferencias recibidas. Si una fila es un ingreso, no la incluyas (o direction="credit").
+- Solo incluí consumos completados: completed=true y direction="debit". Si el pago está pendiente, rechazado o no se completó, completed=false (o no lo incluyas). Si no estás seguro de la dirección o del estado, no lo incluyas; si no queda ninguno, usá reason="not_completed" o "not_an_expense".
 - Una solicitud de pago, QR sin pagar, checkout pendiente, pago rechazado o fallido no es gasto: no lo incluyas; si no queda ninguno, reason="not_completed".
 - Una pantalla de saldo, resumen de cuenta o límite sin consumos concretos: expenses=[], reason="balance_only".
 - Si hay varios totales candidatos y no podés decidir cuál es el total final del mismo ticket: no incluyas ese ticket; si no queda ninguno, reason="multiple_totals".

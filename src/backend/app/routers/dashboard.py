@@ -1219,6 +1219,7 @@ def get_installments_dashboard(
                 "description": e.description,
                 "installment_total": e.installment_total or 0,
                 "installments_paid": 0,
+                "last_paid_number": 0,
                 "remaining_installments": 0,
                 "total_amount": 0.0,
                 "installment_amount": abs(e.amount),
@@ -1236,6 +1237,9 @@ def get_installments_dashboard(
                 "card_id": e.card_id,
             }
         groups[gid]["installments_paid"] += 1
+        groups[gid]["last_paid_number"] = max(
+            groups[gid]["last_paid_number"], e.installment_number or 0
+        )
         groups[gid]["total_amount"] += e.amount
         groups[gid]["paid_dates"].append(e.date)
 
@@ -1252,6 +1256,7 @@ def get_installments_dashboard(
                 "description": s.description,
                 "installment_total": s.installment_total or 0,
                 "installments_paid": 0,
+                "last_paid_number": 0,
                 "remaining_installments": 0,
                 "total_amount": 0.0,
                 "installment_amount": abs(s.amount),
@@ -1277,8 +1282,10 @@ def get_installments_dashboard(
         next_dates = sorted(g["next_dates"])
         next_date = next_dates[0] if next_dates else None
 
-        # CORRECT: remaining = total - paid (not count of ScheduledExpenses)
-        remaining = max(0, g["installment_total"] - g["installments_paid"])
+        # A manual "cuota 3 de 12" only records the current installment, so the
+        # elapsed count comes from the highest installment number, not the row
+        # count (which is only complete after a statement backfill).
+        remaining = max(0, g["installment_total"] - g["last_paid_number"])
 
         result.append(
             {
@@ -1405,8 +1412,8 @@ def get_installments_monthly_load(
 
     # Project remaining installments for ALL groups with unpaid balance
     for gid, g in groups.items():
-        paid = len(g["paid"])
-        remaining = max(0, g["installment_total"] - paid)
+        last_paid = max((number for number, _ in g["paid"]), default=0)
+        remaining = max(0, g["installment_total"] - last_paid)
         if remaining == 0 or not g["paid"]:
             continue
         scheduled_count = scheduled_count_by_gid.get(gid, 0)
@@ -1627,8 +1634,8 @@ def get_credit_card_pasivos(
     for gid, g in groups.items():
         if gid in scheduled_gids:
             continue  # Already counted via ScheduledExpenses
-        paid = len(g["paid"])
-        remaining = max(0, g["installment_total"] - paid)
+        last_paid = max(g["paid"], default=0)
+        remaining = max(0, g["installment_total"] - last_paid)
         if remaining == 0:
             continue
         total_pasivos += g["amount"] * remaining
@@ -1647,12 +1654,12 @@ def get_credit_card_pasivos(
                 {
                     "id": None,
                     "description": g.get(
-                        "description", f"Cuota {paid + i + 1}/{g['installment_total']}"
+                        "description", f"Cuota {last_paid + i + 1}/{g['installment_total']}"
                     ),
                     "amount": g["amount"],
                     "currency": "ARS",
                     "scheduled_date": None,
-                    "installment_number": paid + i + 1,
+                    "installment_number": last_paid + i + 1,
                     "installment_total": g["installment_total"],
                     "card": card_name,
                     "bank": card_bank,

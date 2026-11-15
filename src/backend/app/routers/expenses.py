@@ -1,4 +1,5 @@
 import re
+import uuid
 from datetime import date, datetime
 
 import pandas as pd
@@ -46,6 +47,17 @@ def _invalidate_expense_cache(user_id: int, db: Session) -> None:
         del_prefix(f"v1:aitrends:{user_id}")
     except Exception:
         pass
+
+
+def _delete_linked_scheduled_expenses(db: Session, expense_ids: list[int]) -> None:
+    """Remove pending installments that belong to deleted template expenses."""
+    if not expense_ids:
+        return
+    from app.models import ScheduledExpense
+
+    db.query(ScheduledExpense).filter(ScheduledExpense.expense_id.in_(expense_ids)).delete(
+        synchronize_session=False
+    )
 
 
 def _derive_account_from_tags(tags: list[Tag]) -> tuple[int | None, int | None]:
@@ -391,9 +403,15 @@ def create_expense(
             raise HTTPException(422, "La cuota actual debe estar entre 1 y el total de cuotas.")
         data["installment_number"] = installment_number
         data["installment_total"] = installment_total
+        data["installment_group_id"] = data.get("installment_group_id") or str(uuid.uuid4())
         data["amount"] = abs(data["amount"])
         if installment_mode == "total":
-            plan = split_installments(data["amount"], installment_total, start=installment_number)
+            try:
+                plan = split_installments(
+                    data["amount"], installment_total, start=installment_number
+                )
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from exc
             data["amount"] = plan[0][1]
             future_amounts = plan[1:]
         else:
@@ -635,9 +653,16 @@ def bulk_delete_expenses(
     ids: list = payload.get("ids", [])
     if not ids:
         return {"deleted": 0}
+    owned_ids = [
+        row[0]
+        for row in db.query(Expense.id)
+        .filter(Expense.id.in_(ids), Expense.user_id == current_user.id)
+        .all()
+    ]
+    _delete_linked_scheduled_expenses(db, owned_ids)
     deleted = (
         db.query(Expense)
-        .filter(Expense.id.in_(ids), Expense.user_id == current_user.id)
+        .filter(Expense.id.in_(owned_ids), Expense.user_id == current_user.id)
         .delete(synchronize_session=False)
     )
     db.commit()
@@ -658,6 +683,12 @@ def delete_all_expenses(
     if payload.get("confirm") != "DELETE_ALL":
         raise HTTPException(400, detail='Send {"confirm": "DELETE_ALL"} to proceed')
     count = db.query(Expense).filter(Expense.user_id == current_user.id).count()
+    from app.models import ScheduledExpense
+
+    db.query(ScheduledExpense).filter(
+        ScheduledExpense.user_id == current_user.id,
+        ScheduledExpense.expense_id.isnot(None),
+    ).delete(synchronize_session=False)
     db.query(Expense).filter(Expense.user_id == current_user.id).delete()
     db.commit()
     _invalidate_expense_cache(current_user.id, db)
@@ -677,6 +708,7 @@ def delete_expense(
     )
     if not db_exp:
         raise HTTPException(404, "Gasto no encontrado")
+    _delete_linked_scheduled_expenses(db, [db_exp.id])
     db.delete(db_exp)
     db.commit()
     _invalidate_expense_cache(current_user.id, db)
