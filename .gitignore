@@ -27,6 +27,7 @@ Thumbs.db
 Plan.md
 *.log
 *.txt
+!src/backend/requirements*.txt
 last_check
 
 # Generated API contract (raw FastAPI export — see docs/specs/README.md)
@@ -51,3 +52,8 @@ skills-lock.json
 # Playwright artifacts (src/frontend)
 src/frontend/test-results/
 src/frontend/playwright-report/
+
+# Coverage artifacts (pytest-cov)
+coverage.json
+.coverage
+htmlcov/

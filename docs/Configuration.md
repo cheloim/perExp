@@ -29,6 +29,11 @@ Para correr la suite usá `./scripts/verify.sh`: construye `TEST_DATABASE_URL` d
 `POSTGRES_PASSWORD_DEV` (el `.env` es local y no se commitea). Si corrés `pytest` a mano,
 exportá `TEST_DATABASE_URL` apuntando a una base descartable.
 
+Instalá las herramientas de test con
+`pip install -r src/backend/requirements-dev.txt` (pytest y pytest-cov). La suite mide
+cobertura por área y `src/backend/scripts/coverage_gate.py` falla si baja el piso
+actual; los objetivos de la auditoría son auth/MFA 90%, import 80% y el resto 60%.
+
 `setup-secrets.sh` espera exactamente estos archivos:
 
 ```

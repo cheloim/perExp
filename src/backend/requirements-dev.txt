@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# Test tools. Runtime dependencies live in requirements.txt; keep these out of
+# the production image.
+pytest==9.2.0
+pytest-cov==7.1.0
