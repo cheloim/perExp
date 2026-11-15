@@ -84,6 +84,20 @@ def test_coverage_flags_missing_table_and_stale_rule():
     assert any("regla declarada" in error for error in errors)
 
 
+def test_optional_columns_may_be_absent():
+    columns = {
+        table: [type("C", (), {"name": name})() for name in rules] for table, rules in RULES.items()
+    }
+    columns.update({table: [type("C", (), {"name": "id"})()] for table in DROP_TABLES})
+    columns["categorization_reviews"] = [
+        column for column in columns["categorization_reviews"] if column.name != "bulk_applied"
+    ]
+    columns["expenses"] = [
+        column for column in columns["expenses"] if column.name != "is_recurring_projection"
+    ]
+    assert check_coverage(columns) == []
+
+
 def test_normalize_matches_app_transforms():
     assert normalize("  Banco Nación  ", "lower_strip") == "banco nación"
     assert normalize("Compra 123", "raw") == "Compra 123"

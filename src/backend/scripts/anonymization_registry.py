@@ -80,6 +80,15 @@ DROP_TABLES = (
 # que la cobertura no falle cuando aparezcan, sin exigirlas.
 OPTIONAL_TABLES = ("alembic_version", "schema_migrations")
 
+# Columnas que una revisión de Alembic puede agregar a un dump previo. Si no
+# están, no se exigen; si están, tienen regla igual.
+OPTIONAL_COLUMNS = frozenset(
+    {
+        ("expenses", "is_recurring_projection"),
+        ("categorization_reviews", "bulk_applied"),
+    }
+)
+
 # Orden de proceso: las entidades de las que otros derivan van primero.
 PROCESS_ORDER = (
     "users",
@@ -216,6 +225,7 @@ RULES: dict[str, dict[str, Rule]] = {
             "source",
             "detector_version",
             "status",
+            "bulk_applied",
             "reviewed_by",
             "reviewed_at",
             "created_at",

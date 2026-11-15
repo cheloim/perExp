@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.anonymization_registry import (  # noqa: E402
     DROP_TABLES,
+    OPTIONAL_COLUMNS,
     OPTIONAL_TABLES,
     PROCESS_ORDER,
     RULES,
@@ -48,6 +49,9 @@ from scripts.anonymization_registry import (  # noqa: E402
 DEFAULT_ANONYMIZATION_KEY = "fhieZvFCBU1XCNbXXkR2QkF0HyPOT35R-QxMtYoXJy0="
 
 TEXT_TYPES = {"character varying", "text", "character"}
+# Tablas de bookkeeping: no son datos de usuario y el scan de PII no aplica
+# (p. ej. el número de revisión de Alembic parece una secuencia de dígitos).
+SYSTEM_TABLES = {"alembic_version", "schema_migrations"}
 NULLABLE_ACTIONS = {
     "text",
     "encrypted",
@@ -149,6 +153,8 @@ def check_coverage(columns: dict[str, list[Column]]) -> list[str]:
         for name in sorted(missing):
             errors.append(f"{table}.{name}: columna real sin regla")
         for name in sorted(extra):
+            if (table, name) in OPTIONAL_COLUMNS:
+                continue
             errors.append(f"{table}.{name}: regla declarada pero la columna no existe")
 
     for table in sorted(RULES):
@@ -454,7 +460,7 @@ def verify(conn, columns: dict[str, list[Column]], ctx: Context, report: Report)
                 )
 
     for table, cols in columns.items():
-        if table in DROP_TABLES:
+        if table in DROP_TABLES or table in SYSTEM_TABLES:
             continue
         for column in cols:
             rule = RULES[table].get(column.name)
