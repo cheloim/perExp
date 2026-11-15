@@ -13,7 +13,7 @@ the child, and the walk is bounded so a cycle can never loop forever.
 
 from __future__ import annotations
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.models import Category
 
@@ -41,3 +41,27 @@ def ancestors_of(cat: Category, db: Session) -> list[Category]:
         seen.add(parent.id)
         node = parent
     return chain
+
+
+def fix_foreign_parents(db: Session, apply: bool = False) -> list[tuple[int, int]]:
+    """Return (child_id, parent_id) links whose owners differ.
+
+    With ``apply``, the links are set to NULL. Without it, nothing is written.
+    One-off repair utility for rows written before ``parent_id`` was validated;
+    kept here so the fix is testable without a migration script.
+    """
+    parent = aliased(Category)
+    broken = (
+        db.query(Category.id, Category.parent_id)
+        .join(parent, parent.id == Category.parent_id)
+        .filter(parent.user_id != Category.user_id)
+        .all()
+    )
+    links = [(int(child_id), int(parent_id)) for child_id, parent_id in broken]
+    if apply and links:
+        for child_id, _ in links:
+            db.query(Category).filter(Category.id == child_id).update(
+                {"parent_id": None}, synchronize_session=False
+            )
+        db.commit()
+    return links

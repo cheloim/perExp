@@ -106,24 +106,3 @@ def verify_key_works() -> bool:
         return decrypted == test
     except Exception:
         return False
-
-
-def needs_migration() -> bool:
-    """Check if any encrypted fields contain plaintext data."""
-    from sqlalchemy import text
-
-    from app.database import SessionLocal
-
-    db = SessionLocal()
-    try:
-        # Quick check: if any user has plaintext full_name
-        result = db.execute(
-            text(
-                "SELECT COUNT(*) FROM users WHERE full_name IS NOT NULL AND full_name NOT LIKE 'gAAAAAB%'"
-            )
-        ).scalar()
-        return bool(result and result > 0)
-    except Exception:
-        return True  # If check fails, run migration to be safe
-    finally:
-        db.close()
