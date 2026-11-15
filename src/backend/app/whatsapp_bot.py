@@ -179,6 +179,7 @@ from app.telegram_bot import (  # noqa: E402
     _extract_card_from_text,
     _format_amount,
     _format_date_es,
+    _installment_args,
     _instant_categorize,
     _is_bank_notification,
     _match_account_from_text,
@@ -561,15 +562,22 @@ async def _handle_bank_notification(
             return
 
         # Card matched — check installments
-        parsed_installment_total = parsed.get("installment_total")
         installment_info = ""
+        installment_args = _installment_args(parsed)
 
-        if parsed_installment_total and parsed_installment_total >= 2:
-            session["data"]["installment_total"] = parsed_installment_total
+        if installment_args:
+            total = installment_args["installment_total"]
+            number = installment_args["installment_number"]
+            amount_is_total = installment_args["amount_is_total"]
+            session["data"]["installment_total"] = total
+            session["data"]["installment_number"] = number
+            session["data"]["amount_is_total"] = amount_is_total
             session["data"]["installment_group_id"] = str(uuid.uuid4())
-            installment_amount = round(parsed["amount"] / parsed_installment_total, 2)
+            installment_amount = (
+                round(parsed["amount"] / total, 2) if amount_is_total else parsed["amount"]
+            )
             installment_info = (
-                f"📋 Cuota {parsed.get('installment_number', 1)} de {parsed_installment_total}\n"
+                f"📋 Cuota {number} de {total}\n"
                 f"💰 Cuota: {_format_amount(installment_amount, parsed.get('currency', 'ARS'))}"
             )
         elif _should_ask_installments(
@@ -1097,6 +1105,8 @@ async def _do_save_expense(phone: str, phone_hash: str, session: dict, user_id: 
     person = data.get("tg_user", "")
     installment_total = data.get("installment_total")
     installment_group_id = data.get("installment_group_id")
+    installment_number = data.get("installment_number")
+    amount_is_total = data.get("amount_is_total", True)
     predicted_category_id = data.get("predicted_category_id")
 
     db = SessionLocal()
@@ -1111,6 +1121,8 @@ async def _do_save_expense(phone: str, phone_hash: str, session: dict, user_id: 
                 user_id=user_id,
                 installment_total=installment_total,
                 installment_group_id=installment_group_id,
+                installment_number=installment_number,
+                amount_is_total=amount_is_total,
                 predicted_category_id=predicted_category_id,
                 card_id=data.get("card_id"),
             )
@@ -1131,30 +1143,6 @@ async def _do_save_expense(phone: str, phone_hash: str, session: dict, user_id: 
                 user_id=user_id,
                 predicted_category_id=predicted_category_id,
             )
-
-        # Create ScheduledExpenses for future installments
-        if installment_total and installment_group_id and installment_total >= 2:
-            from app.models import ScheduledExpense
-            from app.services.date_utils import add_months
-
-            for i in range(2, installment_total + 1):
-                scheduled = ScheduledExpense(
-                    installment_group_id=installment_group_id,
-                    installment_number=i,
-                    installment_total=installment_total,
-                    scheduled_date=add_months(expense.date, i - 1),
-                    amount=expense.amount,
-                    currency=expense.currency,
-                    description=expense.description,
-                    description_hmac=compute_hmac(expense.description),
-                    card_id=expense.card_id,
-                    account_id=expense.account_id,
-                    category_id=expense.category_id,
-                    status="PENDING",
-                    user_id=user_id,
-                )
-                db.add(scheduled)
-            db.commit()
 
         saved_text = _saved_text_wa(expense, payment_label)
         _clear_session(phone_hash)
