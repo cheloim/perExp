@@ -1,22 +1,10 @@
 name: Deploy
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "*.md"
-      - "docs/**"
-      - "docs/specs/**"
-      - "config/scripts/generate_roadmap.py"
-      - ".sdd/**"
-      - ".github/**"
-      - "LICENSE"
-      - ".gitignore"
-      - ".env.example"
-      - "SECURITY.md"
-      - "CONTRIBUTING.md"
-      - "assets/**"
-      - "tests/**"
+  # El deploy sale de un release publicado, no de cada merge a main. Así main
+  # puede avanzar sin mover producción y "qué está deployado" es un tag.
+  release:
+    types: [released]
   workflow_dispatch:
     inputs:
       action:
@@ -40,25 +28,51 @@ env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/backend
   FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/perexp/frontend
+  # En un release el tag es la versión (v1.6.1); en un dispatch manual, el sha.
+  IMAGE_TAG: ${{ github.event.release.tag_name || github.sha }}
 
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'release'
     outputs:
-      landing: ${{ steps.changes.outputs.landing }}
-      platform: ${{ steps.changes.outputs.platform }}
-      backend: ${{ steps.changes.outputs.backend }}
-      monitoring: ${{ steps.changes.outputs.monitoring }}
-      nginx: ${{ steps.changes.outputs.nginx }}
-      bots: ${{ steps.changes.outputs.bots }}
-      infra: ${{ steps.changes.outputs.infra }}
-      ops: ${{ steps.changes.outputs.ops }}
+      landing: ${{ steps.changes.outputs.landing || steps.first.outputs.landing }}
+      platform: ${{ steps.changes.outputs.platform || steps.first.outputs.platform }}
+      backend: ${{ steps.changes.outputs.backend || steps.first.outputs.backend }}
+      monitoring: ${{ steps.changes.outputs.monitoring || steps.first.outputs.monitoring }}
+      nginx: ${{ steps.changes.outputs.nginx || steps.first.outputs.nginx }}
+      bots: ${{ steps.changes.outputs.bots || steps.first.outputs.bots }}
+      infra: ${{ steps.changes.outputs.infra || steps.first.outputs.infra }}
+      ops: ${{ steps.changes.outputs.ops || steps.first.outputs.ops }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # El diff es contra el release anterior, y eso necesita los tags.
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Find previous release tag
+        id: previous
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          PREV=$(git describe --tags --abbrev=0 --exclude="$TAG" "${TAG}^" 2>/dev/null || true)
+          echo "tag=$PREV" >> "$GITHUB_OUTPUT"
+          echo "Previous release: ${PREV:-<none>}"
+
+      - name: First release deploys everything
+        id: first
+        if: steps.previous.outputs.tag == ''
+        run: |
+          for key in landing platform backend monitoring nginx bots infra ops; do
+            echo "$key=true" >> "$GITHUB_OUTPUT"
+          done
+
       - uses: dorny/paths-filter@v4
         id: changes
+        if: steps.previous.outputs.tag != ''
         with:
+          base: ${{ steps.previous.outputs.tag }}
+          ref: ${{ github.event.release.tag_name }}
           filters: |
             landing:
               - 'src/landing/**'
@@ -120,7 +134,7 @@ jobs:
           echo "runner=$RUNNER" >> $GITHUB_OUTPUT
 
   test:
-    if: github.event_name == 'push' || inputs.action == 'full'
+    if: github.event_name == 'release' || inputs.action == 'full' || inputs.action == 'migrate-only'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -164,7 +178,7 @@ jobs:
   build-backend:
     if: |
       always() && !cancelled() && needs.test.result == 'success' &&
-      (inputs.action == 'full' || needs.detect-changes.outputs.platform == 'true')
+      (inputs.action == 'full' || inputs.action == 'migrate-only' || needs.detect-changes.outputs.platform == 'true')
     runs-on: ${{ needs.detect-arch.outputs.runner }}
     needs: [test, detect-changes, detect-arch]
     permissions:
@@ -192,7 +206,7 @@ jobs:
           push: true
           platforms: ${{ needs.detect-arch.outputs.platform }}
           tags: |
-            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+            ${{ env.BACKEND_IMAGE }}:${{ env.IMAGE_TAG }}
             ${{ env.BACKEND_IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -232,7 +246,7 @@ jobs:
             VITE_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
             VITE_TELEGRAM_OIDC_CLIENT_ID=${{ secrets.TELEGRAM_OIDC_CLIENT_ID }}
           tags: |
-            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+            ${{ env.FRONTEND_IMAGE }}:${{ env.IMAGE_TAG }}
             ${{ env.FRONTEND_IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -261,7 +275,7 @@ jobs:
           cat > /tmp/env-file << 'ENVEOF'
           BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
           FRONTEND_IMAGE=${{ env.FRONTEND_IMAGE }}
-          IMAGE_TAG=${{ github.sha }}
+          IMAGE_TAG=${{ env.IMAGE_TAG }}
           DOMAIN_NAME=${{ vars.DOMAIN_NAME }}
           PLATFORM_DOMAIN=${{ vars.PLATFORM_DOMAIN }}
           NETWORK_NAME=oikonomia
@@ -307,6 +321,7 @@ jobs:
           echo "env_b64=$(base64 -w0 /tmp/env-file)" >> $GITHUB_OUTPUT
 
       - name: Deploy .env to server
+        if: inputs.action != 'migrate-only'
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -564,7 +579,7 @@ jobs:
     if: |
       always() && !cancelled() &&
       needs.pull-images.result == 'success' && needs.validate-config.result == 'success' &&
-      (needs.detect-changes.outputs.platform == 'true' || needs.detect-changes.outputs.infra == 'true' || inputs.action == 'full')
+      (needs.detect-changes.outputs.platform == 'true' || needs.detect-changes.outputs.infra == 'true' || inputs.action == 'full' || inputs.action == 'migrate-only')
 
     steps:
       - name: Backup database
@@ -589,7 +604,7 @@ jobs:
     needs: [backup-db, detect-changes]
     if: |
       always() && !cancelled() &&
-      (needs.backup-db.result == 'success' || needs.detect-changes.outputs.infra == 'true' || needs.detect-changes.outputs.ops == 'true' || needs.detect-changes.outputs.nginx == 'true' || needs.detect-changes.outputs.monitoring == 'true' || inputs.action == 'full')
+      (needs.backup-db.result == 'success' || needs.detect-changes.outputs.infra == 'true' || needs.detect-changes.outputs.ops == 'true' || needs.detect-changes.outputs.nginx == 'true' || needs.detect-changes.outputs.monitoring == 'true' || inputs.action == 'full' || inputs.action == 'migrate-only')
 
     steps:
       - name: Ensure infra is running
@@ -696,15 +711,61 @@ jobs:
             echo "Infra status:"
             podman ps --format "table {{.Names}}\t{{.Status}}" | grep -E "db|redis"
 
+  migrate:
+    runs-on: ubuntu-latest
+    needs: [deploy-infra, backup-db, build-backend, detect-changes]
+    # La migración corre después del backup y antes de recrear la app. Si falla,
+    # deploy-platform no arranca: producción se queda con la versión anterior.
+    if: |
+      always() && !cancelled() &&
+      needs.deploy-infra.result == 'success' &&
+      needs.backup-db.result == 'success' &&
+      needs.build-backend.result == 'success'
+    steps:
+      - name: Apply Alembic migrations
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT || '43422' }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            cd /opt/creditcardanalyzer
+            export PATH="$HOME/.local/bin:$PATH"
+            set -a
+            source .env
+            set +a
+
+            NEW_TAG="${{ env.IMAGE_TAG }}"
+            IMAGE="${BACKEND_IMAGE}:${NEW_TAG}"
+            DB_URL="postgresql://expenses_user:${POSTGRES_PASSWORD}@db:5432/expenses"
+
+            echo "Pulling ${IMAGE}"
+            podman pull "$IMAGE"
+
+            echo "Applying alembic upgrade head with ${NEW_TAG}"
+            podman run --rm --network "${NETWORK_NAME:-oikonomia}" \
+              -e DATABASE_URL="$DB_URL" \
+              --entrypoint alembic "$IMAGE" upgrade head
+
+            echo "Current revision:"
+            podman run --rm --network "${NETWORK_NAME:-oikonomia}" \
+              -e DATABASE_URL="$DB_URL" \
+              --entrypoint alembic "$IMAGE" current
+
   deploy-platform:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, backup-db, detect-changes]
+    needs: [deploy-infra, backup-db, detect-changes, migrate]
     # Nunca sin su checkpoint: si el backup no corrió porque algo upstream
-    # falló, no se recrea la app ni se toca la base.
+    # falló, no se recrea la app ni se toca la base. Tampoco sin la migración:
+    # si el esquema no llegó a head, la app vieja se queda corriendo.
     if: |
       always() && !cancelled() &&
       (needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full') &&
-      needs.backup-db.result == 'success'
+      needs.backup-db.result == 'success' &&
+      needs.migrate.result == 'success'
 
     steps:
       - name: Save platform rollback snapshot
@@ -843,8 +904,11 @@ jobs:
 
   deploy-bots:
     runs-on: ubuntu-latest
-    needs: [deploy-infra, detect-changes]
-    if: always() && !cancelled() && (needs.detect-changes.outputs.bots == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full')
+    needs: [deploy-infra, detect-changes, migrate]
+    if: |
+      always() && !cancelled() &&
+      (needs.detect-changes.outputs.bots == 'true' || needs.detect-changes.outputs.platform == 'true' || inputs.action == 'full') &&
+      (needs.migrate.result == 'success' || needs.migrate.result == 'skipped')
 
     steps:
       - name: Restart bot services
@@ -1694,6 +1758,45 @@ jobs:
 
             echo ""
             echo "=== All critical health checks passed ==="
+
+  refresh-fixture:
+    runs-on: ubuntu-latest
+    needs: [health-check, detect-changes, migrate]
+    # La app ya quedó sana y el esquema en head: el fixture del gate de
+    # migraciones se regenera desde el esquema deployado, no desde el backup
+    # pre-deploy. Un fallo acá no tumba el release (la app ya está arriba):
+    # queda como warning y el próximo PR de migración falla si el fixture
+    # quedó viejo.
+    continue-on-error: true
+    if: |
+      always() && !cancelled() &&
+      needs.health-check.result == 'success' &&
+      needs.migrate.result == 'success' &&
+      (needs.detect-changes.outputs.platform == 'true' ||
+       needs.detect-changes.outputs.infra == 'true' ||
+       inputs.action == 'full' ||
+       inputs.action == 'migrate-only')
+    steps:
+      - name: Regenerate the anonymized fixture
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ vars.SSH_PORT || '43422' }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            cd /opt/creditcardanalyzer
+            export PATH="$HOME/.local/bin:$PATH"
+
+            DB_CONTAINER=$(podman ps --format '{{.Names}}' | grep -E '_db_' | head -1)
+            FRESH="backups/db_fixture_$(date +%Y%m%d_%H%M%S).dump"
+            echo "Dumping the deployed schema to $FRESH"
+            podman exec "$DB_CONTAINER" pg_dump -U expenses_user -Fc expenses > "$FRESH"
+
+            echo "Regenerating the anonymized fixture..."
+            ./anonymize/anonymize-db.sh "$FRESH"
 
   cleanup-old-images:
     runs-on: ubuntu-latest

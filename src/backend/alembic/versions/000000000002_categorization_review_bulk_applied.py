@@ -7,24 +7,26 @@ Revision ID: 000000000002
 Revises: 000000000001
 Create Date: 2026-10-29
 """
-from typing import Sequence, Union
+
+from collections.abc import Sequence
 
 from alembic import op
-import sqlalchemy as sa
-
 
 revision: str = "000000000002"
-down_revision: Union[str, Sequence[str], None] = "000000000001"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "000000000001"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "categorization_reviews",
-        sa.Column("bulk_applied", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+    # IF NOT EXISTS: el baseline crea el esquema desde los modelos actuales, que
+    # ya incluyen esta columna. También lo usa el puente idempotente de
+    # migrations.yml cuando corre antes que Alembic.
+    op.execute(
+        "ALTER TABLE categorization_reviews "
+        "ADD COLUMN IF NOT EXISTS bulk_applied BOOLEAN NOT NULL DEFAULT false"
     )
 
 
 def downgrade() -> None:
-    op.drop_column("categorization_reviews", "bulk_applied")
+    op.execute("ALTER TABLE categorization_reviews DROP COLUMN IF EXISTS bulk_applied")

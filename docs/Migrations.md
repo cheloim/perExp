@@ -1,36 +1,40 @@
 # Migraciones de esquema
 
-> **Estado actual: no hay una estrategia única.** Conviven tres mecanismos. Este documento
-> describe la realidad, el riesgo y el camino de salida. La implementación está trackeada
-> en [#527](https://github.com/cheloim/perExp/issues/527).
+> **Estado actual: Alembic es la única vía.** Las revisiones viven en
+> `src/backend/alembic/versions/`, se aplican en el release (`deploy.yml`, job
+> `migrate`) y se validan antes de mergear contra un fixture anonimizado de
+> producción. `create_all` y `add_indices` ya no corren al arrancar.
 
-## Los tres mecanismos que existen hoy
+## Cómo se aplica
 
-| Mecanismo | Dónde | Qué hace | Problema |
-|---|---|---|---|
-| `Base.metadata.create_all()` | `src/backend/main.py:68` (lifespan) | Crea tablas que falten al arrancar | No migra columnas existentes, no versiona, ejecuta DDL en cada boot |
-| `add_indices.py` | `src/backend/app/add_indices.py` | Crea índices al arrancar | DDL implícito, sin control de orden |
-| Alembic | `src/backend/alembic/versions/` (3 revisiones) | Versionado formal | No se ejecuta en el entrypoint; el baseline es no-op |
-| Scripts `migrate_*.py` | `src/backend/scripts/`, ejecutados por `.github/workflows/migrations.yml` | Migraciones puntuales con tabla `schema_migrations` | Fuera de Alembic, sin rollback, orden por nombre |
+1. El PR agrega una revisión de Alembic y pasa el gate `migration-fixture.yml`:
+   se restaura el dump anonimizado del último release y se corre `alembic upgrade head`.
+2. Al publicar un release, `deploy.yml` hace, en orden: backup verificable →
+   `alembic upgrade head` con la imagen nueva → recién ahí recrea la app.
+3. Si la migración falla, `deploy-platform` no arranca: producción se queda con
+   la versión anterior y el backup queda disponible.
+4. `.github/workflows/migrations.yml` queda como herramienta manual para
+   inspeccionar o reaplicar con la imagen deployada.
 
-## Consecuencia
+## Reglas
 
-- Un entorno nuevo y uno viejo pueden terminar con esquemas **distintos**.
-- Cambiar una columna que ya existe no se puede: `create_all` no altera.
-- No hay rollback: si una migración falla a mitad, queda a mano.
-- El DDL de arranque bloquea tablas y alarga el boot.
-
-## Regla transitoria (mientras dure la migración)
-
-1. **Producción no usa `create_all`.** Cualquier cambio de esquema entra por
-   `alembic revision --autogenerate` + revisión manual.
-2. **No se editan tablas a mano en producción.** Si hace falta un hotfix, se escribe una
-   revisión de Alembic, aunque sea de una línea.
-3. **Los scripts `migrate_*.py` no se agregan.** Los existentes se migran a Alembic de a
-   uno y se archivan. Excepción transitoria: mientras `migrations.yml` no ejecute Alembic,
-   un cambio de esquema puede incluir un script `migrate_*.py` **idempotente** gemelo de
-   la revisión, para que el workflow actual lo aplique al mergear.
+1. **Toda migración es una revisión de Alembic.** No se editan tablas a mano en
+   producción; si hace falta un hotfix, se escribe una revisión, aunque sea de una línea.
+2. **No se agregan scripts `migrate_*.py`.** Los existentes quedan archivados; el
+   esquema real ya está en el baseline y en las revisiones 2/3.
+3. **Toda revisión es idempotente** (`IF NOT EXISTS` / chequeo previo). El baseline
+   crea el esquema desde los modelos actuales con `checkfirst=True`, así que una base
+   nueva ya puede traer una columna que una revisión posterior intentaría agregar.
 4. **Toda migración es reversible o declara por qué no lo es.**
+5. **Cambios destructivos: expand / contract**, nunca en un solo release.
+
+## Baseline
+
+`000000000001_baseline.py` llama a `Base.metadata.create_all(checkfirst=True)`. En una
+base existente no crea nada que ya esté; en una vacía crea el esquema completo. Las
+revisiones 2/3 usan `ADD COLUMN IF NOT EXISTS`, así que aplicarlas sobre una base recién
+creada es un no-op. `alembic check` en CI verifica que el esquema migrado coincida con
+los modelos.
 
 ## Anatomía de una migración
 
@@ -148,10 +152,14 @@ alembic check
 - [ ] `docs/Data-Model.md` actualizado si cambia una relación.
 - [ ] El deploy no depende de `create_all`.
 
-## Camino de salida
+## Estado del camino de salida (#527)
 
-1. Generar una revisión baseline desde el esquema real de producción.
-2. Sacar `create_all` y `add_indices` del lifespan cuando el baseline esté aplicado.
-3. Convertir cada `migrate_*.py` pendiente en una revisión de Alembic.
-4. Hacer que `migrations.yml` ejecute `alembic upgrade head`, no scripts sueltos.
-5. Agregar `alembic check` al CI.
+- [x] Baseline real que crea el esquema desde los modelos (idempotente).
+- [x] `create_all` y `add_indices` fuera del arranque de la app.
+- [x] `deploy.yml` corre `alembic upgrade head` en el release, después del backup.
+- [x] `migrations.yml` es una herramienta manual sobre la imagen deployada.
+- [x] Test de Alembic (base limpia → `upgrade head` → `alembic check`) en la suite.
+- [x] Fixture anonimizado como gate de cada PR que toca `alembic/**`.
+
+Pendiente: los `migrate_*.py` viejos quedan en el repo como archivos archivados
+hasta que se limpien en un PR aparte.
