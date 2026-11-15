@@ -190,6 +190,8 @@ export * from "./setCategoryBudgetGroupBody.ts";
 export * from "./setCategoryBudgetGroupBodyBudgetGroup.ts";
 export * from "./setCategoryBudgetGroupParams.ts";
 export * from "./settingUpdate.ts";
+export * from "./stepUpRequest.ts";
+export * from "./stepUpResponse.ts";
 export * from "./suggestCategoryBody.ts";
 export * from "./summarizeChatAnalysisSummarizePostBody.ts";
 export * from "./syncCardHolders200.ts";
