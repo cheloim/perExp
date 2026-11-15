@@ -147,10 +147,30 @@ def _issue_session(response, db: Session, user: User, request: Request) -> str:
 
 
 def _get_client_ip(request: Request) -> str:
+    """Return the client IP without trusting a user-supplied X-Forwarded-For.
+
+    nginx appends the real peer to any incoming header, so the *last* hop is
+    the one we can trust. Only trust the header when the immediate peer is a
+    private/loopback address (the reverse proxy); a direct public client could
+    otherwise spoof the whole chain.
+    """
+    import ipaddress
+
+    peer = request.client.host if request.client else "unknown"
     forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    if not forwarded:
+        return peer
+
+    trusted = {ip.strip() for ip in os.getenv("TRUSTED_PROXIES", "").split(",") if ip.strip()}
+    try:
+        peer_ip = ipaddress.ip_address(peer)
+        is_proxy = peer in trusted or peer_ip.is_private or peer_ip.is_loopback
+    except ValueError:
+        is_proxy = peer in trusted
+
+    if not is_proxy:
+        return peer
+    return forwarded.split(",")[-1].strip() or peer
 
 
 def _log_audit(
