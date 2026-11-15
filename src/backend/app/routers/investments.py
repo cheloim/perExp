@@ -1,5 +1,5 @@
 import contextlib
-from datetime import date, datetime, timedelta
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from app.models import Investment, Setting, User
 from app.prompts import INVESTMENTS_SYSTEM_PROMPT
 from app.routers.groups import get_group_user_ids
 from app.schemas import InvestmentCreate
+from app.services import fx as fx_service
 from app.services.auth import get_current_user
 from app.services.encryption import decrypt_value, encrypt_value
 
@@ -737,101 +738,17 @@ def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_cur
 
 # ─── USD Rate ─────────────────────────────────────────────────────────────────
 
-_BCBA_ADR_MAP = {
-    "GGAL.BA": "GGAL",
-    "YPFD.BA": "YPF",
-    "BBAR.BA": "BBAR",
-    "BMA.BA": "BMA",
-    "PAMP.BA": "PAM",
-    "CEPU.BA": "CEPU",
-    "TGSU2.BA": "TGS",
-    "SUPV.BA": "SUPV",
-}
-_ADR_TICKERS = list(_BCBA_ADR_MAP.values())
-
 
 @router.get(
     "/investments/usd-rate",
     summary="Get USD/ARS exchange rate",
-    description="Returns the current USD/ARS exchange rate, trying BNA, ADR-implied rate, and BCRA official sources in order.",
+    description="Deprecated alias of GET /fx/usd-rate?purpose=display.",
 )
-def get_usd_rate(current_user: User = Depends(get_current_user)):
-    """Returns USD/ARS rate. Tries BNA (dolarapi.com) first,
-    then ADR-implied rate (Yahoo Finance), then BCRA official.
-
-    BNA provides the official USD/ARS price from Argentine banks.
-    The ADR-implied rate is calculated as: BCBA_price_ARS / NYSE_ADR_price_USD.
-    This reflects the market's implicit CCL even if broker is not configured.
-    """
-    import requests as _req
-
-    # ── Attempt 1: BNA (dolarapi.com) ─────────────────────────────────────────
+def get_usd_rate_alias(current_user: User = Depends(get_current_user)):
     try:
-        resp = _req.get("https://dolarapi.com/v1/dolares/oficial", timeout=8)
-        resp.raise_for_status()
-        data = resp.json()
-        rate = data.get("venta") or data.get("compra")
-        if rate:
-            fecha = (data.get("fechaActualizacion") or "")[:10]
-            return {"rate": float(rate), "date": fecha, "source": "BNA"}
-    except Exception:
-        pass
-
-    # ── Attempt 2: ADR-implied rate via Yahoo Finance ─────────────────────────
-    yf_headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
-    for bcba_ticker, adr_ticker in _BCBA_ADR_MAP.items():
-        try:
-            # Fetch BCBA price (ARS) and ADR price (USD) in parallel
-            yf_bcba = _req.get(
-                f"https://query2.finance.yahoo.com/v8/finance/chart/{bcba_ticker}",
-                params={"interval": "1d", "range": "1d"},
-                headers=yf_headers,
-                timeout=8,
-            )
-            yf_adr = _req.get(
-                f"https://query1.finance.yahoo.com/v8/finance/chart/{adr_ticker}",
-                params={"interval": "1d", "range": "1d"},
-                headers=yf_headers,
-                timeout=8,
-            )
-            if yf_bcba.status_code == 200 and yf_adr.status_code == 200:
-                bcba_data = yf_bcba.json().get("chart", {}).get("result", [])
-                adr_data = yf_adr.json().get("chart", {}).get("result", [])
-                if bcba_data and adr_data:
-                    bcba_price = bcba_data[0]["meta"].get("regularMarketPrice")
-                    adr_price = adr_data[0]["meta"].get("regularMarketPrice")
-                    if bcba_price and adr_price and adr_price > 0:
-                        implied_rate = float(bcba_price) / float(adr_price)
-                        return {
-                            "rate": round(implied_rate, 2),
-                            "date": date.today().isoformat(),
-                            "source": "ADR-implied",
-                            "bcba_ticker": bcba_ticker,
-                            "adr_ticker": adr_ticker,
-                        }
-        except Exception:
-            continue
-
-    # ── Attempt 3: BCRA official ──────────────────────────────────────────────
-    try:
-        today = date.today()
-        desde = (today - timedelta(days=7)).strftime("%Y-%m-%d")
-        hasta = today.strftime("%Y-%m-%d")
-        resp = _req.get(
-            f"https://api.bcra.gob.ar/estadisticas/v2.0/datosvariable/4/{desde}/{hasta}",
-            timeout=8,
-            headers={"Accept": "application/json"},
-            verify=False,
-        )
-        if resp.status_code == 200:
-            results = resp.json().get("results", [])
-            if results:
-                latest = results[-1]
-                return {"rate": latest["v"], "date": latest["d"], "source": "BCRA"}
-    except Exception:
-        pass
-
-    raise HTTPException(502, "No se pudo obtener el tipo de cambio (BNA, ADR y BCRA fallaron)")
+        return fx_service.get_usd_rate(purpose="display")
+    except fx_service.FxUnavailableError as exc:
+        raise HTTPException(502, str(exc))
 
 
 # ─── Cash Balances ────────────────────────────────────────────────────────────

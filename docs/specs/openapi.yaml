@@ -61,6 +61,8 @@ tags:
     description: Expense and income tracking, analytics
   - name: investments
     description: Investment portfolio management
+  - name: fx
+    description: USD/ARS exchange rate resolution
   - name: import-jobs
     description: CSV/PDF bank statement import pipeline
   - name: dashboard
@@ -2632,11 +2634,42 @@ paths:
       tags:
         - investments
       summary: Get USD/ARS exchange rate
-      description: Returns the current USD/ARS exchange rate, trying BNA, ADR-implied rate, and BCRA official sources in order.
+      description: Deprecated alias of GET /fx/usd-rate?purpose=display.
       operationId: get_usd_rate_investments_usd_rate_get
       responses:
         '200':
           description: Get USD/ARS exchange rate
+  /fx/usd-rate:
+    get:
+      tags:
+        - fx
+      summary: Get the USD/ARS exchange rate
+      description: '`budget` uses BNA official only (falling back to the last BNA value with a warning); `display` may fall back to ADR-implied or BCRA. Historical dates land with #508b.'
+      operationId: usd_rate_fx_usd_rate_get
+      parameters:
+        - name: purpose
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - budget
+              - display
+            default: budget
+          description: budget = BNA only; display = BNA -> ADR-implied -> BCRA
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+          description: ISO date. Only today is supported until #508b.
+      responses:
+        '200':
+          description: Get the USD/ARS exchange rate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FxRateResponse'
   /investments/cash-balances:
     get:
       tags:
@@ -5027,6 +5060,28 @@ components:
           nullable: true
 
     # ─── INVESTMENTS ──────────────────────────────────────────
+    FxRateResponse:
+      properties:
+        rate:
+          type: number
+          format: float
+          title: Rate
+        date:
+          type: string
+          title: Date
+        source:
+          type: string
+          title: Source
+        warning:
+          type: string
+          nullable: true
+          title: Warning
+      type: object
+      required:
+        - rate
+        - date
+        - source
+      title: FxRateResponse
     InvestmentCreate:
       type: object
       required: [symbol, shares, purchase_price]

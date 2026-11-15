@@ -104,6 +104,7 @@ import type {
   FeatureFlagUpdate,
   ForceChangePasswordRequest,
   ForgotPasswordBody,
+  FxRateResponse,
   GenerateAllReportsAdminReportsGenerateAllPostParams,
   GenerateMonthlyReportDashboardMonthlyReportsGeneratePostParams,
   GenerateReportRequest,
@@ -182,6 +183,7 @@ import type {
   UncategorizedCount200,
   UpdateImportPreviewBody,
   UpdateInvestmentPriceInvestmentsInvIdPricePatchBody,
+  UsdRateFxUsdRateGetParams,
   UserResponse,
   VerifyEmailBody,
   VerifyWebhookWebhookWhatsappGetParams,
@@ -11325,7 +11327,7 @@ export const useSyncPpiInvestmentsSyncPpiPost = <TError = ErrorType<unknown>, TC
 };
 
 /**
- * Returns the current USD/ARS exchange rate, trying BNA, ADR-implied rate, and BCRA official sources in order.
+ * Deprecated alias of GET /fx/usd-rate?purpose=display.
  * @summary Get USD/ARS exchange rate
  */
 export const getUsdRateInvestmentsUsdRateGet = (
@@ -11437,6 +11439,137 @@ export function useGetUsdRateInvestmentsUsdRateGet<
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetUsdRateInvestmentsUsdRateGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * `budget` uses BNA official only (falling back to the last BNA value with a warning); `display` may fall back to ADR-implied or BCRA. Historical dates land with #508b.
+ * @summary Get the USD/ARS exchange rate
+ */
+export const usdRateFxUsdRateGet = (
+  params?: UsdRateFxUsdRateGetParams,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<FxRateResponse>(
+    { url: `/fx/usd-rate`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getUsdRateFxUsdRateGetQueryKey = (params?: UsdRateFxUsdRateGetParams) => {
+  return [`/fx/usd-rate`, ...(params ? [params] : [])] as const;
+};
+
+export const getUsdRateFxUsdRateGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof usdRateFxUsdRateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: UsdRateFxUsdRateGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof usdRateFxUsdRateGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getUsdRateFxUsdRateGetQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof usdRateFxUsdRateGet>>> = ({ signal }) =>
+    usdRateFxUsdRateGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof usdRateFxUsdRateGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type UsdRateFxUsdRateGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof usdRateFxUsdRateGet>>
+>;
+export type UsdRateFxUsdRateGetQueryError = ErrorType<unknown>;
+
+export function useUsdRateFxUsdRateGet<
+  TData = Awaited<ReturnType<typeof usdRateFxUsdRateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params: undefined | UsdRateFxUsdRateGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof usdRateFxUsdRateGet>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof usdRateFxUsdRateGet>>,
+          TError,
+          Awaited<ReturnType<typeof usdRateFxUsdRateGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useUsdRateFxUsdRateGet<
+  TData = Awaited<ReturnType<typeof usdRateFxUsdRateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: UsdRateFxUsdRateGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof usdRateFxUsdRateGet>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof usdRateFxUsdRateGet>>,
+          TError,
+          Awaited<ReturnType<typeof usdRateFxUsdRateGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useUsdRateFxUsdRateGet<
+  TData = Awaited<ReturnType<typeof usdRateFxUsdRateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: UsdRateFxUsdRateGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof usdRateFxUsdRateGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get the USD/ARS exchange rate
+ */
+
+export function useUsdRateFxUsdRateGet<
+  TData = Awaited<ReturnType<typeof usdRateFxUsdRateGet>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: UsdRateFxUsdRateGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof usdRateFxUsdRateGet>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getUsdRateFxUsdRateGetQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

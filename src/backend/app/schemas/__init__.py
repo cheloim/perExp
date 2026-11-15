@@ -58,6 +58,7 @@ from app.schemas.expenses import (
     ExpenseResponse,
     ExpenseUpdate,
 )
+from app.schemas.fx import FxRateResponse
 from app.schemas.import_jobs import (
     CardClosingResponse,
     CardsMappingEntry,
@@ -103,6 +104,7 @@ __all__ = [
     "ExpenseCreate",
     "ExpenseResponse",
     "ExpenseUpdate",
+    "FxRateResponse",
     "InvestmentCreate",
     "AnalysisHistoryResponse",
     "AnalysisRequest",

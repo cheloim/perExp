@@ -45,6 +45,7 @@ from app.routers import (
     categories,
     dashboard,
     expenses,
+    fx,
     groups,
     health,
     import_jobs,
@@ -148,6 +149,7 @@ app = FastAPI(
         {"name": "card-closings", "description": "Card billing period closing/due dates"},
         {"name": "expenses", "description": "Expense CRUD, bulk operations, filtering"},
         {"name": "investments", "description": "Investment portfolio tracking (IOL/PPI)"},
+        {"name": "fx", "description": "USD/ARS exchange rate resolution"},
         {"name": "import-jobs", "description": "PDF/CSV/XLSX bank statement import pipeline"},
         {"name": "dashboard", "description": "Dashboard summaries, charts, and reports"},
         {"name": "analysis", "description": "AI-powered spending analysis"},
@@ -204,6 +206,7 @@ app.include_router(categories.router)
 app.include_router(card_closings.router)
 app.include_router(expenses.router)
 app.include_router(investments.router)
+app.include_router(fx.router)
 app.include_router(import_jobs.router)
 app.include_router(dashboard.router)
 app.include_router(analysis.router)
