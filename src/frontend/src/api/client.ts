@@ -45,6 +45,9 @@ import type {
 const TOKEN_KEY = "auth_token";
 
 let inMemoryAuthToken: string | null = null;
+// Short-lived proof for destructive admin actions. Memory only: it must not
+// survive a reload or be readable by another tab.
+let adminStepUpToken: string | null = null;
 
 export const getStoredToken = () => inMemoryAuthToken || localStorage.getItem(TOKEN_KEY);
 export const storeToken = (token: string) => {
@@ -53,6 +56,7 @@ export const storeToken = (token: string) => {
 };
 export const clearToken = () => {
   inMemoryAuthToken = null;
+  adminStepUpToken = null;
   localStorage.removeItem(TOKEN_KEY);
   // The assistant thread contains amounts and categories. Logout, and the
   // 401 interceptor that calls this on expiry, must not leave it behind. Reset
@@ -181,6 +185,9 @@ api.interceptors.request.use((config) => {
   // Impersonation token for admin sessions
   const impToken = sessionStorage.getItem("impersonation_token");
   if (impToken) config.headers["X-ImpersonationToken"] = impToken;
+  if (adminStepUpToken && config.url?.startsWith("/admin/") && config.url !== "/admin/step-up") {
+    config.headers["X-Step-Up-Token"] = adminStepUpToken;
+  }
   return config;
 });
 
@@ -1084,6 +1091,21 @@ export async function deleteImportJob(jobId: number): Promise<void> {
 // ── Admin API ──────────────────────────────────────────────
 
 export const getAdminSlug = () => api.get<{ slug: string }>("/admin/slug").then((r) => r.data);
+
+export const setAdminStepUpToken = (token: string | null) => {
+  adminStepUpToken = token;
+};
+
+export const adminStepUp = (password: string, mfaCode?: string) =>
+  api
+    .post<{ step_up_token: string; expires_in: number }>("/admin/step-up", {
+      password,
+      mfa_code: mfaCode,
+    })
+    .then((r) => {
+      adminStepUpToken = r.data.step_up_token;
+      return r.data;
+    });
 
 export const getAdminUsers = (params?: { search?: string; page?: number; per_page?: number }) =>
   api.get("/admin/users", { params }).then((r) => r.data);
