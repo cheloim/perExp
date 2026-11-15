@@ -18,6 +18,7 @@ from app.services.date_utils import _normalize_date_str, add_months
 from app.services.encryption import compute_hmac
 from app.services.expense_filters import apply_expense_filters
 from app.services.import_utils import _is_duplicate, _normalize_text
+from app.services.installments import create_future_installments, split_installments
 from app.services.notify import notification_excerpt
 from app.services.tag_sync import assign_tags_validated, sync_category_tag
 
@@ -371,20 +372,47 @@ def create_expense(
 ):
     from app.services.categorization import is_income_category
 
+    data = expense.model_dump()
+
+    # Extract API-only fields (not columns on Expense)
+    installment_mode = data.pop("installment_mode", "none")
+    tag_ids = data.pop("tag_ids", None) or []
+
+    # Installments: the API can receive either the purchase total or the value
+    # of the current installment. Calculate the amount before duplicate checks
+    # so a 12-installment purchase is not compared against its total.
+    future_amounts: list[tuple[int, float]] = []
+    installment_total = data.get("installment_total")
+    installment_number = data.get("installment_number") or 1
+    if installment_mode in {"total", "current"}:
+        if not installment_total or installment_total < 2 or installment_total > 60:
+            raise HTTPException(422, "El total de cuotas debe estar entre 2 y 60.")
+        if installment_number < 1 or installment_number > installment_total:
+            raise HTTPException(422, "La cuota actual debe estar entre 1 y el total de cuotas.")
+        data["installment_number"] = installment_number
+        data["installment_total"] = installment_total
+        data["amount"] = abs(data["amount"])
+        if installment_mode == "total":
+            plan = split_installments(data["amount"], installment_total, start=installment_number)
+            data["amount"] = plan[0][1]
+            future_amounts = plan[1:]
+        else:
+            future_amounts = [
+                (number, data["amount"])
+                for number in range(installment_number + 1, installment_total + 1)
+            ]
+    else:
+        data["amount"] = abs(data["amount"])
+
     if _is_duplicate(
         db,
         expense.date,
-        expense.amount,
+        data["amount"],
         expense.description,
         expense.transaction_id,
         user_id=current_user.id,
     ):
         raise HTTPException(409, "Ya existe un gasto con la misma fecha, monto y descripción.")
-
-    data = expense.model_dump()
-
-    # Extract tag_ids (M2M, not a column on Expense)
-    tag_ids = data.pop("tag_ids", None) or []
 
     # Auto-derive card_id/account_id from tags if not explicitly set
     if tag_ids and not data.get("card_id") and not data.get("account_id"):
@@ -409,9 +437,6 @@ def create_expense(
     if data.get("description"):
         data["description"] = _normalize_text(data["description"])
         data["description_hmac"] = compute_hmac(data["description"])
-
-    # Always store amount as positive (no sign convention)
-    data["amount"] = abs(data["amount"])
 
     # Note: account_required validation removed (Issue 199).
     # Cards/accounts are now optional; tags are the primary classification.
@@ -464,6 +489,14 @@ def create_expense(
 
     db_exp = Expense(**data, user_id=current_user.id)
     db.add(db_exp)
+    db.flush()
+    if future_amounts:
+        create_future_installments(
+            db,
+            expense=db_exp,
+            installment_total=installment_total or 0,
+            amounts=future_amounts,
+        )
     db.commit()
     db.refresh(db_exp)
 

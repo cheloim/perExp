@@ -1,5 +1,6 @@
 import re
 from datetime import date, datetime
+from typing import Literal
 
 import pandas as pd
 from pydantic import BaseModel, computed_field, field_serializer, field_validator
@@ -22,6 +23,7 @@ class ExpenseCreate(BaseModel):
     installment_number: int | None = None
     installment_total: int | None = None
     installment_group_id: str | None = None
+    installment_mode: Literal["none", "total", "current"] = "none"
     account_id: int | None = None
     card_id: int | None = None
     tag_ids: list[int] | None = None
