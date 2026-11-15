@@ -206,6 +206,7 @@ def test_duplicate_guard_ignores_recurring_projections(db, test_user):
             6990.0,
             "NETFLIX",
             transaction_id=None,
+            user_id=test_user.id,
         )
         is False
     )
