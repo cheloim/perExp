@@ -3570,6 +3570,26 @@ paths:
       responses:
         '200':
           description: Get admin panel slug
+  /admin/step-up:
+    post:
+      tags:
+        - admin
+      summary: Verify the admin password/MFA before a destructive action
+      description: Returns a 5-minute step-up token bound to the current admin.
+      operationId: admin_step_up_admin_step_up_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StepUpRequest'
+        required: true
+      responses:
+        '200':
+          description: Step-up token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StepUpResponse'
   /admin/users:
     get:
       tags:
@@ -5944,6 +5964,32 @@ components:
         - description
         - amount
       title: RecurringCreate
+    StepUpRequest:
+      properties:
+        password:
+          type: string
+          title: Password
+        mfa_code:
+          type: string
+          nullable: true
+          title: Mfa Code
+      type: object
+      required:
+        - password
+      title: StepUpRequest
+    StepUpResponse:
+      properties:
+        step_up_token:
+          type: string
+          title: Step Up Token
+        expires_in:
+          type: integer
+          title: Expires In
+      type: object
+      required:
+        - step_up_token
+        - expires_in
+      title: StepUpResponse
     FeatureFlagUpdate:
       properties:
         value:
