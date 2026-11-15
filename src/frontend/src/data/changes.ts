@@ -16,9 +16,68 @@ export interface ChangeVersion {
   previous?: string;
 }
 
-export const LATEST_VERSION = "v1.6";
+export const LATEST_VERSION = "v1.7";
 
 export const CHANGES: ChangeVersion[] = [
+  {
+    version: "v1.7",
+    date: "15 de Noviembre, 2026",
+    title: "Cuotas, captura múltiple y un asistente que acompaña",
+    summary:
+      "Recuperamos la detección de cuotas y la división desde un total, sumamos captura de varios gastos por imagen o audio, el asistente acoplado, filtros guardados, recurrencias que se ejecutan solas y una sesión más segura. La base también se actualizó a React 19, Recharts 3 y TypeScript 6.",
+    previous: "v1.6",
+    features: [
+      {
+        title: "💳 Cuotas desde el total",
+        icon: "installments",
+        color: "#3584e4",
+        description:
+          "La app vuelve a detectar cuotas en texto, audio, notificaciones y fotos. Si cargás el total y la cantidad de cuotas, lo divide y programa las futuras; si ya estás en una cuota en curso (3 de 12), registra esa y programa las que siguen. La leyenda y la vista previa te muestran el reparto antes de guardar.",
+      },
+      {
+        title: "🧾 Varios gastos en una captura",
+        icon: "sparkles",
+        color: "#2ec27e",
+        description:
+          "Una imagen o un audio puede traer más de un gasto. En la web se abre una cola “Gasto 1 de N” con Guardar y siguiente, Omitir y un resumen final; en Telegram se guardan todos con Deshacer todo. Un ticket con varios ítems sigue siendo un solo gasto.",
+      },
+      {
+        title: "🤖 Asistente acoplado",
+        icon: "bot",
+        color: "#8b5cf6",
+        description:
+          "El asistente se puede acoplar como panel lateral, arrastrar y redimensionar, y recuerda el modo y el ancho. La página cede espacio en vez de quedar tapada; en el teléfono sigue abriéndose a pantalla completa. Los diálogos y el donut del Dashboard se acomodan al panel.",
+      },
+      {
+        title: "🔎 Gastos más rápidos",
+        icon: "search",
+        color: "#e5a50a",
+        description:
+          "Filtros por varias categorías a la vez, vistas guardadas con nombre, barra de filtros unificada y fija al hacer scroll, paginación con el total real y una tabla más accesible. La página de Gastos queda sin gráficos duplicados.",
+      },
+      {
+        title: "🔔 Notificaciones y bot",
+        icon: "bell",
+        color: "#e66100",
+        description:
+          "Eliminar todas las notificaciones con confirmación y rollback, detalle en overlay y acciones más claras. En Telegram, el mensaje guardado muestra primero la categoría y las cuotas en la línea del monto; las capturas se guardan directo y Deshacer queda en /deshacer.",
+      },
+      {
+        title: "🔁 Recurrencias que se ejecutan solas",
+        icon: "settings",
+        color: "#9141ac",
+        description:
+          "Las suscripciones confirmadas se convierten en gastos reales cuando vence su fecha, con un aviso agrupado. Las proyecciones se reconcilian con el resumen importado para no duplicar, y las sugerencias automáticas solo avanzan su fecha hasta que las confirmes. Cuotas y Recurrentes comparten el mismo modal.",
+      },
+      {
+        title: "💵 Dólar, sesión y privacidad",
+        icon: "lock",
+        color: "#c01c28",
+        description:
+          "El dólar para presupuesto usa BNA y cae al último valor BNA con aviso; el de inversiones mantiene la cadena de mercado. La sesión pasa a refresh token rotativo con detección de reuso, el login de Telegram valida state y el hilo del asistente se borra al cerrar sesión (la persistencia ahora es opt-in y expira a los 7 días).",
+      },
+    ],
+  },
   {
     version: "v1.6",
     date: "30 de Octubre, 2026",
