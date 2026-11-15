@@ -124,6 +124,32 @@ corrió y su salida real, no "debería pasar".
 - Correr `smoke.sh` o suites pesadas con otros agentes en curso.
 - Sondear agentes en vez de esperar la notificación.
 
+## 10. Deploy, releases y migraciones
+
+- **Un merge a `main` no deploya.** El deploy sale de un GitHub Release publicado
+  (`release: released`). `main` puede avanzar sin mover producción; "qué está en
+  producción" es un tag, no un commit suelto.
+- **Versionado `vMAJOR.MINOR.PATCH`**:
+  - **PATCH** (3er dígito): evoluciones mínimas — fixes, backend, infra, migraciones,
+    deploy. Sin impacto real de UI/UX.
+  - **MINOR** (2do dígito): cambios importantes de UI/UX (pantallas, flujos, rediseños).
+  - **MAJOR** (1er dígito): cambios incompatibles o de plataforma.
+  El tag es el `IMAGE_TAG` del deploy. No cambia la versión de producto que ve el
+  usuario en Novedades (`src/frontend/src/data/changes.ts`, `LATEST_VERSION`).
+- **Migraciones**: sólo revisiones de Alembic en `src/backend/alembic/versions/`.
+  No se agregan scripts `migrate_*.py`; `create_all`/`add_indices` no corren al
+  arrancar. El release hace `backup → alembic upgrade head → recrear la app`; si
+  la migración falla, la versión anterior sigue corriendo.
+- **Gate de migraciones**: un PR que toca `alembic/**` tiene que pasar
+  `migration-fixture.yml`, que aplica `alembic upgrade head` sobre un dump
+  anonimizado de producción. El fixture se regenera solo después de un release
+  sano (`refresh-fixture`).
+- **Quién corta el release**: el coordinador, después de mergear y con la
+  verificación completa en verde. Los agentes de un lote no cortan releases.
+- **Rollback**: si falla la app después de migrar, se revierte la imagen; el
+  esquema queda adelante. Por eso toda migración destructiva es expand/contract.
+- Referencias: `docs/Deployment.md` y `docs/Migrations.md`.
+
 ---
 
 ## Historial de uso
