@@ -13,6 +13,7 @@ from app.metrics import EXPENSES_CREATED
 from app.models import Card, Category, Expense, ExpenseTag, Notification, Tag, User
 from app.routers.groups import get_group_user_ids
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
+from app.services import fx
 from app.services.auth import get_current_user
 from app.services.categorization import _normalize_merchant_key, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
@@ -507,6 +508,7 @@ def create_expense(
 
     db_exp = Expense(**data, user_id=current_user.id)
     db.add(db_exp)
+    fx.apply_rate_to_expense(db, db_exp)
     db.flush()
     if future_amounts:
         create_future_installments(

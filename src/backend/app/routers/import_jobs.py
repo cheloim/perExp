@@ -14,6 +14,7 @@ from app.database import get_db
 logger = logging.getLogger(__name__)
 from app.models import ImportJob, User
 from app.schemas import ImportJobResponse, RowsConfirmBody
+from app.services import fx
 from app.services.auth import get_current_user
 from app.services.import_utils import _normalize_text
 from app.tasks.import_processor import sync_process_import_job
@@ -495,6 +496,7 @@ async def confirm_import_job(
                     card_id=card_id,
                 )
                 db.add(expense)
+                fx.apply_rate_to_expense(db, expense)
                 db.flush()
 
                 from app.services.tag_sync import sync_category_tag

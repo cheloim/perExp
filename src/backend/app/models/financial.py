@@ -78,6 +78,11 @@ class Expense(Base):
     notes = Column(EncryptedType, default="")
     transaction_id = Column(String, nullable=True, index=True)
     currency = Column(String, default="ARS")
+    # Snapshot of the rate used to convert this row. Null means "not resolved
+    # yet": aggregation must surface it instead of treating USD as ARS.
+    fx_rate = Column(Float, nullable=True)
+    fx_rate_date = Column(Date, nullable=True)
+    fx_rate_source = Column(String(20), nullable=True)
     installment_number = Column(Integer, nullable=True)
     installment_total = Column(Integer, nullable=True)
     installment_group_id = Column(String, nullable=True, index=True)

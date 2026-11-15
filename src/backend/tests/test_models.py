@@ -189,7 +189,7 @@ class TestTableCount:
         from app.database import Base
 
         tables = set(Base.metadata.tables.keys())
-        expected_count = 29
+        expected_count = 30
         assert len(tables) == expected_count, (
             f"Expected {expected_count} tables, got {len(tables)}: {sorted(tables)}"
         )
@@ -205,6 +205,7 @@ class TestTableCount:
             "accounts",
             "categories",
             "notifications",
+            "fx_rates",
         ]
         tables = set(Base.metadata.tables.keys())
         for table in critical:

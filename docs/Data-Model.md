@@ -1,7 +1,7 @@
 # Modelo de datos
 
 > Reescrito el 2026-10-30 contra `src/backend/app/models/`. La versión anterior mostraba 10
-> entidades; el esquema real tiene **28 tablas**.
+> entidades; el esquema real tiene **30 tablas**.
 
 ## Cómo leer este documento
 
@@ -36,8 +36,9 @@ User 1───N GroupMember N───1 Group
 
 | Tabla | Rol |
 |---|---|
-| `expenses` | Gasto o ingreso. Campos cifrados: `description`. `description_hmac` para igualdad exacta. |
+| `expenses` | Gasto o ingreso. Campos cifrados: `description`. `description_hmac` para igualdad exacta. `fx_rate`, `fx_rate_date` y `fx_rate_source` guardan la tasa usada cuando la moneda no es ARS; null significa “sin resolver”, no 1:1. |
 | `expense_tags` | N:M entre gasto y tag. |
+| `fx_rates` | Tasa diaria por `(date, source, base, quote)`, unique. La escribe la tarea diaria BNA y la consume la conversión de gastos. |
 | `recurring_expenses` | Detecta patrones (comercio + monto) y propone confirmar/pausar. Los confirmados (`source=manual`) se materializan cuando llega `next_charge_date`. |
 | `scheduled_expenses` | Define un gasto futuro recurrente que se materializa por tarea. |
 | `expenses.is_recurring_projection` | `true` mientras el gasto proviene de un recurrente y todavía no fue reconciliado con el resumen real. |
