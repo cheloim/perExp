@@ -229,6 +229,22 @@ jobs:
             exit 1
           }
 
+  docs-gate:
+    name: Documentation Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Validate docs matrix and feature specs
+        run: python config/scripts/validate_docs.py
+
   oauth-config:
     name: OAuth Configuration Validation
     runs-on: ubuntu-latest
