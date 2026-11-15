@@ -12,10 +12,12 @@ Historical dates and the durable ``fx_rates`` table land with #508b.
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import requests
+from sqlalchemy.orm import Session
 
+from app.models import FxRate
 from app.services import cache
 
 logger = logging.getLogger(__name__)
@@ -181,3 +183,92 @@ def get_usd_rate(purpose: str = "budget", date_str: str | None = None) -> dict:
     if purpose == "budget":
         raise FxUnavailableError("BNA no está disponible y no hay una última tasa persistida")
     raise FxUnavailableError("No se pudo obtener el tipo de cambio (BNA, ADR y BCRA fallaron)")
+
+
+def save_rate(
+    db: Session,
+    rate: dict,
+    *,
+    base: str = "USD",
+    quote: str = "ARS",
+) -> FxRate:
+    """Upsert a rate for its date/source pair. The caller owns the commit."""
+    try:
+        rate_date = date.fromisoformat(str(rate.get("date")))
+    except (TypeError, ValueError):
+        rate_date = date.today()
+    source = str(rate.get("source") or "BNA")
+    row = (
+        db.query(FxRate)
+        .filter(
+            FxRate.date == rate_date,
+            FxRate.source == source,
+            FxRate.base == base,
+            FxRate.quote == quote,
+        )
+        .first()
+    )
+    if row is None:
+        row = FxRate(
+            date=rate_date,
+            source=source,
+            base=base,
+            quote=quote,
+            rate=float(rate["rate"]),
+        )
+        db.add(row)
+    else:
+        row.rate = float(rate["rate"])
+        row.fetched_at = datetime.utcnow()
+    db.flush()
+    return row
+
+
+def get_rate_for_date(
+    db: Session,
+    rate_date: date,
+    *,
+    source: str = "BNA",
+    base: str = "USD",
+    quote: str = "ARS",
+) -> FxRate | None:
+    """Latest rate on or before ``rate_date``. Never uses a future rate."""
+    return (
+        db.query(FxRate)
+        .filter(
+            FxRate.date <= rate_date,
+            FxRate.source == source,
+            FxRate.base == base,
+            FxRate.quote == quote,
+        )
+        .order_by(FxRate.date.desc())
+        .first()
+    )
+
+
+def apply_rate_to_expense(db: Session, expense) -> FxRate | None:
+    """Snapshot the rate on a non-ARS expense.
+
+    A historical row without a stored rate stays null: using today's rate would
+    silently change a past total. #508c treats null as "missing", not as 1:1.
+    """
+    currency = (expense.currency or "ARS").upper()
+    if currency == "ARS" or expense.fx_rate:
+        return None
+
+    rate_date = expense.date or date.today()
+    row = get_rate_for_date(db, rate_date)
+    if row is None and rate_date == date.today():
+        try:
+            row = save_rate(db, get_usd_rate("budget"))
+        except FxUnavailableError as exc:
+            logger.warning("USD expense created without an FX rate: %s", exc)
+            return None
+    if row is None:
+        logger.warning("No FX rate for %s on %s", currency, rate_date)
+        return None
+
+    expense.fx_rate = row.rate
+    expense.fx_rate_date = row.date
+    expense.fx_rate_source = row.source
+    return row

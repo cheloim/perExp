@@ -78,13 +78,16 @@ DROP_TABLES = (
 
 # Tablas que pueden no existir según la versión del esquema. Se declaran para
 # que la cobertura no falle cuando aparezcan, sin exigirlas.
-OPTIONAL_TABLES = ("alembic_version", "schema_migrations")
+OPTIONAL_TABLES = ("alembic_version", "schema_migrations", "fx_rates")
 
 # Columnas que una revisión de Alembic puede agregar a un dump previo. Si no
 # están, no se exigen; si están, tienen regla igual.
 OPTIONAL_COLUMNS = frozenset(
     {
         ("expenses", "is_recurring_projection"),
+        ("expenses", "fx_rate"),
+        ("expenses", "fx_rate_date"),
+        ("expenses", "fx_rate_source"),
         ("categorization_reviews", "bulk_applied"),
     }
 )
@@ -97,6 +100,7 @@ PROCESS_ORDER = (
     "tags",
     "card_closings",
     "expenses",
+    "fx_rates",
     "scheduled_expenses",
     "recurring_expenses",
     "merchant_preferences",
@@ -264,6 +268,9 @@ RULES: dict[str, dict[str, Rule]] = {
             "recurring_expense_id",
             "created_at",
             "is_recurring_projection",
+            "fx_rate",
+            "fx_rate_date",
+            "fx_rate_source",
         ),
         "description": Rule(
             "encrypted",
@@ -275,6 +282,15 @@ RULES: dict[str, dict[str, Rule]] = {
         "notes": _const(""),
         "transaction_id": Rule("synthetic_id", prefix="txn"),
     },
+    "fx_rates": _keep(
+        "id",
+        "date",
+        "source",
+        "base",
+        "quote",
+        "rate",
+        "fetched_at",
+    ),
     "group_members": _keep(
         "id", "group_id", "user_id", "role", "status", "invited_by", "joined_at"
     ),
