@@ -13,6 +13,8 @@ from app.database import SessionLocal, get_db
 from app.models import AnalysisHistory, Category, Expense, User
 from app.prompts import ANALYSIS_SYSTEM_PROMPT
 from app.schemas import AnalysisHistoryResponse, AnalysisRequest
+from app.services.access import scoped_user_ids_for
+from app.services.aggregation import spending_condition
 from app.services.auth import get_current_user
 from app.services.chat_context import to_llm_messages
 from app.services.llm import LLMMessage, get_client, is_configured
@@ -219,7 +221,8 @@ async def stream_analysis(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Expense).filter(Expense.user_id == current_user.id)
+    uid_list = scoped_user_ids_for(current_user.id, db)
+    q = db.query(Expense).filter(Expense.user_id.in_(uid_list), spending_condition())
     window_start: date | None = None
     exact_month: tuple[int, int] | None = None
     if req.month:

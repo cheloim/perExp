@@ -463,25 +463,26 @@ export default function Dashboard() {
     return result;
   }, [dashData?.by_category, categoryColorMap]);
 
-  // KPI calculations
-  const totalSpent = dashData?.total_amount ?? 0;
+  // KPI calculations. Never add ARS and USD: use the per-currency buckets and
+  // show the secondary currency separately.
+  const byCurrency = dashData?.by_currency ?? [];
+  const spendingArs = byCurrency.find((c) => c.currency === "ARS");
+  const spendingUsd = byCurrency.find((c) => c.currency === "USD");
+  const displaySpending = spendingArs?.total ?? spendingUsd?.total ?? 0;
+  const displayCurrency = spendingArs ? "ARS" : spendingUsd ? "USD" : "ARS";
   const totalPasivos = pasivosData?.total_pasivos ?? 0;
   const currentMonthLoad = monthlyLoad.find((m) => m.is_current);
   const cuotasComprometidas = currentMonthLoad?.total ?? 0;
 
-  // MoM comparison: total this month vs previous month.
-  // Issue #393: for the current month compare against the previous month cut
-  // at the same day (MTD) — full-vs-full would look artificially low mid-month.
+  // MoM comparison stays inside one currency. If the user only has USD,
+  // compare USD; otherwise compare ARS.
   const useMtd = dashData?.is_current_month === true;
+  const comparison = spendingArs ?? spendingUsd;
   const prevMonthTotal = useMtd
-    ? (dashData?.previous_mtd_total ??
-      (dashData?.by_category ?? []).reduce(
-        (s, c) => s + (c.previous_mtd_total ?? c.previous_total ?? 0),
-        0,
-      ))
-    : (dashData?.by_category ?? []).reduce((s, c) => s + (c.previous_total ?? 0), 0);
+    ? (comparison?.previous_mtd_total ?? comparison?.previous_total ?? 0)
+    : (comparison?.previous_total ?? 0);
   const momVariation =
-    prevMonthTotal > 0 ? ((totalSpent - prevMonthTotal) / prevMonthTotal) * 100 : 0;
+    prevMonthTotal > 0 ? ((displaySpending - prevMonthTotal) / prevMonthTotal) * 100 : 0;
 
   return (
     <div className="@container space-y-8">
@@ -553,7 +554,14 @@ export default function Dashboard() {
           onClick={() => navigate("/expenses")}
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
-          <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
+          <p className="text-lg font-bold text-primary">
+            {formatCurrency(displaySpending, displayCurrency)}
+          </p>
+          {spendingArs && spendingUsd ? (
+            <p className="text-xs text-secondary mt-0.5">
+              + {formatCurrency(spendingUsd.total, "USD")}
+            </p>
+          ) : null}
           <p className="text-xs text-tertiary mt-1">
             {dashData?.total_expenses ?? 0} transacciones
           </p>

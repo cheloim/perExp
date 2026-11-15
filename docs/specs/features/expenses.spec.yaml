@@ -309,19 +309,19 @@ endpoints:
 
   - method: GET
     path: /expenses/stats
-    description: "Expense statistics summary"
+    description: "Expense statistics summary (excludes income)"
 
   - method: GET
     path: /expenses/by-category
-    description: "Breakdown by category"
+    description: "Breakdown by category (excludes income)"
 
   - method: GET
     path: /expenses/by-person
-    description: "Breakdown by card holder"
+    description: "Breakdown by card holder (excludes income)"
 
   - method: GET
     path: /expenses/trend
-    description: "Monthly spending trend"
+    description: "Monthly spending trend (excludes income)"
 
 business_rules:
   - id: BR-EXP-01
