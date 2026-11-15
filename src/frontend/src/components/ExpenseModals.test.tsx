@@ -16,15 +16,17 @@ vi.mock("../api/client", () => ({
 
 const accepted = {
   status: "ok" as const,
-  draft: {
-    amount: 15200,
-    currency: "ARS" as const,
-    description: "Supermercado Coto",
-    date: "2026-10-29",
-    confidence: "high" as const,
-    source_type: "bank_notification",
-    card_hint: "Visa ****4521",
-  },
+  drafts: [
+    {
+      amount: 15200,
+      currency: "ARS" as const,
+      description: "Supermercado Coto",
+      date: "2026-10-29",
+      confidence: "high" as const,
+      source_type: "bank_notification",
+      card_hint: "Visa ****4521",
+    },
+  ],
   reason: null,
   message: "Detecté un total.",
 };
@@ -70,7 +72,7 @@ describe("ExpenseModal comprobante scan", () => {
   it("does not touch the form when the image is rejected", async () => {
     vi.mocked(extractExpenseFromImage).mockResolvedValue({
       status: "rejected",
-      draft: null,
+      drafts: [],
       reason: "multiple_transactions",
       message: "Detecté más de un movimiento.",
     });
@@ -105,7 +107,7 @@ describe("ExpenseModal comprobante scan", () => {
   it("shows low-confidence warning and only exposes scanning on create mode", async () => {
     vi.mocked(extractExpenseFromImage).mockResolvedValue({
       ...accepted,
-      draft: { ...accepted.draft, confidence: "medium" },
+      drafts: [{ ...accepted.drafts[0], confidence: "medium" }],
     });
     const { rerender } = renderExpenseModal({ mode: "installments-only" });
     expect(screen.queryByLabelText(/escanear comprobante/i)).not.toBeInTheDocument();
@@ -126,7 +128,7 @@ describe("ExpenseModal comprobante scan", () => {
   it("prefills the detected currency and releases the preview URL when removed", async () => {
     vi.mocked(extractExpenseFromImage).mockResolvedValue({
       ...accepted,
-      draft: { ...accepted.draft, currency: "USD" },
+      drafts: [{ ...accepted.drafts[0], currency: "USD" }],
     });
     const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL");
     renderExpenseModal();
@@ -236,7 +238,7 @@ describe("ExpenseModal comprobante scan", () => {
     });
     const newerDraft = {
       ...accepted,
-      draft: { ...accepted.draft, amount: 4500, description: "Café" },
+      drafts: [{ ...accepted.drafts[0], amount: 4500, description: "Café" }],
     };
 
     await act(async () => resolveSecond(newerDraft));
@@ -245,5 +247,253 @@ describe("ExpenseModal comprobante scan", () => {
 
     expect(screen.getByLabelText("Monto")).toHaveValue(4500);
     expect(screen.getByPlaceholderText("Ej: Supermercado Coto")).toHaveValue("Café");
+  });
+});
+
+describe("ExpenseModal cuotas y cola de revisión", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("explica que el monto total se divide al activar cuotas", () => {
+    renderExpenseModal();
+    fireEvent.change(screen.getByPlaceholderText("Ej: Supermercado Coto"), {
+      target: { value: "TV" },
+    });
+    fireEvent.change(screen.getByLabelText("Monto"), { target: { value: "120000" } });
+    fireEvent.click(screen.getByRole("button", { name: /más opciones/i }));
+    fireEvent.click(screen.getByLabelText("Compra en cuotas"));
+
+    expect(
+      screen.getByText("El monto total se divide en las cuotas indicadas."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/12 cuotas de/)).toBeInTheDocument();
+  });
+
+  it("explica cuando se registra una cuota en curso", () => {
+    renderExpenseModal();
+    fireEvent.change(screen.getByPlaceholderText("Ej: Supermercado Coto"), {
+      target: { value: "Netflix" },
+    });
+    fireEvent.change(screen.getByLabelText("Monto"), { target: { value: "15000" } });
+    fireEvent.click(screen.getByRole("button", { name: /más opciones/i }));
+    fireEvent.click(screen.getByLabelText("Compra en cuotas"));
+    fireEvent.change(screen.getByLabelText("Cuota N°"), { target: { value: "3" } });
+
+    expect(
+      screen.getByText("Estás registrando la cuota 3 de 12; se programan las restantes."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/se programan 9 cuotas/)).toBeInTheDocument();
+  });
+
+  it("envía el modo total cuando la cuota actual es 1", async () => {
+    const onSave = vi.fn();
+    renderExpenseModal({ onSave });
+    fireEvent.change(screen.getByPlaceholderText("Ej: Supermercado Coto"), {
+      target: { value: "TV" },
+    });
+    fireEvent.change(screen.getByLabelText("Monto"), { target: { value: "120000" } });
+    fireEvent.click(screen.getByRole("button", { name: /más opciones/i }));
+    fireEvent.click(screen.getByLabelText("Compra en cuotas"));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      amount: 120000,
+      installment_mode: "total",
+      installment_total: 12,
+      installment_number: 1,
+    });
+  });
+
+  it("envía el modo current cuando la cuota actual es mayor a 1", async () => {
+    const onSave = vi.fn();
+    renderExpenseModal({ onSave });
+    fireEvent.change(screen.getByPlaceholderText("Ej: Supermercado Coto"), {
+      target: { value: "Netflix" },
+    });
+    fireEvent.change(screen.getByLabelText("Monto"), { target: { value: "15000" } });
+    fireEvent.click(screen.getByRole("button", { name: /más opciones/i }));
+    fireEvent.click(screen.getByLabelText("Compra en cuotas"));
+    fireEvent.change(screen.getByLabelText("Cuota N°"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      amount: 15000,
+      installment_mode: "current",
+      installment_total: 12,
+      installment_number: 3,
+    });
+  });
+
+  it("revisa dos gastos con Guardar y siguiente", async () => {
+    vi.mocked(extractExpenseFromImage).mockResolvedValue({
+      status: "ok",
+      drafts: [
+        {
+          amount: 1500,
+          currency: "ARS",
+          description: "Café",
+          date: "2026-10-29",
+          confidence: "high",
+          source_type: "statement",
+          card_hint: null,
+        },
+        {
+          amount: 2500,
+          currency: "ARS",
+          description: "Farmacia",
+          date: "2026-10-29",
+          confidence: "high",
+          source_type: "statement",
+          card_hint: null,
+        },
+      ],
+      reason: null,
+      message: "Detecté 2 gastos.",
+    });
+    const onSave = vi.fn();
+    renderExpenseModal({ onSave });
+    fireEvent.change(screen.getByLabelText(/escanear comprobante/i), {
+      target: { files: [new File(["image"], "resumen.png", { type: "image/png" })] },
+    });
+
+    expect(await screen.findByText(/Detecté 2 gastos/)).toBeInTheDocument();
+    expect(screen.getByText("Gasto 1 de 2")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar y siguiente" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(2500));
+    expect(screen.getByDisplayValue("Farmacia")).toBeInTheDocument();
+    expect(screen.getByText("Gasto 2 de 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(screen.getByText("✅ 2 gastos guardados")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cerrar" })).toBeInTheDocument();
+  });
+
+  it("omite un gasto y lo informa en el resumen", async () => {
+    vi.mocked(extractExpenseFromImage).mockResolvedValue({
+      status: "ok",
+      drafts: [
+        {
+          amount: 1500,
+          currency: "ARS",
+          description: "Café",
+          date: "2026-10-29",
+          confidence: "high",
+          source_type: "statement",
+          card_hint: null,
+        },
+        {
+          amount: 2500,
+          currency: "ARS",
+          description: "Farmacia",
+          date: "2026-10-29",
+          confidence: "high",
+          source_type: "statement",
+          card_hint: null,
+        },
+      ],
+      reason: null,
+      message: "Detecté 2 gastos.",
+    });
+    const onSave = vi.fn();
+    renderExpenseModal({ onSave });
+    fireEvent.change(screen.getByLabelText(/escanear comprobante/i), {
+      target: { files: [new File(["image"], "resumen.png", { type: "image/png" })] },
+    });
+
+    await screen.findByText(/Detecté 2 gastos/);
+    fireEvent.click(screen.getByRole("button", { name: "Omitir" }));
+    expect(onSave).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(2500));
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(screen.getByText("✅ 1 gasto guardado · 1 omitido")).toBeInTheDocument();
+  });
+
+  it("precarga una cuota en curso desde la imagen sin dividir", async () => {
+    vi.mocked(extractExpenseFromImage).mockResolvedValue({
+      status: "ok",
+      drafts: [
+        {
+          amount: 15000,
+          currency: "ARS",
+          description: "Netflix",
+          date: "2026-10-29",
+          confidence: "high",
+          source_type: "statement",
+          card_hint: null,
+          installment_number: 3,
+          installment_total: 12,
+          amount_kind: "installment",
+        },
+      ],
+      reason: null,
+      message: "Detecté un gasto.",
+    });
+    const onSave = vi.fn();
+    renderExpenseModal({ onSave });
+    fireEvent.change(screen.getByLabelText(/escanear comprobante/i), {
+      target: { files: [new File(["image"], "resumen.png", { type: "image/png" })] },
+    });
+
+    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(15000));
+    expect(screen.getByLabelText("Cuota N°")).toHaveValue(3);
+    expect(screen.getByLabelText("Total cuotas")).toHaveValue(12);
+    expect(
+      screen.getByText("Estás registrando la cuota 3 de 12; se programan las restantes."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      amount: 15000,
+      installment_mode: "current",
+      installment_number: 3,
+      installment_total: 12,
+    });
+  });
+
+  it("precarga una compra con total desde la imagen y la divide", async () => {
+    vi.mocked(extractExpenseFromImage).mockResolvedValue({
+      status: "ok",
+      drafts: [
+        {
+          amount: 24000,
+          currency: "ARS",
+          description: "Fravega",
+          date: "2026-10-29",
+          confidence: "high",
+          source_type: "bank_notification",
+          card_hint: null,
+          installment_number: 1,
+          installment_total: 6,
+          amount_kind: "total",
+        },
+      ],
+      reason: null,
+      message: "Detecté un gasto.",
+    });
+    const onSave = vi.fn();
+    renderExpenseModal({ onSave });
+    fireEvent.change(screen.getByLabelText(/escanear comprobante/i), {
+      target: { files: [new File(["image"], "resumen.png", { type: "image/png" })] },
+    });
+
+    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(24000));
+    expect(screen.getByText(/6 cuotas de/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      amount: 24000,
+      installment_mode: "total",
+      installment_number: 1,
+      installment_total: 6,
+    });
   });
 });

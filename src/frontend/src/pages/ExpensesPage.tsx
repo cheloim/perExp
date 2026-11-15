@@ -296,8 +296,10 @@ export default function ExpensesPage() {
     mutationFn: createExpense,
     onSuccess: () => {
       invalidate();
-      setEditing(undefined);
       setSaveError(null);
+      queryClient.invalidateQueries({ queryKey: ["installments"] });
+      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-expenses"] });
     },
     onError: (e: Error) => setSaveError(e.message),
   });
@@ -307,8 +309,10 @@ export default function ExpensesPage() {
       updateExpense(id, data),
     onSuccess: () => {
       invalidate();
-      setEditing(undefined);
       setSaveError(null);
+      queryClient.invalidateQueries({ queryKey: ["installments"] });
+      queryClient.invalidateQueries({ queryKey: ["installments-monthly-load"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-expenses"] });
     },
     onError: (e: Error) => setSaveError(e.message),
   });
@@ -457,12 +461,12 @@ export default function ExpensesPage() {
     );
   };
 
-  const handleSave = (data: ExpenseCreate) => {
+  const handleSave = async (data: ExpenseCreate) => {
     setSaveError(null);
     if (editing && editing.id) {
-      updateMut.mutate({ id: editing.id, data });
+      await updateMut.mutateAsync({ id: editing.id, data });
     } else {
-      createMut.mutate(data);
+      await createMut.mutateAsync(data);
     }
   };
 

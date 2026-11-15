@@ -361,6 +361,7 @@ export interface ExpenseCreate {
   installment_number?: number | null;
   installment_total?: number | null;
   installment_group_id?: string | null;
+  installment_mode?: "none" | "total" | "current";
   account_id?: number | null;
   card_id?: number | null;
   tag_ids?: number[];
@@ -380,11 +381,14 @@ export interface ExpenseImageDraft {
   confidence: "high" | "medium" | "low";
   source_type: string;
   card_hint: string | null;
+  installment_number?: number | null;
+  installment_total?: number | null;
+  amount_kind?: "none" | "total" | "installment";
 }
 
 export interface ExpenseImageResponse {
   status: "ok" | "rejected";
-  draft: ExpenseImageDraft | null;
+  drafts: ExpenseImageDraft[];
   reason: string | null;
   message: string;
 }
