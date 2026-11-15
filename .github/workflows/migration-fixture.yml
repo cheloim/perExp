@@ -86,8 +86,23 @@ jobs:
         env:
           PGPASSWORD: fixture
         run: |
+          set -euo pipefail
+          # pg_restore 17+ emite `SET transaction_timeout = 0`, que PostgreSQL 16
+          # no conoce. Es un warning del cliente, no un fallo del restore.
+          log=$(mktemp)
           pg_restore -h localhost -p 5432 -U fixture -d fixture_anon \
-            --no-owner --no-privileges /tmp/db_anonymized.dump
+            --no-owner --no-privileges /tmp/db_anonymized.dump 2>"$log" || true
+          if grep 'pg_restore: error:' "$log" | grep -v 'transaction_timeout' | grep -q .; then
+            cat "$log" >&2
+            exit 1
+          fi
+          # Validación por efecto: si el restore quedó a medias, esto falla.
+          tables=$(psql -h localhost -p 5432 -U fixture -d fixture_anon -Atc \
+            "select count(*) from information_schema.tables where table_schema='public'")
+          users=$(psql -h localhost -p 5432 -U fixture -d fixture_anon -Atc "select count(*) from users")
+          echo "Restored $tables tables, $users users"
+          test "$tables" -ge 20
+          test "$users" -ge 1
 
       - name: Apply migrations on prod-shaped data
         working-directory: src/backend
