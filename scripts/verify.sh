@@ -6,6 +6,7 @@ set -e
 # This script runs all static checks and unit tests for frontend and backend,
 # each exactly once. Run it before opening a PR.
 # For the fast pre-commit loop use ./scripts/lint.sh (static only).
+# E2E (Playwright) is not included: CI runs it in its own job.
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -55,7 +56,7 @@ run_check "Ruff Lint" "ruff check app/ tests/" "$PROJECT_ROOT/src/backend"
 run_check "Ruff Format" "ruff format --check app/ tests/" "$PROJECT_ROOT/src/backend"
 run_check "MyPy" "mypy app/" "$PROJECT_ROOT/src/backend"
 run_check "Unit Tests + Coverage" \
-    "SECRET_KEY='test-secret-key-that-is-at-least-32-chars-long-for-testing' python -m pytest tests/ -q --cov=app --cov-report=json:coverage.json --cov-report=term:skip-covered && python scripts/coverage_gate.py coverage.json" \
+    "SECRET_KEY='test-secret-key-that-is-at-least-32-chars-long-for-testing' python -m pytest tests/ -x -q --cov=app --cov-report=json:coverage.json --cov-report=term:skip-covered && python scripts/coverage_gate.py coverage.json" \
     "$PROJECT_ROOT/src/backend"
 
 if [ "$failed" -eq 0 ]; then

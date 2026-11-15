@@ -4,41 +4,15 @@ Each test is linked to the commit/issue that introduced the bug to prevent reocc
 """
 
 
-# ── Schema completeness (prevents missing exports) ────────────
+# ── Schema imports (prevents missing exports) ─────────────────
 
 
-class TestSchemaCompleteness:
-    """Verify all routers are registered and schemas are exported.
+class TestSchemaImports:
+    """Regression: commit b19ce45 — TelegramOidcRequest not exported from schemas.
 
-    Regression: commit b19ce45 — TelegramOidcRequest not exported from schemas.
+    Router registration itself is covered by ``test_contracts.py``; this only
+    checks that the schemas module still imports cleanly.
     """
-
-    def test_all_routers_registered_in_main(self):
-        """Every router module must be included in main.py's app."""
-        import os
-
-        main_path = os.path.join(os.path.dirname(__file__), "..", "main.py")
-        with open(main_path) as f:
-            content = f.read()
-
-        # Find all include_router calls
-        registered = set()
-        for line in content.split("\n"):
-            if "include_router" in line and "." in line:
-                # Extract module name: app.include_router(X.router)
-                parts = line.strip().split("include_router(")
-                if len(parts) > 1:
-                    module = parts[1].split(".")[0].strip()
-                    registered.add(module)
-
-        # Find all router modules
-        routers_dir = os.path.join(os.path.dirname(__file__), "..", "app", "routers")
-        router_files = {
-            f[:-3] for f in os.listdir(routers_dir) if f.endswith(".py") and f != "__init__.py"
-        }
-
-        missing = router_files - registered
-        assert not missing, f"Routers not registered in main.py: {missing}"
 
     def test_schemas_module_importable(self):
         """The schemas module should import without errors."""
