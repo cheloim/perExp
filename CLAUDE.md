@@ -91,3 +91,10 @@ por archivos (disjuntos → paralelo; solapados → ramas separadas más rama de
 dependientes → en orden), un agente = un worktree + una rama, declarar en el brief el
 estado global compartido (Postgres de tests, `node_modules`, containers), y correr la
 verificación completa una sola vez sobre la integración.
+
+## Deploy y releases
+
+El deploy sale de un **GitHub Release publicado**, no de un merge a `main`. Versionado
+`vMAJOR.MINOR.PATCH` (PATCH = evoluciones mínimas; MINOR = UI/UX importante). Las
+migraciones son revisiones de Alembic y se aplican en el release antes de recrear la app.
+Reglas completas en `AGENTS.md` §10 y `docs/Deployment.md`.
