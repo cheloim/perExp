@@ -54,8 +54,8 @@ echo "=== Backend ==="
 run_check "Ruff Lint" "ruff check app/ tests/" "$PROJECT_ROOT/src/backend"
 run_check "Ruff Format" "ruff format --check app/ tests/" "$PROJECT_ROOT/src/backend"
 run_check "MyPy" "mypy app/" "$PROJECT_ROOT/src/backend"
-run_check "Unit Tests" \
-    "SECRET_KEY='test-secret-key-that-is-at-least-32-chars-long-for-testing' python -m pytest tests/ -q" \
+run_check "Unit Tests + Coverage" \
+    "SECRET_KEY='test-secret-key-that-is-at-least-32-chars-long-for-testing' python -m pytest tests/ -q --cov=app --cov-report=json:coverage.json --cov-report=term:skip-covered && python scripts/coverage_gate.py coverage.json" \
     "$PROJECT_ROOT/src/backend"
 
 if [ "$failed" -eq 0 ]; then
