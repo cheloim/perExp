@@ -25,6 +25,10 @@ mkdir -p secrets/dev/backend secrets/dev/frontend
 podman-compose up -d
 ```
 
+Para correr la suite usá `./scripts/verify.sh`: construye `TEST_DATABASE_URL` desde
+`POSTGRES_PASSWORD_DEV` (el `.env` es local y no se commitea). Si corrés `pytest` a mano,
+exportá `TEST_DATABASE_URL` apuntando a una base descartable.
+
 `setup-secrets.sh` espera exactamente estos archivos:
 
 ```
@@ -46,6 +50,7 @@ secrets/<env>/frontend/GOOGLE_CLIENT_ID
 | Variable | Default | Obligatoria | Para qué |
 |---|---|---|---|
 | `DATABASE_URL` | `postgresql://expenses_user:changeme@localhost:5432/expenses` | prod: sí | Conexión SQLAlchemy. En Compose se construye desde `POSTGRES_PASSWORD`. |
+| `TEST_DATABASE_URL` | — | tests: sí | Base descartable para `pytest`. Nunca se commitea. CI la provee; `scripts/verify.sh` la construye desde `POSTGRES_PASSWORD_DEV` del `.env` local. |
 | `SECRET_KEY` | — | **sí** | Clave de cifrado de campos y fallback de firma JWT. Mínimo 32 caracteres. Cambiarla **inutiliza los datos cifrados** (ver `Key-Management.md`). |
 | `JWT_SECRET` | `SECRET_KEY` | no | Clave de firma separada. Permite rotar la firma sin tocar el cifrado. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | no | Vigencia del access token JWT (corto, renovado en silencio). |
