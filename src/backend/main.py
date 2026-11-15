@@ -29,7 +29,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401 — runs migrations on import
-from app.database import Base, SessionLocal, engine
+from app.database import SessionLocal
 from app.metrics import install_metrics
 from app.models import Category, User
 from app.routers import (
@@ -64,8 +64,9 @@ from app.services.auth import get_password_hash
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    # Create tables if they don't exist
-    Base.metadata.create_all(bind=engine)
+    # El esquema lo maneja Alembic (`alembic upgrade head`), no el arranque de
+    # la app: create_all no altera columnas existentes y hace DDL en cada boot.
+    # En dev lo corre docker-entrypoint.sh con RUN_MIGRATIONS_ON_START=1.
 
     # Validate SECRET_KEY length
     secret_key = os.getenv("SECRET_KEY", "")

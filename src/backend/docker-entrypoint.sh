@@ -35,9 +35,13 @@ load_secret "WHATSAPP_TOKEN" "creditcard_backend_whatsapp_token" "creditcard_bac
 load_secret "WHATSAPP_PHONE_ID" "creditcard_backend_whatsapp_phone_id" "creditcard_backend_dev_whatsapp_phone_id"
 load_secret "WHATSAPP_VERIFY_TOKEN" "creditcard_backend_whatsapp_verify_token" "creditcard_backend_dev_whatsapp_verify_token"
 
-# Create database indices if needed (idempotent - safe to run multiple times)
-echo "Checking database indices..."
-python -m app.add_indices 2>/dev/null || echo "Warning: Could not create indices, continuing..."
+# Aplica migraciones de Alembic sólo cuando se pide explícitamente. En prod las
+# corre el job `migrate` del release, una sola vez, antes de recrear la app; en
+# dev lo pide el compose para no depender de create_all.
+if [ "${RUN_MIGRATIONS_ON_START:-0}" = "1" ] && [ "$1" = "uvicorn" ]; then
+    echo "Applying migrations..."
+    alembic upgrade head
+fi
 
 # Skip Telegram bot for celery workers (avoid duplicate polling)
 if [ "$1" = "celery" ]; then

@@ -31,6 +31,8 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 FROM base AS prod
 COPY app/ ./app/
 COPY scripts/ ./scripts/
+COPY alembic.ini .
+COPY alembic/ ./alembic/
 COPY main.py .
 COPY bot_entrypoint.py .
 EXPOSE 8000

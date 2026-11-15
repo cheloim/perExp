@@ -69,10 +69,13 @@ services:
       SMTP_FROM: ${SMTP_FROM:-NikoFin}
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@resend.dev}
       TZ: America/Argentina/Buenos_Aires
+      RUN_MIGRATIONS_ON_START: "1"
     volumes:
       - ./src/backend/app:/app/app:z
       - ./src/backend/main.py:/app/main.py:z
       - ./src/backend/scripts:/app/scripts:z
+      - ./src/backend/alembic:/app/alembic:z
+      - ./src/backend/alembic.ini:/app/alembic.ini:z
       # Destination for scripts/export_openapi.py, which cannot discover the
       # repo root from inside the container.
       - ./docs/specs:/app/docs/specs:z

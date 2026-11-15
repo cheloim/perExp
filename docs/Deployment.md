@@ -60,7 +60,8 @@ podman-compose restart backend_dev
 podman-compose build backend_dev && podman-compose up -d backend_dev
 
 # Run migrations
-# El esquema se crea al arrancar (create_all). Para migraciones formales ver docs/Migrations.md
+# El esquema lo versiona Alembic. En dev lo aplica el entrypoint al arrancar
+# (RUN_MIGRATIONS_ON_START=1); manualmente:
 podman-compose exec backend_dev alembic upgrade head
 
 # Access database
@@ -90,14 +91,36 @@ podman-compose exec db psql -U postgres -d creditcard
 
 ### CI/CD Pipeline
 
-Push to `main` branch triggers automatic deployment via GitHub Actions:
+Un **GitHub Release publicado** dispara el deploy (`deploy.yml`). Mergear a
+`main` no deploya: `main` puede avanzar y producción se mueve cuando se corta
+un release (`vMAJOR.MINOR.PATCH`).
 
-1. Build Docker images → push to GHCR
-2. SSH into server
-3. Pull latest images
-4. Run migrations
-5. Restart services
-6. Verify health
+1. `detect-changes` compara el release contra el release anterior.
+2. Build de imágenes → GHCR, tag = versión del release.
+3. Backup verificable de la base.
+4. `alembic upgrade head` con la imagen nueva, antes de tocar la app.
+5. SSH al server, pull y recreación de los servicios.
+6. Health check y regeneración del fixture anonimizado.
+
+Si la migración falla, la app no se recrea y queda la versión anterior. Si falla
+la app después de migrar, `deploy-platform` revierte la imagen a la versión
+anterior (ver `rollback.md`). Las migraciones deben ser expand/contract para que
+ese rollback sea seguro.
+
+### Versionado de releases
+
+`vMAJOR.MINOR.PATCH`:
+
+| Dígito | Cuándo sube |
+|---|---|
+| **PATCH** (3ro) | Evoluciones mínimas: fixes, backend, infra, migraciones, deploy. Sin impacto real de UI/UX. |
+| **MINOR** (2do) | Cambios importantes de UI/UX: pantallas nuevas, flujos, rediseños. |
+| **MAJOR** (1ro) | Cambios incompatibles o de plataforma. |
+
+El tag del release es el identificador de deploy (`IMAGE_TAG`) y no cambia la
+versión de producto que ve el usuario en Novedades (`src/frontend/src/data/changes.ts`,
+`LATEST_VERSION`). Ejemplo: el primer release es `v1.6.1` y la app sigue mostrando
+`v1.6`.
 
 ### Operación: housekeeping, logs y backups
 
