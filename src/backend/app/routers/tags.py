@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import ExpenseTag, Tag, User
-from app.routers.groups import get_group_user_ids
 from app.schemas.tags import TagCreate, TagResponse, TagUpdate
+from app.services.access import scoped_user_ids_for
 from app.services.auth import get_current_user
 from app.services.encryption import compute_hmac
 
@@ -35,7 +35,7 @@ def _tag_with_count(tag: Tag, count: int) -> dict:
     description="Returns all tags for the user's family group with expense counts.",
 )
 def get_tags(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     tags = db.query(Tag).filter(Tag.user_id.in_(uid_list)).order_by(Tag.group_name, Tag.name).all()
     tag_ids = [t.id for t in tags]
     counts: dict[int, int] = {}

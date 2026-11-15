@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Category, Expense, ScheduledExpense, User
-from app.routers.groups import get_group_user_ids
+from app.services.access import scoped_user_ids_for
 from app.services.auth import get_current_user
 from app.services.date_utils import add_months
 
@@ -23,7 +23,7 @@ def get_scheduled_expenses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     q = db.query(ScheduledExpense).filter(ScheduledExpense.user_id.in_(uid_list))
 
     if status:
@@ -124,7 +124,7 @@ def execute_scheduled_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     scheduled = (
         db.query(ScheduledExpense)
         .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))
@@ -182,7 +182,7 @@ def update_scheduled_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     scheduled = (
         db.query(ScheduledExpense)
         .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))
@@ -225,7 +225,7 @@ def cancel_scheduled_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
+    uid_list = scoped_user_ids_for(current_user.id, db)
     scheduled = (
         db.query(ScheduledExpense)
         .filter(ScheduledExpense.id == id, ScheduledExpense.user_id.in_(uid_list))

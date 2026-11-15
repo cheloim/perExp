@@ -23,7 +23,7 @@ AREAS: tuple[tuple[str, tuple[str, ...], float, float], ...] = (
             "app/services/oidc_state.py",
             "app/routers/auth.py",
         ),
-        49.0,
+        50.0,
         90.0,
     ),
     (
@@ -34,7 +34,7 @@ AREAS: tuple[tuple[str, tuple[str, ...], float, float], ...] = (
             "app/routers/import_jobs.py",
             "app/tasks/import_processor.py",
         ),
-        23.0,
+        26.0,
         80.0,
     ),
     (
@@ -46,7 +46,7 @@ AREAS: tuple[tuple[str, tuple[str, ...], float, float], ...] = (
         11.0,
         60.0,
     ),
-    ("total", ("app/",), 45.0, 60.0),
+    ("total", ("app/",), 48.0, 60.0),
 )
 
 

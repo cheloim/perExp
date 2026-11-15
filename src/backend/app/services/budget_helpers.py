@@ -91,16 +91,10 @@ def highest_new_alert_level(
 
 
 def get_group_user_ids(user_id: int, db: Session) -> list[int]:
-    """Get all user IDs in the same family group."""
-    from app.models import GroupMember
+    """Canonical scope: self + accepted members of the accepted group."""
+    from app.services.access import scoped_user_ids_for
 
-    member = db.query(GroupMember).filter(GroupMember.user_id == user_id).first()
-    if not member:
-        return [user_id]
-    return [
-        int(m.user_id)
-        for m in db.query(GroupMember).filter(GroupMember.group_id == member.group_id).all()
-    ]
+    return scoped_user_ids_for(user_id, db)
 
 
 def get_spending_for_category(
