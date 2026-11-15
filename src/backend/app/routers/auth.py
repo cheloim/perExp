@@ -531,12 +531,26 @@ async def oauth_callback(
 
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo")
+    if user.is_blocked:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cuenta bloqueada")
 
     refresh_token = google_data.get("refresh_token")
     if refresh_token:
         user.google_refresh_token = refresh_token
         user.google_refresh_token_hmac = compute_hmac(refresh_token)
         db.commit()
+
+    # Google proves the identity, not the second factor or a pending password
+    # change. Return a scoped partial token instead of a full session.
+    if user.mfa_enabled:
+        partial = create_access_token(user.id, expires_minutes=5, scope="mfa")
+        _log_audit(db, user.id, "oauth_login_mfa_required", request, details=body.provider)
+        return Token(access_token=partial, token_type="bearer", mfa_required=True)
+
+    if user.force_password_change:
+        partial = create_access_token(user.id, expires_minutes=5, scope="password_change")
+        _log_audit(db, user.id, "oauth_login_force_password_change", request, details=body.provider)
+        return Token(access_token=partial, token_type="bearer", force_password_change=True)
 
     _log_audit(db, user.id, "oauth_login", request, details=f"{body.provider}_callback")
     _record_login(db, user)

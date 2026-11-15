@@ -3,6 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { oauthCallback, storeToken } from "../api/client";
 import { APP_NAME } from "../config";
 
+const MFA_TOKEN_KEY = "oauth_mfa_token";
+const FORCE_PASSWORD_TOKEN_KEY = "oauth_force_password_token";
+
 export default function OAuthCallbackPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -28,16 +31,16 @@ export default function OAuthCallbackPage() {
     const handleCallback = async () => {
       try {
         const token = await oauthCallback("google", code);
+        // Google proves identity, not the second factor or a pending password
+        // change. Keep the partial token out of the auth slot and out of the URL.
         if (token.force_password_change) {
-          storeToken(token.access_token);
+          sessionStorage.setItem(FORCE_PASSWORD_TOKEN_KEY, token.access_token);
           navigate("/login?force_change=1", { replace: true });
           return;
         }
         if (token.mfa_required) {
-          navigate("/login?mfa=1", {
-            replace: true,
-            state: { token: token.access_token },
-          });
+          sessionStorage.setItem(MFA_TOKEN_KEY, token.access_token);
+          navigate("/login?mfa=required", { replace: true });
           return;
         }
         storeToken(token.access_token);

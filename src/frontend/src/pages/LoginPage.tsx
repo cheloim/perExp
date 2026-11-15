@@ -4,7 +4,6 @@ import {
   createTelegramOidcState,
   forgotPassword,
   forceChangePassword,
-  getStoredToken,
   login,
   loginMfa,
   register,
@@ -13,6 +12,8 @@ import {
 import { APP_NAME } from "../config";
 
 const SPECIAL_CHARS = /[!@#$%^&*()\-_+=<>?/[\]{}|]/;
+const MFA_TOKEN_KEY = "oauth_mfa_token";
+const FORCE_PASSWORD_TOKEN_KEY = "oauth_force_password_token";
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const BLOCKED_DOMAINS = new Set([
@@ -86,13 +87,23 @@ export default function LoginPage() {
     navigate("/");
   };
 
-  // Check for ?mfa=required from OAuth callback
+  // OAuth callback contract: the partial token is in sessionStorage, never
+  // in the URL and never in the full-session auth slot.
   useEffect(() => {
     if (searchParams.get("mfa") === "required") {
-      const savedToken = getStoredToken();
-      if (savedToken) {
-        setMfaToken(savedToken);
+      const partial = sessionStorage.getItem(MFA_TOKEN_KEY);
+      if (partial) {
+        sessionStorage.removeItem(MFA_TOKEN_KEY);
+        setMfaToken(partial);
         setMode("mfa");
+      }
+    }
+    if (searchParams.get("force_change") === "1") {
+      const partial = sessionStorage.getItem(FORCE_PASSWORD_TOKEN_KEY);
+      if (partial) {
+        sessionStorage.removeItem(FORCE_PASSWORD_TOKEN_KEY);
+        setForceToken(partial);
+        setMode("force-change");
       }
     }
   }, [searchParams]);
