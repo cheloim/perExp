@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import OAuthCallbackPage from "./OAuthCallbackPage";
+import { clearPartialAuthToken, takePartialAuthToken } from "../auth/partialToken";
 import { oauthCallback, storeToken } from "../api/client";
 import type { AuthToken } from "../types";
 
@@ -36,18 +37,19 @@ function token(overrides: Partial<AuthToken>): AuthToken {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearPartialAuthToken();
   sessionStorage.clear();
   localStorage.clear();
 });
 
 describe("OAuthCallbackPage", () => {
-  it("deja el token parcial de MFA en sessionStorage y navega a /login", async () => {
+  it("deja el token parcial de MFA en memoria y navega a /login", async () => {
     mockedOAuth.mockResolvedValue(token({ mfa_required: true, access_token: "partial-mfa" }));
 
     renderAt("/oauth/callback?code=google-code");
 
     expect(await screen.findByText(/LOGIN.*mfa=required/)).toBeInTheDocument();
-    expect(sessionStorage.getItem("oauth_mfa_token")).toBe("partial-mfa");
+    expect(takePartialAuthToken("mfa")).toBe("partial-mfa");
     expect(mockedStore).not.toHaveBeenCalled();
   });
 
@@ -59,7 +61,7 @@ describe("OAuthCallbackPage", () => {
     renderAt("/oauth/callback?code=google-code");
 
     expect(await screen.findByText(/LOGIN.*force_change=1/)).toBeInTheDocument();
-    expect(sessionStorage.getItem("oauth_force_password_token")).toBe("partial-force");
+    expect(takePartialAuthToken("password_change")).toBe("partial-force");
     expect(mockedStore).not.toHaveBeenCalled();
   });
 
@@ -70,6 +72,6 @@ describe("OAuthCallbackPage", () => {
 
     expect(await screen.findByText("HOME")).toBeInTheDocument();
     expect(mockedStore).toHaveBeenCalledWith("full-token");
-    expect(sessionStorage.getItem("oauth_mfa_token")).toBeNull();
+    expect(takePartialAuthToken("mfa")).toBeNull();
   });
 });
