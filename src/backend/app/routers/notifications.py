@@ -1,6 +1,6 @@
 import asyncio
-import contextlib
 import json
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from jwt import PyJWTError as JWTError
 from pydantic import BaseModel
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
@@ -64,6 +63,10 @@ def _validate_token(token: str, db: Session) -> User:
                 raise
         user_id: str = payload.get("sub")
         if user_id is None:
+            raise credentials_exc
+        # The SSE endpoint validates tokens itself; keep the same rule as
+        # get_current_user so a partial MFA token cannot open the stream.
+        if payload.get("scope", "access") != "access":
             raise credentials_exc
     except JWTError:
         raise credentials_exc
@@ -359,7 +362,7 @@ def delete_notification(
 @router.get(
     "/stream",
     summary="Real-time notification stream",
-    description="SSE endpoint that streams new notifications in real-time via long-polling with keepalive pings.",
+    description="SSE endpoint that streams new notifications in real-time. Each poll opens and closes its own DB session so an idle client never holds a pool connection.",
 )
 async def notifications_stream(request: Request):
     # Accept token from Authorization header or query param (for backward compat)
@@ -375,7 +378,8 @@ async def notifications_stream(request: Request):
             media_type="text/event-stream",
         )
 
-    # Validate token with a temporary session
+    # Validate the token with a short-lived session, then close it before
+    # starting the stream.
     temp_db = SessionLocal()
     try:
         user = _validate_token(token, temp_db)
@@ -388,105 +392,8 @@ async def notifications_stream(request: Request):
             media_type="text/event-stream",
         )
 
-    async def generate():
-        PING_INTERVAL = 30
-        poll_interval = 0.5
-        last_check = datetime.utcnow()
-        last_ping = datetime.utcnow()
-        default_page_size = 50
-
-        db = SessionLocal()
-        try:
-            initial_notifs = (
-                db.query(Notification)
-                .filter(Notification.user_id == user.id)
-                .order_by(Notification.created_at.desc())
-                .limit(default_page_size)
-                .all()
-            )
-            unread_count = (
-                db.query(Notification)
-                .filter(Notification.user_id == user.id, Notification.read == False)
-                .count()
-            )
-            pending_count = (
-                db.query(Notification)
-                .filter(
-                    Notification.user_id == user.id,
-                    Notification.type == "group_invitation",
-                    Notification.read == False,
-                )
-                .count()
-            )
-
-            initial_payload = {
-                "type": "initial",
-                "notifications": [_to_response(n).model_dump() for n in initial_notifs],
-                "unread_count": unread_count,
-                "pending_count": pending_count,
-            }
-            yield f"data: {json.dumps(initial_payload)}\n\n"
-
-            while True:
-                if await request.is_disconnected():
-                    break
-
-                # Reconnect if connection was lost
-                try:
-                    db.execute(text("SELECT 1"))
-                except Exception:
-                    with contextlib.suppress(Exception):
-                        db.close()
-                    db = SessionLocal()
-
-                try:
-                    new_notifs = (
-                        db.query(Notification)
-                        .filter(
-                            Notification.user_id == user.id,
-                            Notification.created_at > last_check,
-                        )
-                        .order_by(Notification.created_at.asc())
-                        .all()
-                    )
-
-                    if new_notifs:
-                        for n in new_notifs:
-                            yield f"data: {json.dumps({'type': 'notification', 'notification': _to_response(n).model_dump()})}\n\n"
-
-                        unread_count = (
-                            db.query(Notification)
-                            .filter(Notification.user_id == user.id, Notification.read == False)
-                            .count()
-                        )
-                        pending_count = (
-                            db.query(Notification)
-                            .filter(
-                                Notification.user_id == user.id,
-                                Notification.type == "group_invitation",
-                                Notification.read == False,
-                            )
-                            .count()
-                        )
-                        yield f"data: {json.dumps({'type': 'counts_update', 'unread_count': unread_count, 'pending_count': pending_count})}\n\n"
-                        last_check = datetime.utcnow()
-                except Exception:
-                    # Reconnect on error
-                    with contextlib.suppress(Exception):
-                        db.close()
-                    db = SessionLocal()
-
-                now = datetime.utcnow()
-                if (now - last_ping).total_seconds() >= PING_INTERVAL:
-                    yield f"data: {json.dumps({'type': 'ping'})}\n\n"
-                    last_ping = now
-
-                await asyncio.sleep(poll_interval)
-        finally:
-            db.close()
-
     return StreamingResponse(
-        generate(),
+        _notification_events(user, request),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -494,6 +401,121 @@ async def notifications_stream(request: Request):
             "Connection": "keep-alive",
         },
     )
+
+
+def _load_initial_notifications(
+    user_id: int, session_factory: Callable[[], Session] = SessionLocal
+) -> dict[str, Any]:
+    """Initial page for a new stream. Opens and closes its own session."""
+    db = session_factory()
+    try:
+        initial_notifs = (
+            db.query(Notification)
+            .filter(Notification.user_id == user_id)
+            .order_by(Notification.created_at.desc())
+            .limit(50)
+            .all()
+        )
+        unread_count = (
+            db.query(Notification)
+            .filter(Notification.user_id == user_id, Notification.read == False)  # noqa: E712
+            .count()
+        )
+        pending_count = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user_id,
+                Notification.type == "group_invitation",
+                Notification.read == False,  # noqa: E712
+            )
+            .count()
+        )
+        return {
+            "type": "initial",
+            "notifications": [_to_response(n).model_dump() for n in initial_notifs],
+            "unread_count": unread_count,
+            "pending_count": pending_count,
+        }
+    finally:
+        db.close()
+
+
+def _load_notification_updates(
+    user_id: int,
+    since: datetime,
+    session_factory: Callable[[], Session] = SessionLocal,
+) -> tuple[list[dict[str, Any]], int, int, datetime | None]:
+    """Rows created after ``since``. Opens and closes its own session."""
+    db = session_factory()
+    try:
+        new_notifs = (
+            db.query(Notification)
+            .filter(Notification.user_id == user_id, Notification.created_at > since)
+            .order_by(Notification.created_at.asc())
+            .all()
+        )
+        if not new_notifs:
+            return [], 0, 0, None
+
+        rows = [_to_response(n).model_dump() for n in new_notifs]
+        unread_count = (
+            db.query(Notification)
+            .filter(Notification.user_id == user_id, Notification.read == False)  # noqa: E712
+            .count()
+        )
+        pending_count = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user_id,
+                Notification.type == "group_invitation",
+                Notification.read == False,  # noqa: E712
+            )
+            .count()
+        )
+        return rows, unread_count, pending_count, new_notifs[-1].created_at
+    finally:
+        db.close()
+
+
+async def _notification_events(
+    user: User,
+    request: Request,
+    session_factory: Callable[[], Session] = SessionLocal,
+    poll_interval: float = 2.0,
+):
+    PING_INTERVAL = 30
+    last_check = datetime.utcnow()
+    last_ping = datetime.utcnow()
+
+    initial_payload = await asyncio.to_thread(_load_initial_notifications, user.id, session_factory)
+    yield f"data: {json.dumps(initial_payload)}\n\n"
+
+    while True:
+        if await request.is_disconnected():
+            break
+
+        try:
+            rows, unread_count, pending_count, latest = await asyncio.to_thread(
+                _load_notification_updates, user.id, last_check, session_factory
+            )
+        except Exception:
+            # A transient DB error must not kill the stream; the next poll
+            # opens a fresh session.
+            rows, unread_count, pending_count, latest = [], 0, 0, None
+
+        if rows:
+            for row in rows:
+                yield f"data: {json.dumps({'type': 'notification', 'notification': row})}\n\n"
+            yield f"data: {json.dumps({'type': 'counts_update', 'unread_count': unread_count, 'pending_count': pending_count})}\n\n"
+            if latest is not None:
+                last_check = max(last_check, latest)
+
+        now = datetime.utcnow()
+        if (now - last_ping).total_seconds() >= PING_INTERVAL:
+            yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+            last_ping = now
+
+        await asyncio.sleep(poll_interval)
 
 
 def _error_stream(msg: str):

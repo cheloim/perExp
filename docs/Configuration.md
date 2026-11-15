@@ -25,6 +25,10 @@ mkdir -p secrets/dev/backend secrets/dev/frontend
 podman-compose up -d
 ```
 
+Para correr la suite usá `./scripts/verify.sh`: construye `TEST_DATABASE_URL` desde
+`POSTGRES_PASSWORD_DEV` (el `.env` es local y no se commitea). Si corrés `pytest` a mano,
+exportá `TEST_DATABASE_URL` apuntando a una base descartable.
+
 `setup-secrets.sh` espera exactamente estos archivos:
 
 ```
@@ -46,6 +50,7 @@ secrets/<env>/frontend/GOOGLE_CLIENT_ID
 | Variable | Default | Obligatoria | Para qué |
 |---|---|---|---|
 | `DATABASE_URL` | `postgresql://expenses_user:changeme@localhost:5432/expenses` | prod: sí | Conexión SQLAlchemy. En Compose se construye desde `POSTGRES_PASSWORD`. |
+| `TEST_DATABASE_URL` | — | tests: sí | Base descartable para `pytest`. Nunca se commitea. CI la provee; `scripts/verify.sh` la construye desde `POSTGRES_PASSWORD_DEV` del `.env` local. |
 | `SECRET_KEY` | — | **sí** | Clave de cifrado de campos y fallback de firma JWT. Mínimo 32 caracteres. Cambiarla **inutiliza los datos cifrados** (ver `Key-Management.md`). |
 | `JWT_SECRET` | `SECRET_KEY` | no | Clave de firma separada. Permite rotar la firma sin tocar el cifrado. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | no | Vigencia del access token JWT (corto, renovado en silencio). |
@@ -91,14 +96,19 @@ secrets/<env>/frontend/GOOGLE_CLIENT_ID
 | `BUDGET_AHORRO_ENABLED` | `true` | Habilita el grupo "Ahorro" del 50/30/20. |
 | `DEBUG_CATEGORIZATION` | `0` | Logging verboso del categorizador. |
 
-### Seed (peligroso)
+### Administrador inicial
 
-`SEED_USER_EMAIL`, `SEED_USER_NAME` y `SEED_USER_PASSWORD` controlan el usuario que se crea
-al arrancar si la tabla está vacía. **El comportamiento por defecto es inseguro y está
-registrado en un advisory privado** (`GHSA-p86h-c2xv-j859`): no se detalla acá para no
-divulgar una superficie explotable mientras no esté corregido. Definí las tres variables en
-producción con una contraseña fuerte y verificá que el usuario sembrado no conserve la
-credencial inicial.
+El arranque **no crea ningún administrador**. Un deploy limpio queda sin admin hasta que
+lo crees explícitamente:
+
+```bash
+cd src/backend
+python -m scripts.create_admin --email admin@example.com --name "Admin"
+```
+
+El script pide la contraseña sin mostrarla y aplica la misma política que el registro.
+También sirve para promover un usuario existente o resetear su contraseña. Las variables
+`SEED_USER_*` ya no se usan.
 
 ## Variables del frontend
 

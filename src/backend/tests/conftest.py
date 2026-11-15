@@ -6,11 +6,15 @@ import os
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test-bot-token:1234567890")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci-that-is-at-least-32-chars")
 
-# Override DATABASE_URL to use test database
-TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    "postgresql://expenses_user:pPwsrqtfBm1exxVE32GiTu8HdT2H34@localhost:5432/expenses_test",
-)
+# Override DATABASE_URL to use test database.
+# Never hardcode a DSN here: this file is published. CI provides the variable,
+# and scripts/verify.sh builds it from the gitignored .env for local runs.
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
+if not TEST_DATABASE_URL:
+    raise RuntimeError(
+        "TEST_DATABASE_URL is required to run the test suite. Example: "
+        "postgresql://expenses_user:<password>@localhost:5432/expenses_test"
+    )
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 import pytest

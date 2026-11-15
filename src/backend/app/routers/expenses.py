@@ -371,7 +371,14 @@ def create_expense(
 ):
     from app.services.categorization import is_income_category
 
-    if _is_duplicate(db, expense.date, expense.amount, expense.description, expense.transaction_id):
+    if _is_duplicate(
+        db,
+        expense.date,
+        expense.amount,
+        expense.description,
+        expense.transaction_id,
+        user_id=current_user.id,
+    ):
         raise HTTPException(409, "Ya existe un gasto con la misma fecha, monto y descripción.")
 
     data = expense.model_dump()

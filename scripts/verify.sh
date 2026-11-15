@@ -9,6 +9,19 @@ set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Tests need a disposable database. Load the local, gitignored .env and build
+# TEST_DATABASE_URL from POSTGRES_PASSWORD_DEV when it is not already set.
+# The committed repo never contains the dev password.
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . "$PROJECT_ROOT/.env"
+    set +a
+fi
+if [ -z "${TEST_DATABASE_URL:-}" ] && [ -n "${POSTGRES_PASSWORD_DEV:-}" ]; then
+    export TEST_DATABASE_URL="postgresql://expenses_user:${POSTGRES_PASSWORD_DEV}@localhost:5432/expenses_test"
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

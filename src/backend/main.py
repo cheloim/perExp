@@ -59,7 +59,6 @@ from app.routers import (
 )
 from app.scheduler import price_refresh_loop
 from app.seed import _apply_base_hierarchy
-from app.services.auth import get_password_hash
 
 
 @asynccontextmanager
@@ -87,24 +86,9 @@ async def lifespan(application: FastAPI):
     if db.query(Category).count() == 0:
         _apply_base_hierarchy(db)
 
-    seed_email = os.getenv("SEED_USER_EMAIL", "admin@nikofin.com")
-    if not db.query(User).filter(User.email == seed_email).first():
-        seed_user = User(
-            email=seed_email,
-            full_name=os.getenv("SEED_USER_NAME", "Admin"),
-            hashed_password=get_password_hash(os.getenv("SEED_USER_PASSWORD", "ChangeMe123!")),
-            email_verified=True,
-            is_admin=True,
-        )
-        db.add(seed_user)
-        db.flush()
-        from sqlalchemy import text as _t
-
-        for _tbl in ("expenses", "investments", "analysis_history", "card_closings"):
-            db.execute(
-                _t(f"UPDATE {_tbl} SET user_id = :uid WHERE user_id IS NULL"), {"uid": seed_user.id}
-            )
-
+    # No default administrator is created on boot. A known default credential
+    # in the lifespan is a backdoor on every fresh install; admins are created
+    # explicitly with `python -m scripts.create_admin`.
     db.commit()
 
     # Auto-verify existing users created before email verification was added

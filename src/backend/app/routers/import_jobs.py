@@ -411,6 +411,7 @@ async def confirm_import_job(
                 r.get("installment_number"),
                 r.get("installment_total"),
                 r.get("installment_group_id"),
+                user_id=user.id,
             ):
                 skipped_count += 1
                 continue
