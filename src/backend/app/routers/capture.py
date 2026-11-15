@@ -100,7 +100,7 @@ def transcribe(
     "/expense-image",
     response_model=ExpenseImageResponse,
     operation_id="extractExpenseFromImage",
-    summary="Extract one expense from a payment proof image",
+    summary="Extract one or more expenses from a payment proof image",
 )
 def expense_image(
     file: UploadFile = File(...),

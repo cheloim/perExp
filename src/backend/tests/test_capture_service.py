@@ -152,72 +152,43 @@ def test_rejects_heic_with_clear_message():
 
 
 @pytest.mark.parametrize(
-    "model_payload, reason",
+    ("model_payload", "reason"),
     [
-        ({"is_payment_proof": False, "reason": "not_a_payment_proof"}, "not_a_payment_proof"),
         (
             {
-                "is_payment_proof": True,
+                "source_type": "transaction_detail",
+                "expenses": [],
+                "reason": "not_a_payment_proof",
+            },
+            "not_a_payment_proof",
+        ),
+        (
+            {
                 "source_type": "bank_notification",
-                "completed": True,
-                "direction": "credit",
-                "single_transaction": True,
-                "total": 1000,
+                "expenses": [],
                 "reason": "not_an_expense",
             },
             "not_an_expense",
         ),
         (
             {
-                "is_payment_proof": True,
                 "source_type": "transaction_detail",
-                "completed": True,
-                "direction": "debit",
-                "single_transaction": False,
-                "total": 1000,
-                "reason": "multiple_transactions",
-            },
-            "multiple_transactions",
-        ),
-        (
-            {
-                "is_payment_proof": True,
-                "source_type": "paper_receipt",
-                "completed": True,
-                "direction": "debit",
-                "single_transaction": False,
-                "total": 1000,
-                "reason": "multiple_transactions",
-            },
-            "multiple_transactions",
-        ),
-        (
-            {
-                "is_payment_proof": True,
-                "source_type": "transaction_detail",
-                "completed": True,
-                "direction": "debit",
-                "single_transaction": True,
-                "total": 50000,
+                "expenses": [],
                 "reason": "balance_only",
             },
             "balance_only",
         ),
         (
             {
-                "is_payment_proof": True,
                 "source_type": "wallet_payment",
-                "completed": False,
-                "direction": "debit",
-                "single_transaction": True,
-                "total": 1000,
+                "expenses": [],
                 "reason": "not_completed",
             },
             "not_completed",
         ),
     ],
 )
-def test_rejects_non_single_or_non_expense(monkeypatch, model_payload, reason):
+def test_rejects_when_the_model_returns_no_expenses(monkeypatch, model_payload, reason):
     monkeypatch.setattr(capture, "_extract_json", lambda **_: model_payload)
     result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
     assert result.status == "rejected"
@@ -229,23 +200,25 @@ def test_accepts_supermarket_receipt_with_items_and_one_total(monkeypatch):
         capture,
         "_extract_json",
         lambda **_: {
-            "is_payment_proof": True,
             "source_type": "paper_receipt",
-            "completed": True,
-            "direction": "debit",
-            "single_transaction": True,
-            "total": 15200.5,
-            "currency": "ARS",
-            "merchant": "Supermercado Coto",
-            "date": "2026-10-29",
-            "confidence": "high",
+            "expenses": [
+                {
+                    "amount": 15200.5,
+                    "amount_kind": "none",
+                    "currency": "ARS",
+                    "merchant": "Supermercado Coto",
+                    "date": "2026-10-29",
+                    "confidence": "high",
+                    "direction": "debit",
+                }
+            ],
             "reason": None,
         },
     )
     result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
     assert result.status == "ok"
-    assert result.draft.amount == 15200.5
-    assert result.draft.description == "Supermercado Coto"
+    assert result.drafts[0].amount == 15200.5
+    assert result.drafts[0].description == "Supermercado Coto"
 
 
 @pytest.mark.parametrize(
@@ -269,17 +242,19 @@ def test_image_extraction_strips_card_digits_from_the_hint(monkeypatch):
         capture,
         "_extract_json",
         lambda **_: {
-            "is_payment_proof": True,
             "source_type": "bank_notification",
-            "completed": True,
-            "direction": "debit",
-            "single_transaction": True,
-            "total": 3200,
-            "currency": "ARS",
-            "merchant": "Café Tortoni",
-            "date": "2026-10-29",
-            "card_hint": "Visa ****4521",
-            "confidence": "high",
+            "expenses": [
+                {
+                    "amount": 3200,
+                    "amount_kind": "none",
+                    "currency": "ARS",
+                    "merchant": "Café Tortoni",
+                    "date": "2026-10-29",
+                    "card_hint": "Visa ****4521",
+                    "confidence": "high",
+                    "direction": "debit",
+                }
+            ],
             "reason": None,
         },
     )
@@ -287,5 +262,163 @@ def test_image_extraction_strips_card_digits_from_the_hint(monkeypatch):
     result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
 
     assert result.status == "ok"
-    assert result.draft is not None
-    assert result.draft.card_hint == "Visa"
+    assert result.drafts[0].card_hint == "Visa"
+
+
+def _extraction(expenses, *, reason=None, source_type="transaction_detail"):
+    return {"source_type": source_type, "expenses": expenses, "reason": reason}
+
+
+def _expense(amount=1000, merchant="Kiosco", **overrides):
+    item = {
+        "amount": amount,
+        "amount_kind": "none",
+        "currency": "ARS",
+        "merchant": merchant,
+        "date": "2026-11-01",
+        "card_hint": None,
+        "installment_number": None,
+        "installment_total": None,
+        "direction": "debit",
+        "confidence": "high",
+    }
+    item.update(overrides)
+    return item
+
+
+def test_accepts_multiple_transactions_in_one_image(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: _extraction(
+            [
+                _expense(amount=1500, merchant="Café"),
+                _expense(amount=2500, merchant="Farmacia"),
+            ]
+        ),
+    )
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
+    assert result.status == "ok"
+    assert [draft.description for draft in result.drafts] == ["Café", "Farmacia"]
+    assert [draft.amount for draft in result.drafts] == [1500, 2500]
+
+
+def test_keeps_current_installment_metadata(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: _extraction(
+            [
+                _expense(
+                    amount=15000,
+                    merchant="Netflix",
+                    amount_kind="installment",
+                    installment_number=3,
+                    installment_total=12,
+                )
+            ]
+        ),
+    )
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
+    draft = result.drafts[0]
+    assert draft.amount == 15000
+    assert draft.amount_kind == "installment"
+    assert draft.installment_number == 3
+    assert draft.installment_total == 12
+
+
+def test_keeps_total_installment_metadata(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: _extraction(
+            [
+                _expense(
+                    amount=24000,
+                    merchant="Fravega",
+                    amount_kind="total",
+                    installment_number=1,
+                    installment_total=6,
+                )
+            ]
+        ),
+    )
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
+    draft = result.drafts[0]
+    assert draft.amount == 24000
+    assert draft.amount_kind == "total"
+    assert draft.installment_total == 6
+
+
+def test_skips_credit_rows_from_a_mixed_statement(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: _extraction(
+            [
+                _expense(amount=1500, merchant="Café"),
+                _expense(amount=900, merchant="Reintegro", direction="credit"),
+            ]
+        ),
+    )
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
+    assert result.status == "ok"
+    assert [draft.description for draft in result.drafts] == ["Café"]
+
+
+def test_rejects_an_image_with_no_expenses(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: _extraction([], reason="balance_only"),
+    )
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
+    assert result.status == "rejected"
+    assert result.reason == "balance_only"
+
+
+def test_rejects_more_than_twenty_expenses(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: _extraction([_expense() for _ in range(21)]),
+    )
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
+    assert result.status == "rejected"
+    assert result.reason == "too_many_expenses"
+
+
+def test_infers_installment_kind_when_the_model_omits_it(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: _extraction(
+            [
+                _expense(
+                    amount=15000,
+                    merchant="Netflix",
+                    amount_kind=None,
+                    installment_number=3,
+                    installment_total=12,
+                )
+            ]
+        ),
+    )
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
+    assert result.drafts[0].amount_kind == "installment"
+
+
+def test_drops_invalid_amounts_but_keeps_valid_rows(monkeypatch):
+    monkeypatch.setattr(
+        capture,
+        "_extract_json",
+        lambda **_: _extraction(
+            [
+                _expense(amount=0, merchant="Roto"),
+                _expense(amount=2500, merchant="Farmacia"),
+            ]
+        ),
+    )
+    result = extract_expense_from_image(_jpeg(), mime_type="image/jpeg")
+    assert result.status == "ok"
+    assert [draft.description for draft in result.drafts] == ["Farmacia"]

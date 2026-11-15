@@ -20,10 +20,13 @@ class ExpenseDraftResponse(BaseModel):
     confidence: str
     source_type: str
     card_hint: str | None
+    installment_number: int | None = None
+    installment_total: int | None = None
+    amount_kind: str = "none"
 
 
 class ExpenseImageResponse(BaseModel):
     status: Literal["ok", "rejected"]
-    draft: ExpenseDraftResponse | None
+    drafts: list[ExpenseDraftResponse]
     reason: str | None
     message: str

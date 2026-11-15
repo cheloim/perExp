@@ -66,15 +66,17 @@ def test_valid_image_saves_directly_without_confirmation(
     extract = Mock(
         return_value=ExpenseImageResult(
             status="ok",
-            draft=ExpenseDraft(
-                amount=15200,
-                currency="ARS",
-                description="Supermercado Coto",
-                date=date(2026, 10, 29),
-                confidence="high",
-                source_type="bank_notification",
-                card_hint="Visa ****4521",
-            ),
+            drafts=[
+                ExpenseDraft(
+                    amount=15200,
+                    currency="ARS",
+                    description="Supermercado Coto",
+                    date=date(2026, 10, 29),
+                    confidence="high",
+                    source_type="bank_notification",
+                    card_hint="Visa ****4521",
+                ),
+            ],
             reason=None,
             message="Detecté un total.",
         )
@@ -129,7 +131,7 @@ def test_rejected_image_is_not_stored(monkeypatch, fake_photo_update, fake_conte
         "extract_expense_from_image",
         lambda *_args, **_kwargs: ExpenseImageResult(
             status="rejected",
-            draft=None,
+            drafts=[],
             reason="not_an_expense",
             message="Parece un ingreso, no un gasto.",
         ),
@@ -204,14 +206,16 @@ def test_missing_file_size_processes_small_downloaded_payload(
     extractor = Mock(
         return_value=ExpenseImageResult(
             status="ok",
-            draft=ExpenseDraft(
-                amount=800,
-                currency="ARS",
-                description="Kiosco",
-                date=date(2026, 10, 29),
-                confidence="high",
-                source_type="paper_receipt",
-            ),
+            drafts=[
+                ExpenseDraft(
+                    amount=800,
+                    currency="ARS",
+                    description="Kiosco",
+                    date=date(2026, 10, 29),
+                    confidence="high",
+                    source_type="paper_receipt",
+                ),
+            ],
             reason=None,
             message="Detecté un total.",
         )
@@ -386,27 +390,31 @@ def test_two_images_are_saved_independently_without_a_pending_draft(
     results = [
         ExpenseImageResult(
             status="ok",
-            draft=ExpenseDraft(
-                amount=100,
-                currency="ARS",
-                description="Comercio A",
-                date=date(2026, 10, 29),
-                confidence="high",
-                source_type="paper_receipt",
-            ),
+            drafts=[
+                ExpenseDraft(
+                    amount=100,
+                    currency="ARS",
+                    description="Comercio A",
+                    date=date(2026, 10, 29),
+                    confidence="high",
+                    source_type="paper_receipt",
+                ),
+            ],
             reason=None,
             message="Detecté un total.",
         ),
         ExpenseImageResult(
             status="ok",
-            draft=ExpenseDraft(
-                amount=200,
-                currency="ARS",
-                description="Comercio B",
-                date=date(2026, 10, 30),
-                confidence="high",
-                source_type="paper_receipt",
-            ),
+            drafts=[
+                ExpenseDraft(
+                    amount=200,
+                    currency="ARS",
+                    description="Comercio B",
+                    date=date(2026, 10, 30),
+                    confidence="high",
+                    source_type="paper_receipt",
+                ),
+            ],
             reason=None,
             message="Detecté un total.",
         ),

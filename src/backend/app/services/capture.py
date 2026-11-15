@@ -104,40 +104,58 @@ class ExpenseDraft(BaseModel):
     confidence: Literal["high", "medium", "low"] = "low"
     source_type: str
     card_hint: str | None = None
+    installment_number: int | None = None
+    installment_total: int | None = None
+    amount_kind: Literal["none", "total", "installment"] = "none"
 
 
 class ExpenseImageResult(BaseModel):
     status: Literal["ok", "rejected"]
-    draft: ExpenseDraft | None = None
+    drafts: list[ExpenseDraft] = []
     reason: str | None = None
     message: str
+
+    @property
+    def draft(self) -> ExpenseDraft | None:
+        """Backward-compatible alias for the first draft.
+
+        The CLI live check still reads a single draft; the API and the bots use
+        ``drafts`` so one image can carry several expenses.
+        """
+        return self.drafts[0] if self.drafts else None
+
+
+class _ExtractedExpense(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    amount: float | None = None
+    amount_kind: Literal["none", "total", "installment"] | None = None
+    currency: Literal["ARS", "USD"] = "ARS"
+    merchant: str | None = None
+    date: dt.date | None = None
+    card_hint: str | None = None
+    installment_number: int | None = None
+    installment_total: int | None = None
+    direction: Literal["debit", "credit", "unknown"] = "debit"
+    confidence: Literal["high", "medium", "low"] = "low"
 
 
 class _ExpenseExtraction(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    is_payment_proof: bool = False
     source_type: Literal[
         "paper_receipt",
         "digital_receipt",
         "bank_notification",
         "transaction_detail",
+        "statement",
         "wallet_payment",
         "other",
     ] = "other"
-    completed: bool = False
-    direction: Literal["debit", "credit", "unknown"] = "unknown"
-    single_transaction: bool = False
-    total: float | None = None
-    currency: Literal["ARS", "USD"] = "ARS"
-    merchant: str | None = None
-    date: dt.date | None = None
-    card_hint: str | None = None
-    confidence: Literal["high", "medium", "low"] = "low"
+    expenses: list[_ExtractedExpense] = []
     reason: (
         Literal[
             "not_a_payment_proof",
-            "multiple_transactions",
             "multiple_totals",
             "no_total",
             "not_completed",
@@ -145,6 +163,7 @@ class _ExpenseExtraction(BaseModel):
             "balance_only",
             "illegible",
             "invalid_amount",
+            "too_many_expenses",
         ]
         | None
     ) = None
@@ -301,7 +320,6 @@ def _extract_json(*, jpeg: bytes, hint: str | None, api_key_env: str) -> dict:
 
 _REJECTION_MESSAGES = {
     "not_a_payment_proof": "No pude reconocer un comprobante de pago. Revisalo y probá con otra imagen.",
-    "multiple_transactions": "Detecté más de un movimiento en la imagen. Cargá uno por vez.",
     "multiple_totals": "No pude distinguir un único total pagado. Revisalo antes de cargarlo.",
     "no_total": "No pude leer el total del comprobante. Probá con una foto más nítida.",
     "not_completed": "El pago parece pendiente o rechazado. Cargalo cuando esté confirmado.",
@@ -309,14 +327,58 @@ _REJECTION_MESSAGES = {
     "balance_only": "No pude identificar un gasto concreto; la imagen parece mostrar un saldo.",
     "illegible": "No pude leer el comprobante. Probá con una foto más nítida.",
     "invalid_amount": "No pude validar el monto del comprobante. Revisalo antes de cargarlo.",
+    "too_many_expenses": "Detecté demasiados gastos en una sola imagen. Dividila en partes más chicas.",
 }
 
 
 def _rejected(reason: str) -> ExpenseImageResult:
     return ExpenseImageResult(
         status="rejected",
+        drafts=[],
         reason=reason,
         message=_REJECTION_MESSAGES.get(reason, _REJECTION_MESSAGES["illegible"]),
+    )
+
+
+def _draft_from_extraction(item: _ExtractedExpense, source_type: str) -> ExpenseDraft | None:
+    if item.direction == "credit":
+        return None
+    amount = item.amount
+    if amount is None or isinstance(amount, bool):
+        return None
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(amount) or amount <= 0 or amount > 1e9:
+        return None
+
+    total = item.installment_total
+    if total is None or total < 2 or total > 60:
+        number = None
+        total = None
+        amount_kind: Literal["none", "total", "installment"] = "none"
+    else:
+        number = item.installment_number
+        if number is None or number < 1 or number > total:
+            number = 1
+        if item.amount_kind in {"total", "installment"}:
+            amount_kind = item.amount_kind
+        else:
+            amount_kind = "installment" if number > 1 else "total"
+
+    merchant = " ".join(re.sub(r"[\x00-\x1f\x7f]", " ", item.merchant or "").split())[:200]
+    return ExpenseDraft(
+        amount=amount,
+        currency=item.currency,
+        description=merchant or "Gasto",
+        date=item.date,
+        confidence=item.confidence,
+        source_type=source_type,
+        card_hint=sanitize_card_hint(item.card_hint),
+        installment_number=number,
+        installment_total=total,
+        amount_kind=amount_kind,
     )
 
 
@@ -335,44 +397,31 @@ def _extract_expense_from_image(
         )
     jpeg = normalize_image(data)
     payload = _extract_json(jpeg=jpeg, hint=hint, api_key_env=api_key_env)
-    if isinstance(payload, dict) and isinstance(payload.get("total"), bool):
-        return _rejected("invalid_amount")
+    if not isinstance(payload, dict):
+        return _rejected("illegible")
     try:
         extraction = _ExpenseExtraction.model_validate(payload)
     except (ValidationError, TypeError, ValueError):
         return _rejected("illegible")
 
-    reason = extraction.reason
-    if reason:
-        return _rejected(reason)
-    if not extraction.is_payment_proof:
-        return _rejected("not_a_payment_proof")
-    if not extraction.single_transaction:
-        return _rejected("multiple_transactions")
-    if not extraction.completed:
-        return _rejected("not_completed")
-    if extraction.direction != "debit":
-        return _rejected("not_an_expense")
-    total = extraction.total
-    if total is None:
-        return _rejected("no_total")
-    if not math.isfinite(total) or total <= 0 or total > 1e9:
-        return _rejected("invalid_amount")
+    if extraction.reason == "too_many_expenses" or len(extraction.expenses) > 20:
+        return _rejected("too_many_expenses")
 
-    merchant = " ".join(re.sub(r"[\x00-\x1f\x7f]", " ", extraction.merchant or "").split())[:200]
-    draft = ExpenseDraft(
-        amount=total,
-        currency=extraction.currency,
-        description=merchant or "Gasto",
-        date=extraction.date,
-        confidence=extraction.confidence,
-        source_type=extraction.source_type,
-        card_hint=sanitize_card_hint(extraction.card_hint),
-    )
+    drafts = [
+        draft
+        for item in extraction.expenses
+        if (draft := _draft_from_extraction(item, extraction.source_type)) is not None
+    ]
+    if not drafts:
+        return _rejected(extraction.reason or "not_a_payment_proof")
+    if len(drafts) == 1:
+        message = "Listo, revisá los datos antes de guardar el gasto."
+    else:
+        message = f"Detecté {len(drafts)} gastos. Revisalos antes de guardarlos."
     return ExpenseImageResult(
         status="ok",
-        draft=draft,
-        message="Listo, revisá los datos antes de guardar el gasto.",
+        drafts=drafts,
+        message=message,
     )
 
 
