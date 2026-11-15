@@ -3,19 +3,23 @@
 Admins are created explicitly with ``python -m scripts.create_admin``.
 """
 
-from pathlib import Path
+from fastapi.testclient import TestClient
 
+from app.database import SessionLocal
 from app.models import User
+from main import app
 from scripts.create_admin import create_admin, main
 
-BACKEND_DIR = Path(__file__).resolve().parents[1]
 
-
-def test_lifespan_does_not_seed_a_default_admin():
-    source = (BACKEND_DIR / "main.py").read_text(encoding="utf-8")
-
-    assert "SEED_USER_PASSWORD" not in source
-    assert "ChangeMe123!" not in source
+def test_startup_does_not_create_the_default_administrator():
+    # Behavior, not source text: boot the app and look at the DB.
+    with TestClient(app) as client:
+        assert client.get("/health").status_code == 200
+        db = SessionLocal()
+        try:
+            assert db.query(User).filter(User.email == "admin@nikofin.com").first() is None
+        finally:
+            db.close()
 
 
 def test_create_admin_creates_an_admin(db):
