@@ -114,8 +114,11 @@
   --color-primary-strong: #1c71d8 !important;
   --color-on-primary-strong: #ffffff !important;
   --color-success: #26a269 !important;
+  --color-success-text: #1b6e46 !important;
   --color-warning: #e8a100 !important;
+  --color-warning-text: #8a5a00 !important;
   --color-danger: #e01b24 !important;
+  --color-danger-text: #a51d2b !important;
   --color-error: #e01b24 !important;
   --color-sidebar-icon: #77767b !important;
   --color-sidebar-icon-active: #1c71d8 !important;
@@ -151,7 +154,7 @@
 
   /* ── Adwaita opacity tokens (auto high-contrast) ── */
   --border-opacity: 15%;
-  --dim-opacity: 55%;
+  --dim-opacity: 100%;
   --disabled-opacity: 50%;
 
   /* ── GNOME palette ── */
@@ -243,8 +246,11 @@
   --color-primary-strong: #62a0ea !important;
   --color-on-primary-strong: #1c1b1f !important;
   --color-success: #33d17a !important;
+  --color-success-text: #8ff0a4 !important;
   --color-warning: #f5c211 !important;
+  --color-warning-text: #f5c211 !important;
   --color-danger: #ed333b !important;
+  --color-danger-text: #ff9a8f !important;
   --color-error: #ff7b63 !important;
   --color-sidebar-icon: #9a9996 !important;
   --color-sidebar-icon-active: #62a0ea !important;
@@ -253,7 +259,7 @@
 
   --text-primary: #ffffff !important;
   --text-secondary: #b5b5b5 !important;
-  --text-tertiary: #a1a1aa !important;
+  --text-tertiary: #b8b8c0 !important;
   --border-color: rgba(255, 255, 255, 0.1) !important;
 
   --shadow-sm: 0 1px 2px rgb(0 0 6 / 20%), 0 1px 3px rgb(0 0 6 / 15%);
@@ -337,7 +343,7 @@
 @media (prefers-contrast: more) {
   :root {
     --border-opacity: 50%;
-    --dim-opacity: 90%;
+    --dim-opacity: 100%;
     --disabled-opacity: 40%;
   }
 }

@@ -73,18 +73,38 @@ function CategoryBar({
   const pct = budget > 0 ? (spent / budget) * 100 : 0;
 
   // Status: dot + label (Adwaita tokens, no hardcoded hex, no emojis)
-  let status: { label: string; color: string } | null = null;
+  let status: { label: string; color: string; textColor: string } | null = null;
   if (budget > 0) {
     if (pct >= 100) {
-      status = { label: "Excedido", color: "var(--color-danger)" };
+      status = {
+        label: "Excedido",
+        color: "var(--color-danger)",
+        textColor: "var(--color-danger-text)",
+      };
     } else if (pct >= 90) {
-      status = { label: "Alerta", color: "var(--color-warning)" };
+      status = {
+        label: "Alerta",
+        color: "var(--color-warning)",
+        textColor: "var(--color-warning-text)",
+      };
     } else if (pct >= 80) {
-      status = { label: "Cuidado", color: "var(--color-warning)" };
+      status = {
+        label: "Cuidado",
+        color: "var(--color-warning)",
+        textColor: "var(--color-warning-text)",
+      };
     } else if (pct >= 60) {
-      status = { label: "Normal", color: "var(--color-warning)" };
+      status = {
+        label: "Normal",
+        color: "var(--color-warning)",
+        textColor: "var(--color-warning-text)",
+      };
     } else {
-      status = { label: "Bien", color: "var(--color-success)" };
+      status = {
+        label: "Bien",
+        color: "var(--color-success)",
+        textColor: "var(--color-success-text)",
+      };
     }
   }
 
@@ -133,7 +153,7 @@ function CategoryBar({
           {status ? (
             <span
               className="text-xs font-semibold inline-flex items-center gap-1.5"
-              style={{ color: status.color }}
+              style={{ color: status.textColor }}
             >
               <span
                 className="w-2 h-2 rounded-full inline-block"
@@ -167,7 +187,7 @@ function CategoryBar({
                 {formatCurrency(remaining)} restantes de {formatCurrency(budget)}
               </>
             ) : (
-              <span className="text-[var(--color-danger)]">
+              <span className="text-[var(--color-danger-text)]">
                 {formatCurrency(Math.abs(remaining))} sobre {formatCurrency(budget)}
               </span>
             )}
@@ -261,7 +281,9 @@ function CategoryGroupSection({
           {totalBudget > 0 && (
             <span
               className={`text-xs font-semibold ${
-                totalRemaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
+                totalRemaining < 0
+                  ? "text-[var(--color-danger-text)]"
+                  : "text-[var(--color-success-text)]"
               }`}
             >
               {totalRemaining >= 0
@@ -398,7 +420,7 @@ function EventCard({
           <p className="adw-caption adw-dim-label">RESTANTE</p>
           <p
             className={`text-sm font-bold ${
-              remaining < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
+              remaining < 0 ? "text-[var(--color-danger-text)]" : "text-[var(--color-success-text)]"
             }`}
           >
             {formatCurrency(remaining)}
@@ -686,13 +708,13 @@ function EditBudgetModal({
             />
           </div>
         </div>
-        {error && <p className="text-xs text-[var(--color-danger)] mt-3">{error}</p>}
+        {error && <p className="text-xs text-[var(--color-danger-text)] mt-3">{error}</p>}
         <div className="flex gap-2 mt-5">
           {existing && (
             <button
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending || saveMutation.isPending}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--color-danger)] border border-[var(--color-danger)]/30 hover:bg-[var(--color-danger)]/10 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--color-danger-text)] border border-[var(--color-danger)]/30 hover:bg-[var(--color-danger)]/10 disabled:opacity-50"
             >
               {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
             </button>
@@ -914,7 +936,9 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
             {feedback && (
               <p
                 className={`text-xs font-medium mt-2 ${
-                  feedback.ok ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"
+                  feedback.ok
+                    ? "text-[var(--color-success-text)]"
+                    : "text-[var(--color-danger-text)]"
                 }`}
               >
                 {feedback.text}
@@ -1662,8 +1686,8 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
               <p
                 className={`text-sm font-bold ${
                   event.total_amount - event.spent < 0
-                    ? "text-[var(--color-danger)]"
-                    : "text-[var(--color-success)]"
+                    ? "text-[var(--color-danger-text)]"
+                    : "text-[var(--color-success-text)]"
                 }`}
               >
                 {formatCurrency(event.total_amount - event.spent)}
@@ -1984,7 +2008,9 @@ export default function BudgetPage() {
               <p className="adw-caption adw-dim-label mb-1">DISPONIBLE</p>
               <p
                 className={`text-lg font-bold ${
-                  totalAvailable < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]"
+                  totalAvailable < 0
+                    ? "text-[var(--color-danger-text)]"
+                    : "text-[var(--color-success-text)]"
                 }`}
               >
                 {formatCurrency(totalAvailable)}
@@ -2145,7 +2171,7 @@ export default function BudgetPage() {
             {budgetConfig?.ahorro_enabled && (
               <div className="p-4 rounded-xl border border-[var(--border-color)] text-center">
                 <div className="w-10 h-10 rounded-full bg-[var(--color-success)]/10 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-[var(--color-success)] font-bold">20%</span>
+                  <span className="text-[var(--color-success-text)] font-bold">20%</span>
                 </div>
                 <p className="text-sm font-semibold text-primary">Ahorro</p>
                 <p className="text-xs text-[var(--text-tertiary)] mt-1">Inversiones, Ahorro</p>
