@@ -4473,7 +4473,7 @@ paths:
   /capture/expense-image:
     post:
       tags: [capture]
-      summary: Extract one expense from a payment proof image
+      summary: Extract one or more expenses from a payment proof image
       operationId: extractExpenseFromImage
       requestBody:
         required: true
@@ -4491,7 +4491,7 @@ paths:
                   nullable: true
       responses:
         '200':
-          description: Expense draft or a reason the image was rejected
+          description: Expense drafts or a reason the image was rejected
           content:
             application/json:
               schema:
@@ -4563,7 +4563,8 @@ components:
           type: boolean
     ExpenseDraftResponse:
       type: object
-      required: [amount, currency, description, date, confidence, source_type, card_hint]
+      required:
+        [amount, currency, description, date, confidence, source_type, card_hint]
       properties:
         amount:
           type: number
@@ -4584,17 +4585,27 @@ components:
         card_hint:
           type: string
           nullable: true
+        installment_number:
+          type: integer
+          nullable: true
+        installment_total:
+          type: integer
+          nullable: true
+        amount_kind:
+          type: string
+          enum: [none, total, installment]
+          default: none
     ExpenseImageResponse:
       type: object
-      required: [status, draft, reason, message]
+      required: [status, drafts, reason, message]
       properties:
         status:
           type: string
           enum: [ok, rejected]
-        draft:
-          allOf:
-            - $ref: '#/components/schemas/ExpenseDraftResponse'
-          nullable: true
+        drafts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExpenseDraftResponse'
         reason:
           type: string
           nullable: true
@@ -4963,6 +4974,10 @@ components:
         installment_group_id:
           type: string
           nullable: true
+        installment_mode:
+          type: string
+          enum: [none, total, current]
+          default: none
         transaction_id:
           type: string
           nullable: true

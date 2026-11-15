@@ -33,6 +33,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { ExpenseCreateCurrency } from "./expenseCreateCurrency.ts";
+import type { ExpenseCreateInstallmentMode } from "./expenseCreateInstallmentMode.ts";
 
 export interface ExpenseCreate {
   description: string;
@@ -53,6 +54,7 @@ export interface ExpenseCreate {
   installment_total?: number | null;
   /** @nullable */
   installment_group_id?: string | null;
+  installment_mode?: ExpenseCreateInstallmentMode;
   /** @nullable */
   transaction_id?: string | null;
 }

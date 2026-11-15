@@ -32,6 +32,7 @@
  *
  * OpenAPI spec version: 1.0.0
  */
+import type { ExpenseDraftResponseAmountKind } from "./expenseDraftResponseAmountKind.ts";
 import type { ExpenseDraftResponseConfidence } from "./expenseDraftResponseConfidence.ts";
 import type { ExpenseDraftResponseCurrency } from "./expenseDraftResponseCurrency.ts";
 
@@ -45,4 +46,9 @@ export interface ExpenseDraftResponse {
   source_type: string;
   /** @nullable */
   card_hint: string | null;
+  /** @nullable */
+  installment_number?: number | null;
+  /** @nullable */
+  installment_total?: number | null;
+  amount_kind?: ExpenseDraftResponseAmountKind;
 }

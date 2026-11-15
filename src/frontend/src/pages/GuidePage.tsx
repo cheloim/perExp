@@ -316,10 +316,7 @@ export default function GuidePage() {
             </p>
             <div className="space-y-2 mb-4">
               <CodeBlock label="Gasto simple" code="mastercard galicia almacen 5999" />
-              <CodeBlock
-                label="Gasto en cuotas"
-                code="visa santander cuotas 3 supermercado 12000"
-              />
+              <CodeBlock label="Gasto en cuotas" code="visa santander TV 1.200.000 en 12 cuotas" />
               <CodeBlock label="Gasto en efectivo" code="efectivo almuerzo 2500" />
               <CodeBlock label="Con fecha específica" code="nafta shell viernes 15000" />
             </div>
@@ -336,13 +333,17 @@ export default function GuidePage() {
                 'Hacé click en "+ Nuevo gasto" (dashboard o página de gastos)',
                 "Seleccioná el medio de pago: Tarjeta o Efectivo/Transferencia",
                 "Elegí la fecha (por defecto: hoy)",
-                "Ingresá el monto",
+                "Ingresá el monto total de la compra",
                 'Ingresá una descripción (ej: "almacén", "Netflix")',
                 "La IA sugiere una categoría automáticamente — aceptala o cambiala",
-                'Si es compra en cuotas, expandí "Más opciones" e ingresá el número de cuotas',
+                'Si es compra en cuotas, expandí "Más opciones", marcá "Compra en cuotas" y poné el total de cuotas',
                 'Hacé click en "Guardar"',
               ]}
             />
+            <p className="text-sm text-[var(--text-secondary)] mt-2">
+              Si escaneás un comprobante con varios gastos, la app te muestra una cola para
+              revisarlos uno por uno y guardarlos con “Guardar y siguiente”.
+            </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">
               Método 3: Importación CSV
@@ -579,13 +580,16 @@ export default function GuidePage() {
               items={[
                 'Al crear un gasto, expandí "Más opciones"',
                 'Marcá "Compra en cuotas"',
-                "Ingresá el número de cuota actual (ej: 1) y el total (ej: 3)",
+                "Dejá la cuota actual en 1 e ingresá el total de cuotas: el monto se divide solo",
+                "Si ya estás cargando una cuota en curso, poné su número y el monto de esa cuota",
                 "Guardá el gasto",
               ]}
             />
             <p className="text-sm text-[var(--text-secondary)] mt-2 mb-3">
-              La app crea automáticamente las cuotas pendientes. La primera cuota se guarda como
-              gasto normal; las demás se programan como gastos futuros.
+              Con la cuota actual en 1, el monto es el total de la compra y se reparte en partes
+              iguales. La app guarda la primera cuota como gasto y programa las restantes. Si la
+              cuota actual es mayor a 1, el monto es el valor de esa cuota y se programan las
+              siguientes.
             </p>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">

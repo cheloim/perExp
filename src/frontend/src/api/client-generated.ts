@@ -22894,7 +22894,7 @@ export const useTranscribeAudio = <TError = ErrorType<CaptureError>, TContext = 
 };
 
 /**
- * @summary Extract one expense from a payment proof image
+ * @summary Extract one or more expenses from a payment proof image
  */
 export const extractExpenseFromImage = (
   extractExpenseFromImageBody: BodyType<ExtractExpenseFromImageBody>,
@@ -22967,7 +22967,7 @@ export type ExtractExpenseFromImageMutationVariables = {
 };
 
 /**
- * @summary Extract one expense from a payment proof image
+ * @summary Extract one or more expenses from a payment proof image
  */
 export const useExtractExpenseFromImage = <TError = ErrorType<CaptureError>, TContext = unknown>(
   options?: {
