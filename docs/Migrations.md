@@ -20,8 +20,9 @@
 
 1. **Toda migración es una revisión de Alembic.** No se editan tablas a mano en
    producción; si hace falta un hotfix, se escribe una revisión, aunque sea de una línea.
-2. **No se agregan scripts `migrate_*.py`.** Los existentes quedan archivados; el
-   esquema real ya está en el baseline y en las revisiones 2/3.
+2. **No se agregan scripts `migrate_*.py`.** Los existentes se eliminaron; el
+   esquema real ya está en el baseline y en las revisiones 2/3. La utilidad de
+   reparación de `parent_id` ajenos vive en `app/services/category_tree.py`.
 3. **Toda revisión es idempotente** (`IF NOT EXISTS` / chequeo previo). El baseline
    crea el esquema desde los modelos actuales con `checkfirst=True`, así que una base
    nueva ya puede traer una columna que una revisión posterior intentaría agregar.
@@ -160,6 +161,4 @@ alembic check
 - [x] `migrations.yml` es una herramienta manual sobre la imagen deployada.
 - [x] Test de Alembic (base limpia → `upgrade head` → `alembic check`) en la suite.
 - [x] Fixture anonimizado como gate de cada PR que toca `alembic/**`.
-
-Pendiente: los `migrate_*.py` viejos quedan en el repo como archivos archivados
-hasta que se limpien en un PR aparte.
+- [x] Scripts `migrate_*.py`, `add_indices.py` y `deploy_prod.sh` eliminados.

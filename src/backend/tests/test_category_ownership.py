@@ -230,7 +230,7 @@ class TestParentOwnershipOnRead:
         assert total == 100.0  # only the expense under the owned child
 
     def test_cleanup_script_nulls_foreign_parents(self, db, test_user):
-        from scripts.migrate_fix_foreign_category_parents import fix_foreign_parents
+        from app.services.category_tree import fix_foreign_parents
 
         foreign = _make_category(db, _other_user(db), "SECRETO AJENO")
         child = _make_category(db, test_user, "Hijo", parent_id=foreign.id)
