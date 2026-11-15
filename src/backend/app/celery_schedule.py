@@ -68,6 +68,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.check_upcoming_installments.check_upcoming_installments",
         "schedule": _cron_from_env("SCHEDULE_CHECK_INSTALLMENTS", 8, 15),
     },
+    "persist-daily-fx-rate": {
+        "task": "app.tasks.fx_rates.persist_daily_fx_rate",
+        "schedule": _cron_from_env("SCHEDULE_FX_RATE", 10, 30),
+    },
     "cleanup-audit-logs-daily": {
         "task": "app.tasks.cleanup_audit_logs.cleanup_old_records",
         "schedule": _cron_from_env("SCHEDULE_CLEANUP_AUDIT", 4, 0),

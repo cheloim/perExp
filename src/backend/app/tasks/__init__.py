@@ -7,6 +7,7 @@ import app.tasks.cleanup_audit_logs  # noqa: F401
 import app.tasks.cleanup_import_jobs  # noqa: F401
 import app.tasks.daily_uncategorized  # noqa: F401
 import app.tasks.detect_recurring  # noqa: F401
+import app.tasks.fx_rates  # noqa: F401
 import app.tasks.grafana_reconcile  # noqa: F401
 import app.tasks.heartbeat  # noqa: F401
 import app.tasks.import_processor  # noqa: F401

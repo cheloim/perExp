@@ -42,6 +42,7 @@ from app.models.categories import Category
 
 # Financial
 from app.models.financial import Account, Card, CardClosing, Expense, ExpenseTag, Tag
+from app.models.fx import FxRate
 
 # Imports & Scheduling
 from app.models.imports import ImportJob, RecurringExpense, ScheduledExpense
@@ -62,6 +63,7 @@ __all__ = [
     "CardClosing",
     "Expense",
     "ExpenseTag",
+    "FxRate",
     "Tag",
     "Category",
     "Budget",
