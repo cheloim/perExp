@@ -26,6 +26,7 @@ router = APIRouter(prefix="/webhook", tags=["whatsapp"])
 
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "oikonomia-whatsapp-dev")
 APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
+APP_ENV = os.getenv("APP_ENV", "development")
 
 
 def _verify_webhook_signature(body: bytes, signature_header: str | None) -> bool:
@@ -35,8 +36,9 @@ def _verify_webhook_signature(body: bytes, signature_header: str | None) -> bool
     In production, APP_SECRET must be set.
     """
     if not APP_SECRET:
-        # Dev mode: skip verification if no secret configured
-        return True
+        # Dev mode may skip verification; production must never accept an
+        # unsigned webhook.
+        return APP_ENV != "production"
     if not signature_header:
         return False
     # signature_header format: "sha256=<hex>"
@@ -110,6 +112,19 @@ async def receive_webhook(request: Request):
     return JSONResponse(content={"status": "ok"})
 
 
+def _claim_message_id(message_id: str) -> bool:
+    """Claim a Meta message id for 7 days; a retry returns False."""
+    if not message_id:
+        return True
+    try:
+        from app.services.rate_limit import _get_redis
+
+        return bool(_get_redis().set(f"wa_message:{message_id}", "1", nx=True, ex=7 * 24 * 60 * 60))
+    except Exception as exc:
+        logger.warning("[WA_WEBHOOK] idempotency store unavailable, processing: %s", exc)
+        return True
+
+
 async def _process_webhook(body: dict) -> None:
     """Process webhook payload asynchronously."""
     try:
@@ -135,6 +150,10 @@ async def _process_webhook(body: dict) -> None:
                     phone = msg.get("from", "")
                     message_id = msg.get("id", "")
                     msg_type = msg.get("type", "")
+
+                    if not _claim_message_id(message_id):
+                        logger.info("[WA_WEBHOOK] duplicate message %s — skipping", message_id)
+                        continue
 
                     # Get contact name if available
                     contact_name = ""
@@ -180,6 +199,8 @@ def _parse_signed_request(signed_request: str) -> dict | None:
     Returns the decoded payload dict, or None if verification fails.
     """
     if not APP_SECRET:
+        if APP_ENV == "production":
+            return None
         # Dev mode: decode without verification
         try:
             _, payload_b64 = signed_request.split(".", 1)

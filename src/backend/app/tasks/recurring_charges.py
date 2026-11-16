@@ -23,6 +23,7 @@ from app.services.recurring_schedule import (
     advance_charge_date,
     find_matching_expense,
 )
+from app.services.task_lock import task_lock
 from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
@@ -231,6 +232,13 @@ def _process_due_recurring(db, today: date | None = None) -> dict[str, int]:
 
 @celery_app.task(name="app.tasks.recurring_charges.execute_due_recurring")
 def execute_due_recurring():
+    with task_lock("recurring-charges-daily", ttl=3600) as acquired:
+        if not acquired:
+            return {}
+        return _execute_due_recurring_impl()
+
+
+def _execute_due_recurring_impl():
     """Celery entry point for the daily recurring charge execution."""
     db = SessionLocal()
     try:
