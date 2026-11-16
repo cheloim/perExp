@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Tooltip,
   ResponsiveContainer,
@@ -549,9 +549,9 @@ export default function Dashboard() {
           savingsArs > 0 || totalUsd > 0 ? "md:grid-cols-5" : "md:grid-cols-4"
         } gap-4`}
       >
-        <div
+        <Link
+          to="/expenses"
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-          onClick={() => navigate("/expenses")}
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
           <p className="text-lg font-bold text-primary">
@@ -565,25 +565,23 @@ export default function Dashboard() {
           <p className="text-xs text-tertiary mt-1">
             {dashData?.total_expenses ?? 0} transacciones
           </p>
-        </div>
-        <div
+        </Link>
+        <Link
+          to="/expenses?card_type=credito"
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-          onClick={() => navigate("/expenses?card_type=credito")}
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
           <p className="text-lg font-bold text-danger">{formatCurrency(totalPasivos)}</p>
           <p className="text-xs text-tertiary mt-1">{pasivosData?.count ?? 0} cuotas pendientes</p>
-        </div>
-        <div
+        </Link>
+        <Link
+          to={`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-          onClick={() =>
-            navigate(`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`)
-          }
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Cuotas este mes</p>
           <p className="text-lg font-bold text-primary">{formatCurrency(cuotasComprometidas)}</p>
           <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>
-        </div>
+        </Link>
         <div className="card p-5">
           <p className="text-[10px] text-tertiary uppercase mb-1">
             {useMtd ? "vs mismo día mes ant." : "vs Mes anterior"}
@@ -604,9 +602,9 @@ export default function Dashboard() {
           </p>
         </div>
         {(savingsArs > 0 || totalUsd > 0) && (
-          <div
+          <Link
+            to="/investments"
             className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-            onClick={() => navigate("/investments")}
           >
             <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
             <div className="space-y-0.5">
@@ -623,7 +621,7 @@ export default function Dashboard() {
                 </p>
               )}
             </div>
-          </div>
+          </Link>
         )}
       </div>
 
@@ -660,7 +658,13 @@ export default function Dashboard() {
             />
           ) : (
             <div className="flex flex-col @[460px]:flex-row items-center gap-4 flex-1 min-h-0">
-              <ResponsiveContainer width="100%" height={240} className="max-w-[260px] flex-none">
+              <ResponsiveContainer
+                width="100%"
+                height={240}
+                className="max-w-[260px] flex-none"
+                role="img"
+                aria-label="Gastos por categoría. La tabla siguiente contiene los mismos datos."
+              >
                 <PieChart>
                   <Pie
                     data={pieData}
@@ -700,6 +704,24 @@ export default function Dashboard() {
                   />
                 </PieChart>
               </ResponsiveContainer>
+
+              <table className="sr-only">
+                <caption>Gastos por categoría</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Categoría</th>
+                    <th scope="col">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map((cat) => (
+                    <tr key={cat.category_name}>
+                      <td>{cat.category_name}</td>
+                      <td>{formatCurrency(cat.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
               {/* Enriched legend (same pattern as Gastos por Cuenta) */}
               <div className="flex-1 w-full min-w-0 space-y-1.5 min-h-0 pb-2 overflow-y-auto">
@@ -1053,6 +1075,9 @@ export default function Dashboard() {
                                 width={50}
                                 height={12}
                                 color={t.tag_color}
+                                label={`Tendencia de ${t.tag_name}: de ${formatCurrency(
+                                  t.monthly[0].total,
+                                )} a ${formatCurrency(t.monthly[t.monthly.length - 1].total)}`}
                               />
                             )}
                           </button>

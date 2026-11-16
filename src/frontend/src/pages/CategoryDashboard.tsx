@@ -407,6 +407,25 @@ export default function CategoryDashboard() {
               />
             </div>
           )}
+          <table className="sr-only">
+            <caption>Gastos por categoría</caption>
+            <thead>
+              <tr>
+                <th scope="col">Categoría</th>
+                <th scope="col">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {categories
+                .filter((cat) => cat.total > 0)
+                .map((cat) => (
+                  <tr key={`${cat.parent_name ?? ""}-${cat.category_name}`}>
+                    <td>{cat.category_name}</td>
+                    <td>{formatCurrency(cat.total)}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
           {activeSelection ? (
             <div
               className="mt-3 p-3 rounded-lg bg-[var(--color-base-alt)] border-l-2"

@@ -17,6 +17,7 @@ import SymbolicIcon from "../components/SymbolicIcon";
 import { CurrencyInput } from "../components/ui/CurrencyInput";
 import { getCategoryIcon } from "../utils/categoryIcon";
 import type { BudgetGroup, BudgetEvent, BudgetSuggestion, BudgetSummaryItem } from "../types";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { formatCurrency } from "../utils/format";
 
 // ─── Trend Spark (6-month spending bars, mock parity, no chart lib) ──
@@ -580,14 +581,7 @@ function EditBudgetModal({
   const levelsValue = levelsText ?? levelsFallback;
   const groupValue = group ?? category.budget_group ?? "necesidades";
   const icon = getCategoryIcon(category.category_name);
-
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleEsc);
-    return () => document.removeEventListener("keydown", handleEsc);
-  }, [onClose]);
+  const trapRef = useFocusTrap(true, onClose);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["budgets"] });
@@ -640,7 +634,14 @@ function EditBudgetModal({
       className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
-      <div className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={trapRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-budget-title"
+        className="card w-full max-w-md p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-3 mb-1">
           <span
             className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
@@ -656,7 +657,9 @@ function EditBudgetModal({
             )}
           </span>
           <div>
-            <h3 className="text-base font-semibold text-primary">{category.category_name}</h3>
+            <h3 id="edit-budget-title" className="text-base font-semibold text-primary">
+              {category.category_name}
+            </h3>
             <p className="adw-caption adw-dim-label">
               {existing ? `Actual: ${formatCurrency(existing.amount)}` : "Sin presupuesto asignado"}
               {category.avg_monthly > 0 && ` · prom ${formatCurrency(category.avg_monthly)}/mes`}
@@ -665,10 +668,18 @@ function EditBudgetModal({
         </div>
         <div className="mt-4 space-y-3">
           <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+            <label
+              htmlFor="budget-limit"
+              className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+            >
               Límite mensual
             </label>
-            <CurrencyInput value={value} onChange={(v) => setAmount(v)} placeholder="0,00" />
+            <CurrencyInput
+              id="budget-limit"
+              value={value}
+              onChange={(v) => setAmount(v)}
+              placeholder="0,00"
+            />
             {category.avg_monthly > 0 && (
               <button
                 onClick={() => setAmount(Math.round(category.avg_monthly))}
@@ -679,10 +690,14 @@ function EditBudgetModal({
             )}
           </div>
           <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+            <label
+              htmlFor="budget-levels"
+              className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+            >
               Niveles de alerta (% del límite)
             </label>
             <input
+              id="budget-levels"
               type="text"
               value={levelsValue}
               onChange={(e) => setLevelsText(e.target.value)}
