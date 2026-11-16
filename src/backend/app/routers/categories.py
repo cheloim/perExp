@@ -8,6 +8,7 @@ from app.schemas import CategoryCreate, CategoryResponse, CategorySuggestRequest
 from app.services.auth import get_current_user
 from app.services.categorization import llm_categorize
 from app.services.category_tree import ancestors_of
+from app.services.rate_limit import check_rate_limit
 from app.services.tag_sync import get_or_create_mirror_tag, remove_mirror_tag
 
 router = APIRouter(prefix="/categories", tags=["categories"])
@@ -166,6 +167,13 @@ def suggest_category(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    allowed, retry_after = check_rate_limit(f"suggest:{current_user.id}", "suggest")
+    if not allowed:
+        raise HTTPException(
+            429,
+            f"Demasiadas sugerencias. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
     cats = db.query(Category).filter(Category.user_id == current_user.id).all()
     result = llm_categorize(body.description, body.amount, cats, current_user.id, db)
     return result

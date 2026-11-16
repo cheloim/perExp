@@ -40,6 +40,9 @@ RATE_LIMITS = {
     "password_change": {"max_attempts": 5, "window_seconds": 300},
     "token_refresh": {"max_attempts": 20, "window_seconds": 60},
     "capture": {"max_attempts": 60, "window_seconds": 3600},
+    "analysis": {"max_attempts": 100, "window_seconds": 86400},
+    "import": {"max_attempts": 20, "window_seconds": 86400},
+    "suggest": {"max_attempts": 300, "window_seconds": 86400},
 }
 
 
