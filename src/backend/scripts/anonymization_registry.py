@@ -88,6 +88,7 @@ OPTIONAL_COLUMNS = frozenset(
         ("expenses", "fx_rate"),
         ("expenses", "fx_rate_date"),
         ("expenses", "fx_rate_source"),
+        ("expenses", "search_grams"),
         ("categorization_reviews", "bulk_applied"),
     }
 )
@@ -279,6 +280,9 @@ RULES: dict[str, dict[str, Rule]] = {
             partner="description_hmac",
         ),
         "description_hmac": COMPUTED,
+        # Blind n-gram index keyed with the production ENCRYPTION_KEY. Never
+        # ship the production HMACs; the app backfills this column on boot.
+        "search_grams": NULL,
         "notes": _const(""),
         "transaction_id": Rule("synthetic_id", prefix="txn"),
     },
