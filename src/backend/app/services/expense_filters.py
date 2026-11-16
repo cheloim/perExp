@@ -5,9 +5,9 @@ The same filter set has to apply to ``GET /expenses`` and to
 charts on the expenses page stay consistent with the table.
 
 Everything applies at DB level except bank/person/card/account matching and
-the free-text search: those fields are EncryptedType columns, so they match
-at application level (decrypt then filter) — the pattern documented in
-``docs/specs/features/expenses.spec.yaml``.
+the free-text verification: those fields are EncryptedType columns. Search
+uses the blind n-gram column ``Expense.search_grams`` to narrow candidates at
+DB level and decrypts only those rows to verify the substring.
 """
 
 from __future__ import annotations
@@ -15,10 +15,68 @@ from __future__ import annotations
 from calendar import monthrange
 from datetime import date
 
+from sqlalchemy import and_, false, func, or_, text
 from sqlalchemy.orm import Session
 
 from app.models import Account, Card, Category, Expense, ExpenseTag, Tag
-from app.services.expense_search import expense_matches
+from app.services.encryption import tokenize_description
+from app.services.expense_search import build_query_grams, expense_matches
+
+
+def _search_matching_ids(
+    db: Session, uid_list: list[int], search: str
+) -> tuple[list[int] | None, list[int]]:
+    """Return matching expense ids, or None when the filter is a no-op.
+
+    Uses the blind n-gram index when every row is indexed. The full scan
+    remains as a fallback for rows created before the index was backfilled
+    and for one-character searches, which have no grams.
+    """
+    needle = tokenize_description(search or "")
+    if not needle:
+        return None, []
+
+    category_names = {
+        c.id: c.name for c in db.query(Category).filter(Category.user_id.in_(uid_list)).all()
+    }
+    search_columns = db.query(
+        Expense.id, Expense.description, Expense.notes, Expense.category_id
+    ).filter(Expense.user_id.in_(uid_list))
+
+    unindexed = (
+        db.query(Expense.id)
+        .filter(Expense.user_id.in_(uid_list), Expense.search_grams.is_(None))
+        .first()
+    )
+    query_grams = build_query_grams(search)
+    category_ids = [
+        category_id
+        for category_id, name in category_names.items()
+        if needle in tokenize_description(name or "")
+    ]
+    if unindexed is None and query_grams:
+        matching_ids: set[int] = set()
+        tsv = func.to_tsvector(text("'simple'"), Expense.search_grams)
+        gram_filter = and_(
+            *[tsv.op("@@")(func.plainto_tsquery(text("'simple'"), gram)) for gram in query_grams]
+        )
+        for expense_id, description, notes, category_id in search_columns.filter(gram_filter).all():
+            if expense_matches(search, description, notes, category_names.get(category_id)):
+                matching_ids.add(expense_id)
+        # A category name match already proves the needle; do not decrypt those
+        # rows. The caller applies the category condition separately.
+        return list(matching_ids), category_ids
+
+    # Unindexed rows or a one-character search: decrypt and verify the old way.
+    candidates = search_columns.all()
+    return (
+        [
+            expense_id
+            for expense_id, description, notes, category_id in candidates
+            if expense_matches(search, description, notes, category_names.get(category_id))
+        ],
+        [],
+    )
 
 
 def apply_expense_filters(
@@ -133,23 +191,18 @@ def apply_expense_filters(
             ExpenseTag.tag_id.in_(cuenta_tag_ids)
         )
         q = q.filter(~Expense.id.in_(cuenta_expense_ids))
-    # Text search — description, notes and category name are encrypted, so
-    # matching happens at application level (same as bank/person/card above)
+    # Text search — description, notes and category name are encrypted. The
+    # GIN index on search_grams narrows candidates without decrypting the
+    # table; only those candidates are decrypted and verified.
     if search:
-        category_names = {
-            c.id: c.name for c in db.query(Category).filter(Category.user_id.in_(uid_list)).all()
-        }
-        candidates = (
-            db.query(Expense.id, Expense.description, Expense.notes, Expense.category_id)
-            .filter(Expense.user_id.in_(uid_list))
-            .all()
-        )
-        matching_ids = [
-            eid
-            for eid, description, notes, category_id in candidates
-            if expense_matches(search, description, notes, category_names.get(category_id))
-        ]
-        q = q.filter(Expense.id.in_(matching_ids) if matching_ids else Expense.id == -1)
+        matching_ids, matching_category_ids = _search_matching_ids(db, uid_list, search)
+        if matching_ids is not None:
+            clauses = []
+            if matching_ids:
+                clauses.append(Expense.id.in_(matching_ids))
+            if matching_category_ids:
+                clauses.append(Expense.category_id.in_(matching_category_ids))
+            q = q.filter(or_(*clauses) if clauses else false())
     # Only exclude future installments when NOT filtering by specific category
     # (category-specific views like side panel need to show all expenses)
     if not category_id and not category_ids:

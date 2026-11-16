@@ -12,6 +12,8 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
+    event,
     text,
 )
 from sqlalchemy.orm import relationship
@@ -68,11 +70,20 @@ class Expense(Base):
         Index("ix_expenses_category_id", "category_id"),
         Index("ix_expenses_account_id", "account_id"),
         Index("ix_expenses_is_income", "is_income"),
+        Index(
+            "ix_expenses_search_grams_tsv",
+            text("to_tsvector('simple'::regconfig, search_grams)"),
+            postgresql_using="gin",
+        ),
     )
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False)
     description = Column(EncryptedType, nullable=False)
     description_hmac = Column(String(64), nullable=True, index=True)
+    # Space-separated HMACs of the 2- and 3-grams of description + notes. It is
+    # a blind index: search can narrow candidates without decrypting the table,
+    # and the plaintext never leaves the application.
+    search_grams = Column(Text, nullable=True)
     amount = Column(Float, nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     notes = Column(EncryptedType, default="")
@@ -140,6 +151,14 @@ class ExpenseTag(Base):
     __table_args__ = (Index("ix_expense_tags_tag_id", "tag_id"),)
     expense_id = Column(Integer, ForeignKey("expenses.id", ondelete="CASCADE"), primary_key=True)
     tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True)
+
+
+@event.listens_for(Expense, "before_insert")
+@event.listens_for(Expense, "before_update")
+def _populate_expense_search_grams(mapper, connection, target: Expense) -> None:
+    from app.services.expense_search import build_search_grams
+
+    target.search_grams = build_search_grams(target.description, target.notes)
 
 
 class CardClosing(Base):
