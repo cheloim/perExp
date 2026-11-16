@@ -71,6 +71,9 @@ jobs:
       - name: MyPy
         run: mypy app/
 
+      - name: Silent Excepts
+        run: python ../../config/scripts/validate_excepts.py
+
   test:
     name: Backend Tests
     runs-on: ubuntu-latest
