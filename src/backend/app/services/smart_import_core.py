@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Card, Category, User
 from app.prompts import SMART_IMPORT_PROMPT
+from app.services.amounts import parse_amount
 from app.services.categorization import _resolve_category, _should_skip
 from app.services.date_utils import _normalize_date_str
 from app.services.import_utils import (
@@ -160,6 +161,45 @@ def _holder_matches_user(card_holder: str, user_first_name: str, user_last_name:
     return False
 
 
+def _chunk_text(text: str, max_chars: int = 15000, overlap: int = 500) -> list[str]:
+    """Split a long statement on line boundaries with a small overlap."""
+    if len(text) <= max_chars:
+        return [text]
+
+    chunks: list[str] = []
+    start = 0
+    while start < len(text):
+        end = min(start + max_chars, len(text))
+        if end < len(text):
+            newline = text.rfind("\n", start, end)
+            if newline > start + max_chars // 2:
+                end = newline
+        chunks.append(text[start:end])
+        if end >= len(text):
+            break
+        start = max(end - overlap, start + 1)
+    return chunks
+
+
+def _dedupe_import_rows(rows: list[dict]) -> list[dict]:
+    """Drop the same row returned by two overlapping chunks."""
+    seen: set[tuple] = set()
+    unique: list[dict] = []
+    for row in rows:
+        key = (
+            str(row.get("transaction_id") or ""),
+            row.get("installment_number"),
+            str(row.get("date") or ""),
+            str(row.get("amount") or ""),
+            str(row.get("description") or "").strip().lower(),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(row)
+    return unique
+
+
 async def run_smart_import(file_content: bytes, filename: str, db: Session, user_id: int) -> dict:
     """
     Core smart import logic: extracts text, calls LLM, expands installments, detects duplicates.
@@ -227,17 +267,20 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
     # Step 4: Call LLM with user name for filtering
     prompt_with_context = SMART_IMPORT_PROMPT.replace("{user_full_name}", user_full_name)
     try:
-        try:
-            rows_raw = await get_client().acomplete_json(
-                [LLMMessage(role="user", text=f"Extracto bancario:\n\n{raw_text[:20000]}")],
-                feature="smart_import",
-                system=prompt_with_context,
-            )
-        except ValueError as e:
-            raise ValueError(f"Respuesta inválida del modelo (no es JSON): {e}")
-
-        if not isinstance(rows_raw, list):
-            raise ValueError("Response is not a list")
+        rows_raw: list = []
+        for chunk in _chunk_text(raw_text):
+            try:
+                part = await get_client().acomplete_json(
+                    [LLMMessage(role="user", text=f"Extracto bancario:\n\n{chunk}")],
+                    feature="smart_import",
+                    system=prompt_with_context,
+                )
+            except ValueError as e:
+                raise ValueError(f"Respuesta inválida del modelo (no es JSON): {e}")
+            if not isinstance(part, list):
+                raise ValueError("Response is not a list")
+            rows_raw.extend(part)
+        rows_raw = _dedupe_import_rows(rows_raw)
 
         # Extract closing info from LLM response
         for field in ["closing_date", "next_closing_date", "due_date", "bank"]:
@@ -264,12 +307,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                             break
 
         def _parse_amount(v) -> float | None:
-            if v is None:
-                return None
-            try:
-                return float(str(v).replace(",", "."))
-            except (ValueError, TypeError):
-                return None
+            return parse_amount(v)
 
         for r in rows_raw:
             if r:
@@ -305,10 +343,7 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
         desc = str(r.get("description", "")).strip()
         if not desc or _should_skip(desc):
             continue
-        try:
-            amount = float(r.get("amount", 0) or 0)
-        except (ValueError, TypeError):
-            amount = 0.0
+        amount = parse_amount(r.get("amount")) or 0.0
         if amount == 0:
             continue
 
