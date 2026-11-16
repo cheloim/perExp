@@ -7,6 +7,7 @@ from datetime import date, datetime
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Expense, ExpenseTag, ScheduledExpense
+from app.services.task_lock import task_lock
 from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
@@ -14,11 +15,16 @@ logger = logging.getLogger(__name__)
 
 @celery_app.task(name="app.tasks.scheduled_expenses.execute_due_installments")
 def execute_due_installments():
+    with task_lock("scheduled-expenses-daily", ttl=3600) as acquired:
+        if not acquired:
+            return 0
+        return _execute_due_installments()
+
+
+def _execute_due_installments():
     """
     Ejecuta cuotas programadas con scheduled_date <= hoy
     y envía una confirmación agrupada por usuario.
-
-    Debe correrse diariamente: cron 0 2 * * *
     """
     db = SessionLocal()
     try:
@@ -29,6 +35,7 @@ def execute_due_installments():
         due_scheduled = (
             db.query(ScheduledExpense)
             .filter(ScheduledExpense.status == "PENDING", ScheduledExpense.scheduled_date <= today)
+            .with_for_update(skip_locked=True)
             .all()
         )
 

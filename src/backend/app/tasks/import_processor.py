@@ -31,7 +31,13 @@ redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0")
 LOCK_TIMEOUT = 600
 
 
-@celery_app.task(name="app.tasks.import_processor.process_import_job")
+@celery_app.task(
+    name="app.tasks.import_processor.process_import_job",
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    max_retries=3,
+)
 def process_import_job(job_id: int):
     """
     Process an import job in the background.
@@ -143,11 +149,3 @@ def process_import_job(job_id: int):
 
     finally:
         db.close()
-
-
-def sync_process_import_job(job_id: int):
-    """
-    Synchronous wrapper for background task execution.
-    Used by FastAPI BackgroundTasks when Celery is not configured.
-    """
-    process_import_job.delay(job_id)

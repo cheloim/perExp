@@ -86,7 +86,7 @@ secrets/<env>/frontend/GOOGLE_CLIENT_ID
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | OAuth con Google. **Único proveedor OAuth soportado.** |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` | Bot de Telegram. |
 | `TELEGRAM_OIDC_CLIENT_ID`, `TELEGRAM_OIDC_CLIENT_SECRET` | Login con Telegram (OIDC). |
-| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` | WhatsApp Cloud API. Sin `APP_SECRET` la firma del webhook no se valida. |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` | WhatsApp Cloud API. Con `APP_ENV=production` y WhatsApp habilitado, `APP_SECRET` es obligatorio: sin él el arranque falla y el webhook rechaza payloads sin firma. |
 | `EMAIL_API_KEY`, `SMTP_FROM`, `SMTP_FROM_ADDRESS`, `ADMIN_EMAIL` | Emails transaccionales (Resend). |
 | `REDIS_URL`, `REDIS_CACHE_URL` | Broker de Celery y cache. |
 | `CACHE_DISABLED_PREFIXES` | Lista separada por comas para apagar prefijos de cache. |
