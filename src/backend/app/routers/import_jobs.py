@@ -18,6 +18,7 @@ from app.services import fx
 from app.services.amounts import parse_amount
 from app.services.auth import get_current_user
 from app.services.import_utils import _normalize_text
+from app.services.rate_limit import check_rate_limit
 from app.tasks.import_processor import sync_process_import_job
 
 router = APIRouter(prefix="/import-jobs", tags=["import-jobs"])
@@ -42,6 +43,14 @@ async def create_import_job(
     Create an import job and process it in the background.
     Returns job_id immediately without waiting for the result.
     """
+    allowed, retry_after = check_rate_limit(f"import:{user.id}", "import")
+    if not allowed:
+        raise HTTPException(
+            429,
+            f"Demasiadas importaciones. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     content = await file.read()
 
     # Validate file size (10MB limit)
