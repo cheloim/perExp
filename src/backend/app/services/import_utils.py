@@ -5,9 +5,14 @@ import re
 from datetime import date, timedelta
 
 import pandas as pd
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
-from sqlalchemy.orm import Session
+
+# Bank amounts are floats; exact equality misses the same row parsed as
+# 1234.56 vs 1234.5600001. Half a cent is below any real money difference.
+AMOUNT_TOLERANCE = 0.005
 
 from app.models import Expense
 from app.services.date_utils import add_months
@@ -148,7 +153,7 @@ def _is_duplicate(
             db.query(Expense)
             .filter(
                 Expense.user_id == user_id,
-                Expense.amount == amount,
+                func.abs(Expense.amount - amount) < AMOUNT_TOLERANCE,
                 Expense.description_hmac == compute_hmac(description),
                 Expense.installment_number == installment_number,
                 Expense.installment_total == installment_total,
@@ -173,7 +178,7 @@ def _is_duplicate(
     q = db.query(Expense).filter(
         Expense.user_id == user_id,
         Expense.date == exp_date,
-        Expense.amount == amount,
+        func.abs(Expense.amount - amount) < AMOUNT_TOLERANCE,
         Expense.description_hmac == compute_hmac(description),
         Expense.is_recurring_projection == False,  # noqa: E712
     )
