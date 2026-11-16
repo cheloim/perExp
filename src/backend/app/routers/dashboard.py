@@ -72,6 +72,15 @@ def _load_cards_and_accounts(uid_list: list[int], expenses: list[Expense], db: S
     return cards_by_id, accounts_by_id
 
 
+def _category_map(uid_list: list[int], db: Session) -> dict[int, Category]:
+    """Categories visible to the group, including parents owned elsewhere."""
+    categories = db.query(Category).filter(Category.user_id.in_(uid_list)).all()
+    parent_ids = {c.parent_id for c in categories if c.parent_id}
+    if parent_ids:
+        categories += db.query(Category).filter(Category.id.in_(parent_ids)).all()
+    return {c.id: c for c in categories}
+
+
 def _apply_filters(q, month_val, person_val, cat_id_val, bank_val=None, uid_list=None, db=None):
     if month_val:
         try:
@@ -158,6 +167,10 @@ def _compute_summary(
         .options(joinedload(Expense.card_rel))
         .filter(Expense.user_id.in_(uid_list))
     )
+    # "All time" still has a floor: the dashboard never needs the complete
+    # history to render, and an unbounded scan grows with the account.
+    if not month:
+        base_q = base_q.filter(Expense.date >= add_months(today, -24))
     expenses = (
         _apply_filters(base_q, month, person, category_id, bank, uid_list, db)
         .order_by(desc(Expense.date))
@@ -429,6 +442,7 @@ def _compute_summary(
             Expense.user_id.in_(uid_list),
             Expense.installment_group_id != None,
             Expense.installment_group_id != "",
+            Expense.date >= add_months(today, -18),
         )
         .all()
     )
@@ -1121,6 +1135,8 @@ def get_account_expenses(
             )
         except (ValueError, IndexError):
             pass
+    else:
+        base_q = base_q.filter(Expense.date >= add_months(date.today(), -24))
 
     expenses = base_q.order_by(Expense.date).all()
     cards_by_id, _ = _load_cards_and_accounts(uid_list, expenses, db)
@@ -1143,7 +1159,7 @@ def get_account_expenses(
             return True
         return e.id in tag_credit_expense_ids
 
-    cat_map = {c.id: c for c in db.query(Category).all()}
+    cat_map = _category_map(uid_list, db)
 
     result = []
     for e in expenses:
@@ -1184,8 +1200,10 @@ def get_installments_dashboard(
     from app.models import ScheduledExpense
 
     uid_list = get_group_user_ids(current_user.id, db)
+    today = date.today()
 
-    # Cuotas realizadas (expenses)
+    # Cuotas realizadas (expenses). 18 months covers any realistic plan and
+    # keeps the endpoint from loading the complete history.
     paid_exps = (
         db.query(Expense)
         .options(joinedload(Expense.card_rel))
@@ -1193,6 +1211,7 @@ def get_installments_dashboard(
             Expense.user_id.in_(uid_list),
             Expense.installment_group_id != None,
             Expense.installment_group_id != "",
+            Expense.date >= add_months(today, -18),
         )
         .all()
     )
@@ -1206,7 +1225,7 @@ def get_installments_dashboard(
 
     cards_by_id, _ = _load_cards_and_accounts(uid_list, paid_exps, db)
 
-    cat_map = {c.id: c for c in db.query(Category).all()}
+    cat_map = _category_map(uid_list, db)
     groups: dict = {}
 
     # Procesar cuotas pagadas
@@ -1454,7 +1473,7 @@ def get_scheduled_summary(
     future = add_months(today, 3)
     future_end = date(future.year, future.month, monthrange(future.year, future.month)[1])
 
-    cat_map = {c.id: c for c in db.query(Category).all()}
+    cat_map = _category_map(uid_list, db)
 
     # Cuotas pendientes (installment_total > 1) — current month + 3 months forward
     pending_installments = (
@@ -1698,6 +1717,8 @@ def get_top_merchants(
             )
         except (ValueError, IndexError):
             pass
+    else:
+        q = q.filter(Expense.date >= add_months(date.today(), -24))
     if person or bank:
         all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
         if person:
@@ -2040,6 +2061,8 @@ def get_card_category_breakdown(
             )
         except (ValueError, IndexError):
             pass
+    else:
+        q = q.filter(Expense.date >= add_months(date.today(), -24))
     if bank:
         all_cards = db.query(Card).filter(Card.user_id.in_(uid_list)).all()
         matching_ids = [c.id for c in all_cards if bank.lower() in (c.bank or "").lower()]
@@ -2047,8 +2070,7 @@ def get_card_category_breakdown(
 
     exps = q.all()
     cards_by_id, _ = _load_cards_and_accounts(uid_list, exps, db)
-    cats_list = db.query(Category).all()
-    cat_map = {c.id: c for c in cats_list}
+    cat_map = _category_map(uid_list, db)
 
     data: dict = {}
     cat_colors: dict = {}
@@ -2190,7 +2212,7 @@ async def get_ai_trends(
         .all()
     )
 
-    cat_map = {c.id: c for c in db.query(Category).all()}
+    cat_map = _category_map(uid_list, db)
 
     by_month: dict = defaultdict(lambda: {"total": 0.0, "count": 0, "by_cat": defaultdict(float)})
     for e in expenses_hist:
@@ -2210,6 +2232,7 @@ async def get_ai_trends(
             Expense.user_id.in_(uid_list),
             Expense.installment_group_id != None,
             Expense.installment_group_id != "",
+            Expense.date >= add_months(today, -18),
         )
         .all()
     )

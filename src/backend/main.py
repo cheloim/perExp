@@ -88,9 +88,7 @@ async def lifespan(application: FastAPI):
     # An unsigned WhatsApp webhook lets anyone forge incoming messages. In
     # production the Meta app secret is mandatory whenever WhatsApp is enabled.
     if os.getenv("APP_ENV") == "production":
-        whatsapp_enabled = bool(
-            os.getenv("WHATSAPP_TOKEN") or os.getenv("WHATSAPP_VERIFY_TOKEN")
-        )
+        whatsapp_enabled = bool(os.getenv("WHATSAPP_TOKEN") or os.getenv("WHATSAPP_VERIFY_TOKEN"))
         if whatsapp_enabled and not os.getenv("WHATSAPP_APP_SECRET"):
             raise RuntimeError(
                 "WHATSAPP_APP_SECRET is required when WhatsApp is enabled in production"
@@ -116,6 +114,15 @@ async def lifespan(application: FastAPI):
     db.close()
 
     task = asyncio.create_task(price_refresh_loop())
+
+    # The search index column starts NULL for existing rows. Backfill in the
+    # background with this process's encryption key; search falls back to the
+    # previous scan until the user's rows are indexed.
+    from app.services.search_index import backfill_search_grams
+
+    threading.Thread(
+        target=backfill_search_grams, daemon=True, name="search-index-backfill"
+    ).start()
 
     telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
     bot_enabled = os.getenv("TELEGRAM_BOT_ENABLED", "true").lower() in ("true", "1", "yes")

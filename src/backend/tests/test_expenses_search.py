@@ -5,7 +5,11 @@ matches at application level: decrypt, normalize with tokenize_description
 (case- and accent-insensitive) and substring-match.
 """
 
-from app.services.expense_search import expense_matches
+from app.services.expense_search import (
+    build_query_grams,
+    build_search_grams,
+    expense_matches,
+)
 
 # ── Pure matcher ──────────────────────────────────────────────
 
@@ -113,6 +117,43 @@ class TestSearchFilter:
 
         assert len(get_expenses(search="", db=db, current_user=test_user)) == 2
         assert len(get_expenses(db=db, current_user=test_user)) == 2
+
+
+class TestSearchIndex:
+    def test_grams_are_hmac_and_do_not_store_plaintext(self):
+        grams = build_search_grams("Farmacia Central", "regalo de cumple")
+
+        assert grams
+        assert "farmacia" not in grams
+        assert "regalo" not in grams
+        assert set(build_query_grams("farm")) <= set(grams.split())
+
+    def test_empty_text_is_indexed_as_empty_not_null(self):
+        assert build_search_grams("", None) == ""
+
+    def test_description_update_rebuilds_the_index(self, db, test_user):
+        from app.routers.expenses import get_expenses
+
+        expense = _make_expense(db, test_user.id, "Farmacia Central")
+        expense.description = "Supermercado del barrio"
+        db.flush()
+
+        assert [e.id for e in get_expenses(search="super", db=db, current_user=test_user)] == [
+            expense.id
+        ]
+        assert get_expenses(search="farmacia", db=db, current_user=test_user) == []
+
+    def test_rows_pending_backfill_still_match(self, db, test_user):
+        from app.models import Expense
+        from app.routers.expenses import get_expenses
+
+        expense = _make_expense(db, test_user.id, "Farmacia Central")
+        db.query(Expense).filter(Expense.id == expense.id).update({Expense.search_grams: None})
+        db.expire_all()
+
+        assert [e.id for e in get_expenses(search="farm", db=db, current_user=test_user)] == [
+            expense.id
+        ]
 
 
 class TestSearchPagination:
