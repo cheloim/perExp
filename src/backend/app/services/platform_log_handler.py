@@ -4,6 +4,8 @@ import logging
 import threading
 from datetime import UTC, datetime
 
+from app.log_filters import RedactPiiFilter
+
 
 class PlatformLogHandler(logging.Handler):
     """Buffers WARNING+ log records and flushes to platform_logs table every 5 seconds."""
@@ -14,6 +16,7 @@ class PlatformLogHandler(logging.Handler):
         self._lock = threading.Lock()
         self._flush_interval = flush_interval
         self._stop_event = threading.Event()
+        self.addFilter(RedactPiiFilter())
         self._flush_thread = threading.Thread(target=self._flush_loop, daemon=True)
         self._flush_thread.start()
 

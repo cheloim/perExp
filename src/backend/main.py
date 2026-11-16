@@ -13,12 +13,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-from app.log_filters import RedactQueryFilter, SuppressHealthFilter
+from app.log_filters import RedactPiiFilter, RedactQueryFilter, SuppressHealthFilter
 
 # Keep internal probe noise and user content (query strings) out of the
 # uvicorn access log
 logging.getLogger("uvicorn.access").addFilter(RedactQueryFilter())
 logging.getLogger("uvicorn.access").addFilter(SuppressHealthFilter())
+for _root_handler in logging.getLogger().handlers:
+    _root_handler.addFilter(RedactPiiFilter())
 
 from app.services.platform_log_handler import PlatformLogHandler
 

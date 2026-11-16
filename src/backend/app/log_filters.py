@@ -10,6 +10,7 @@ keep the path, method, status and format intact for operational debugging.
 from __future__ import annotations
 
 import logging
+import re
 
 
 class SuppressHealthFilter(logging.Filter):
@@ -35,4 +36,29 @@ class RedactQueryFilter(logging.Filter):
             path = args[2]
             if "?" in path:
                 record.args = (*args[:2], path.split("?", 1)[0], *args[3:])
+        return True
+
+
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+_KV_RE = re.compile(r"(?i)\b(description|desc|amount|monto|email|user_email|notes)=([^&\s,;]+)")
+_JSON_RE = re.compile(r'(?i)"(description|notes|email|amount)"\s*:\s*(?:"[^"]*"|[-\d.]+)')
+
+
+class RedactPiiFilter(logging.Filter):
+    """Defence in depth for application logs and ``platform_logs``.
+
+    Query strings are already stripped from uvicorn access lines. Free-text
+    application messages can still carry an email, an expense description or
+    an amount; this filter replaces those values before any handler formats or
+    persists the record.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        redacted = _EMAIL_RE.sub("[email]", message)
+        redacted = _KV_RE.sub(r"\1=[redacted]", redacted)
+        redacted = _JSON_RE.sub(lambda m: f'"{m.group(1)}":"[redacted]"', redacted)
+        if redacted != message:
+            record.msg = redacted
+            record.args = ()
         return True

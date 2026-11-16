@@ -39,19 +39,17 @@ REQUEST_LATENCY = Histogram(
 
 USERS_TOTAL = Gauge("oikonomia_users_total", "Total registered users")
 ACTIVE_USERS = Gauge("oikonomia_active_users_total", "Active users in last 24h")
-EXPENSES_TOTAL = Gauge("oikonomia_expenses_total", "Total expenses", ["user_id"])
-ACCOUNTS_TOTAL = Gauge("oikonomia_accounts_total", "Total accounts", ["user_id", "type"])
-CARDS_TOTAL = Gauge("oikonomia_cards_total", "Total cards", ["user_id", "type"])
+EXPENSES_TOTAL = Gauge("oikonomia_expenses_total", "Total expenses")
+ACCOUNTS_TOTAL = Gauge("oikonomia_accounts_total", "Total accounts", ["type"])
+CARDS_TOTAL = Gauge("oikonomia_cards_total", "Total cards", ["type"])
 CATEGORIES_TOTAL = Gauge("oikonomia_categories_total", "Total categories")
-INVESTMENTS_TOTAL = Gauge("oikonomia_investments_total", "Total investments", ["user_id"])
+INVESTMENTS_TOTAL = Gauge("oikonomia_investments_total", "Total investments")
 IMPORT_JOBS_TOTAL = Gauge("oikonomia_import_jobs_total", "Import jobs by status", ["status"])
 SCHEDULED_EXPENSES_TOTAL = Gauge(
     "oikonomia_scheduled_expenses_total", "Scheduled expenses by status", ["status"]
 )
-RECURRING_EXPENSES_TOTAL = Gauge(
-    "oikonomia_recurring_expenses_total", "Recurring expenses", ["user_id"]
-)
-BUDGET_GROUPS_TOTAL = Gauge("oikonomia_budget_groups_total", "Budget groups", ["user_id", "group"])
+RECURRING_EXPENSES_TOTAL = Gauge("oikonomia_recurring_expenses_total", "Recurring expenses")
+BUDGET_GROUPS_TOTAL = Gauge("oikonomia_budget_groups_total", "Budget groups", ["group"])
 
 # ── Service health metrics ─────────────────────────────────
 
@@ -81,7 +79,6 @@ LOGIN_ATTEMPTS = Counter(
 EXPENSES_CREATED = Counter(
     "oikonomia_expenses_created_total",
     "Expenses created",
-    ["user_id"],
 )
 
 TELEGRAM_MESSAGES = Counter(
@@ -151,43 +148,24 @@ def update_business_metrics() -> None:
             # Categories
             CATEGORIES_TOTAL.set(db.query(Category).count())
 
-            # Per-user metrics — batched GROUP BY (was N×6 queries per scrape)
-            for row in db.query(Expense.user_id, func.count()).group_by(Expense.user_id).all():
-                EXPENSES_TOTAL.labels(user_id=str(row[0])).set(row[1])
-            for row in (
-                db.query(Investment.user_id, func.count()).group_by(Investment.user_id).all()
-            ):
-                INVESTMENTS_TOTAL.labels(user_id=str(row[0])).set(row[1])
-            for row in (
-                db.query(RecurringExpense.user_id, func.count())
-                .group_by(RecurringExpense.user_id)
-                .all()
-            ):
-                RECURRING_EXPENSES_TOTAL.labels(user_id=str(row[0])).set(row[1])
+            # Aggregate metrics: no per-user labels, so cardinality does not grow
+            # with the number of users.
+            EXPENSES_TOTAL.set(db.query(func.count(Expense.id)).scalar() or 0)
+            INVESTMENTS_TOTAL.set(db.query(func.count(Investment.id)).scalar() or 0)
+            RECURRING_EXPENSES_TOTAL.set(db.query(func.count(RecurringExpense.id)).scalar() or 0)
 
-            # Accounts by type
-            for uid, atype, count in (
-                db.query(Account.user_id, Account.type, func.count())
-                .group_by(Account.user_id, Account.type)
-                .all()
-            ):
-                ACCOUNTS_TOTAL.labels(user_id=str(uid), type=atype or "unknown").set(count)
+            for atype, count in db.query(Account.type, func.count()).group_by(Account.type).all():
+                ACCOUNTS_TOTAL.labels(type=atype or "unknown").set(count)
 
-            # Cards by type
-            for uid, ctype, count in (
-                db.query(Card.user_id, Card.card_type, func.count())
-                .group_by(Card.user_id, Card.card_type)
-                .all()
+            for ctype, count in (
+                db.query(Card.card_type, func.count()).group_by(Card.card_type).all()
             ):
-                CARDS_TOTAL.labels(user_id=str(uid), type=ctype or "unknown").set(count)
+                CARDS_TOTAL.labels(type=ctype or "unknown").set(count)
 
-            # Budget groups
-            for uid, bname, count in (
-                db.query(BudgetGroup.user_id, BudgetGroup.name, func.count())
-                .group_by(BudgetGroup.user_id, BudgetGroup.name)
-                .all()
+            for bname, count in (
+                db.query(BudgetGroup.name, func.count()).group_by(BudgetGroup.name).all()
             ):
-                BUDGET_GROUPS_TOTAL.labels(user_id=str(uid), group=bname).set(count)
+                BUDGET_GROUPS_TOTAL.labels(group=bname).set(count)
 
             # Import jobs by status
             import_statuses = (

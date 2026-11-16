@@ -5,7 +5,7 @@ stored encrypted (EXP-NF02).
 
 import logging
 
-from app.log_filters import RedactQueryFilter, SuppressHealthFilter
+from app.log_filters import RedactPiiFilter, RedactQueryFilter, SuppressHealthFilter
 
 
 def _access_record(path: str) -> logging.LogRecord:
@@ -51,3 +51,31 @@ class TestSuppressHealthFilter:
 
     def test_other_lines_pass(self):
         assert SuppressHealthFilter().filter(_access_record("/expenses")) is True
+
+
+class TestRedactPiiFilter:
+    def _record(self, message: str) -> logging.LogRecord:
+        return logging.LogRecord("app", logging.INFO, __file__, 1, message, None, None)
+
+    def test_redacts_email_and_key_value_pairs(self):
+        record = self._record("user=maria@example.com amount=1500.50 description=Farmacia Central")
+
+        assert RedactPiiFilter().filter(record) is True
+
+        message = record.getMessage()
+        assert "maria@example.com" not in message
+        assert "1500.50" not in message
+        assert "Farmacia Central" not in message
+        assert "[email]" in message
+        assert "amount=[redacted]" in message
+        assert "description=[redacted]" in message
+
+    def test_redacts_json_values(self):
+        record = self._record('{"description": "Compra", "amount": 10.5}')
+
+        RedactPiiFilter().filter(record)
+
+        message = record.getMessage()
+        assert "Compra" not in message
+        assert "10.5" not in message
+        assert message.count("[redacted]") == 2

@@ -555,7 +555,7 @@ def create_expense(
 
         check_budget_threshold_on_expense(db, current_user.id, db_exp.category_id, db_exp.amount)
 
-    EXPENSES_CREATED.labels(user_id=str(current_user.id)).inc()
+    EXPENSES_CREATED.inc()
     _invalidate_expense_cache(current_user.id, db)
     return db_exp
 
