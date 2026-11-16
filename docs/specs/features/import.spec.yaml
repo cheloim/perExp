@@ -150,7 +150,8 @@ endpoints:
       - "Read file content"
       - "Validate size and type"
       - "Create ImportJob with status=PROCESSING"
-      - "Start background task: sync_process_import_job(job.id)"
+      - "Enqueue Celery task: process_import_job.delay(job.id)"
+      - "If the broker fails, mark the job FAILED and return 503"
       - "Return job immediately"
 
   - method: GET
@@ -277,7 +278,7 @@ documentation:
   - file: "specs/architecture/data-model.md"
     section: "ImportJob"
   - file: "backend/app/tasks/import_processor.py"
-    section: "sync_process_import_job"
+    section: "process_import_job"
 
 changelog:
   - date: "2026-08-16"

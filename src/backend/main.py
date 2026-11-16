@@ -85,6 +85,17 @@ async def lifespan(application: FastAPI):
         logger.error("SECRET_KEY cannot encrypt/decrypt! Check that the key hasn't changed.")
         raise RuntimeError("SECRET_KEY is invalid - cannot encrypt/decrypt data. Aborting.")
 
+    # An unsigned WhatsApp webhook lets anyone forge incoming messages. In
+    # production the Meta app secret is mandatory whenever WhatsApp is enabled.
+    if os.getenv("APP_ENV") == "production":
+        whatsapp_enabled = bool(
+            os.getenv("WHATSAPP_TOKEN") or os.getenv("WHATSAPP_VERIFY_TOKEN")
+        )
+        if whatsapp_enabled and not os.getenv("WHATSAPP_APP_SECRET"):
+            raise RuntimeError(
+                "WHATSAPP_APP_SECRET is required when WhatsApp is enabled in production"
+            )
+
     db = SessionLocal()
     if db.query(Category).count() == 0:
         _apply_base_hierarchy(db)

@@ -25,6 +25,24 @@ def cleanup_expired_import_jobs():
     try:
         cutoff = datetime.utcnow() - timedelta(hours=24)
 
+        # A worker that died leaves the row in PROCESSING/QUEUED forever.
+        # Mark it FAILED before the 24h deletion so the UI can show the truth.
+        stale_cutoff = datetime.utcnow() - timedelta(hours=1)
+        stale = (
+            db.query(ImportJob)
+            .filter(
+                ImportJob.status.in_(["PROCESSING", "QUEUED"]),
+                ImportJob.created_at < stale_cutoff,
+            )
+            .all()
+        )
+        for job in stale:
+            job.status = "FAILED"
+            job.error_message = "Procesamiento interrumpido"
+            job.completed_at = datetime.utcnow()
+        if stale:
+            db.commit()
+
         expired = db.query(ImportJob).filter(ImportJob.created_at < cutoff).all()
 
         count = 0

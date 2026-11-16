@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -19,7 +19,7 @@ from app.services.amounts import parse_amount
 from app.services.auth import get_current_user
 from app.services.import_utils import _normalize_text
 from app.services.rate_limit import check_rate_limit
-from app.tasks.import_processor import sync_process_import_job
+from app.tasks.import_processor import process_import_job
 
 router = APIRouter(prefix="/import-jobs", tags=["import-jobs"])
 
@@ -35,7 +35,6 @@ IMPORT_JOB_TTL_HOURS = 24
 )
 async def create_import_job(
     file: UploadFile = File(...),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -73,8 +72,17 @@ async def create_import_job(
     db.commit()
     db.refresh(job)
 
-    # Start background processing
-    background_tasks.add_task(sync_process_import_job, job.id)
+    # Publish to Celery. If the broker is down the job must not stay
+    # PROCESSING forever: mark it FAILED and tell the client to retry.
+    try:
+        process_import_job.delay(job.id)
+    except Exception:
+        logger.exception("[IMPORT JOB] Could not enqueue job %d", job.id)
+        job.status = "FAILED"
+        job.error_message = "No se pudo encolar el procesamiento"
+        job.completed_at = datetime.utcnow()
+        db.commit()
+        raise HTTPException(503, "No se pudo encolar el procesamiento del import")
 
     return ImportJobResponse(
         id=job.id,
