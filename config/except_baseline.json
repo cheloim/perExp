@@ -1,0 +1,29 @@
+{
+  "files": {
+    "src/backend/app/metrics.py": 5,
+    "src/backend/app/routers/admin.py": 10,
+    "src/backend/app/routers/analysis.py": 2,
+    "src/backend/app/routers/auth.py": 1,
+    "src/backend/app/routers/dashboard.py": 1,
+    "src/backend/app/routers/expenses.py": 1,
+    "src/backend/app/routers/health.py": 2,
+    "src/backend/app/routers/import_jobs.py": 1,
+    "src/backend/app/routers/investments.py": 8,
+    "src/backend/app/routers/notifications.py": 1,
+    "src/backend/app/routers/whatsapp_webhook.py": 4,
+    "src/backend/app/services/cache.py": 2,
+    "src/backend/app/services/capture.py": 1,
+    "src/backend/app/services/encryption.py": 1,
+    "src/backend/app/services/import_utils.py": 1,
+    "src/backend/app/services/llm/metrics.py": 1,
+    "src/backend/app/services/pdf.py": 3,
+    "src/backend/app/services/platform_log_handler.py": 1,
+    "src/backend/app/services/price_refresh.py": 3,
+    "src/backend/app/services/smart_import_core.py": 2,
+    "src/backend/app/services/telegram_oidc.py": 1,
+    "src/backend/app/tasks/cleanup_import_jobs.py": 1,
+    "src/backend/app/tasks/heartbeat.py": 1,
+    "src/backend/app/tasks/monthly_report.py": 2,
+    "src/backend/app/telegram_bot.py": 5
+  }
+}
