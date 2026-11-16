@@ -658,7 +658,13 @@ export default function Dashboard() {
             />
           ) : (
             <div className="flex flex-col @[460px]:flex-row items-center gap-4 flex-1 min-h-0">
-              <ResponsiveContainer width="100%" height={240} className="max-w-[260px] flex-none">
+              <ResponsiveContainer
+                width="100%"
+                height={240}
+                className="max-w-[260px] flex-none"
+                role="img"
+                aria-label="Gastos por categoría. La tabla siguiente contiene los mismos datos."
+              >
                 <PieChart>
                   <Pie
                     data={pieData}
@@ -698,6 +704,24 @@ export default function Dashboard() {
                   />
                 </PieChart>
               </ResponsiveContainer>
+
+              <table className="sr-only">
+                <caption>Gastos por categoría</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Categoría</th>
+                    <th scope="col">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map((cat) => (
+                    <tr key={cat.category_name}>
+                      <td>{cat.category_name}</td>
+                      <td>{formatCurrency(cat.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
               {/* Enriched legend (same pattern as Gastos por Cuenta) */}
               <div className="flex-1 w-full min-w-0 space-y-1.5 min-h-0 pb-2 overflow-y-auto">
@@ -1051,6 +1075,9 @@ export default function Dashboard() {
                                 width={50}
                                 height={12}
                                 color={t.tag_color}
+                                label={`Tendencia de ${t.tag_name}: de ${formatCurrency(
+                                  t.monthly[0].total,
+                                )} a ${formatCurrency(t.monthly[t.monthly.length - 1].total)}`}
                               />
                             )}
                           </button>

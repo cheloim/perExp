@@ -81,6 +81,8 @@ export function AssistantShell({
   const [months, setMonths] = useState<number>(12);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
+  const wasOpenRef = useRef(false);
   /**
    * Synchronous re-entrancy guard. `streaming` is React state and does not
    * update until the next render, so two triggers in the same tick (Enter
@@ -173,7 +175,14 @@ export function AssistantShell({
   }, [input]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = threadRef.current;
+    if (!container) return;
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    const justOpened = open && !wasOpenRef.current;
+    wasOpenRef.current = open;
+    if (justOpened || nearBottom) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages.length, open]);
 
   // Open-time instrumentation: `open-start` is marked by the owner's toggle, and
@@ -610,7 +619,10 @@ export function AssistantShell({
       <div className="flex-1 flex flex-col min-h-0">
         {/* Single scroll container for the thread — the wrapper above must NOT
                 also scroll or we get two nested scrollers fighting over the same space. */}
-        <div className="flex-1 flex flex-col px-5 py-4 space-y-3 min-h-0 overflow-y-auto">
+        <div
+          ref={threadRef}
+          className="flex-1 flex flex-col px-5 py-4 space-y-3 min-h-0 overflow-y-auto"
+        >
           {messages.length === 0 && !streaming && (
             <div className="flex-1 flex flex-col justify-center items-start gap-4 py-6">
               <div>
@@ -644,7 +656,13 @@ export function AssistantShell({
             </div>
           )}
 
-          <div className="space-y-3">
+          <div
+            className="space-y-3"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions text"
+            aria-label="Conversación del asistente"
+          >
             {messages.map((msg, i) => (
               <Bubble
                 key={i}

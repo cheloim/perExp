@@ -904,6 +904,20 @@ describe("AssistantShell — ventana lateral", () => {
     expect(onWidthChange).toHaveBeenLastCalledWith(DOCKED_WIDTH_MIN);
   });
 
+  it("expone el hilo como un log accesible", () => {
+    seed([]);
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("log", { name: "Conversación del asistente" })).toBeInTheDocument();
+  });
+
   it("resets the width to 400px on double click", () => {
     const onWidthChange = vi.fn();
     renderDocked({ width: 600, onWidthChange });
