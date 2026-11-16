@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Tooltip,
   ResponsiveContainer,
@@ -549,9 +549,9 @@ export default function Dashboard() {
           savingsArs > 0 || totalUsd > 0 ? "md:grid-cols-5" : "md:grid-cols-4"
         } gap-4`}
       >
-        <div
+        <Link
+          to="/expenses"
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-          onClick={() => navigate("/expenses")}
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
           <p className="text-lg font-bold text-primary">
@@ -565,25 +565,23 @@ export default function Dashboard() {
           <p className="text-xs text-tertiary mt-1">
             {dashData?.total_expenses ?? 0} transacciones
           </p>
-        </div>
-        <div
+        </Link>
+        <Link
+          to="/expenses?card_type=credito"
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-          onClick={() => navigate("/expenses?card_type=credito")}
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
           <p className="text-lg font-bold text-danger">{formatCurrency(totalPasivos)}</p>
           <p className="text-xs text-tertiary mt-1">{pasivosData?.count ?? 0} cuotas pendientes</p>
-        </div>
-        <div
+        </Link>
+        <Link
+          to={`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-          onClick={() =>
-            navigate(`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`)
-          }
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Cuotas este mes</p>
           <p className="text-lg font-bold text-primary">{formatCurrency(cuotasComprometidas)}</p>
           <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>
-        </div>
+        </Link>
         <div className="card p-5">
           <p className="text-[10px] text-tertiary uppercase mb-1">
             {useMtd ? "vs mismo día mes ant." : "vs Mes anterior"}
@@ -604,9 +602,9 @@ export default function Dashboard() {
           </p>
         </div>
         {(savingsArs > 0 || totalUsd > 0) && (
-          <div
+          <Link
+            to="/investments"
             className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
-            onClick={() => navigate("/investments")}
           >
             <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
             <div className="space-y-0.5">
@@ -623,7 +621,7 @@ export default function Dashboard() {
                 </p>
               )}
             </div>
-          </div>
+          </Link>
         )}
       </div>
 
