@@ -243,6 +243,7 @@
 | `date` | Date | NOT NULL | Transaction date |
 | `description` | EncryptedType | NOT NULL | Merchant/description |
 | `description_hmac` | String(64) | nullable, indexed | Searchable HMAC |
+| `search_grams` | Text | nullable, GIN on `to_tsvector` | Blind 2/3-gram HMAC index for free-text search |
 | `amount` | Float | NOT NULL | Transaction amount |
 | `category_id` | Integer | FK → categories.id, nullable | |
 | `notes` | EncryptedType | default `""` | User notes |

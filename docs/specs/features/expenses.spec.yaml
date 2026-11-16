@@ -234,7 +234,8 @@ endpoints:
       - "Apply date/month filters at DB level"
       - "Apply category filters at DB level"
       - "Application-level filtering for bank, person, card (decrypt then filter)"
-      - "Application-level text search for description, notes, category name (decrypt then filter)"
+      - "Text search: blind n-gram HMAC index (GIN) narrows candidates; decrypt and verify only candidates"
+      - "Category-name matches filter by category_id; unindexed rows fall back to the full scan"
       - "Order by date desc, offset/limit"
 
   - method: GET
@@ -398,6 +399,10 @@ documentation:
     section: "Pagination & Filtering"
 
 changelog:
+  - date: "2026-11-16"
+    version: "1.2.0"
+    changes:
+      - "Free-text search uses a blind n-gram index instead of decrypting every expense"
   - date: "2026-10-24"
     version: "1.1.0"
     changes: ["Added free-text search (search param) over description, notes and category name"]
