@@ -31,7 +31,10 @@ class GoogleClient(LLMClient):
 
     def __init__(self, api_key: str, model: str, timeout: float):
         super().__init__(api_key, model, timeout)
-        self._client = genai.Client(api_key=api_key)
+        self._client = genai.Client(
+            api_key=api_key,
+            http_options=genai_types.HttpOptions(timeout=int(timeout * 1000)),
+        )
 
     # `client.aio` must not be created inside one event loop and reused in
     # another (Celery tasks run their own), so it is resolved per access.

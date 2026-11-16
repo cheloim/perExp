@@ -18,6 +18,7 @@ from app.services.aggregation import spending_condition
 from app.services.auth import get_current_user
 from app.services.chat_context import to_llm_messages
 from app.services.llm import LLMMessage, get_client, is_configured
+from app.services.rate_limit import check_rate_limit
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
@@ -221,6 +222,13 @@ async def stream_analysis(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    allowed, retry_after = check_rate_limit(f"analysis:{current_user.id}", "analysis")
+    if not allowed:
+        raise HTTPException(
+            429,
+            f"Demasiados análisis. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
     uid_list = scoped_user_ids_for(current_user.id, db)
     q = db.query(Expense).filter(Expense.user_id.in_(uid_list), spending_condition())
     window_start: date | None = None
