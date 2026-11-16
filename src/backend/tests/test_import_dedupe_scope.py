@@ -80,3 +80,28 @@ def test_own_expense_still_detected(db, test_user):
         )
         is True
     )
+
+
+def test_float_amounts_are_compared_with_a_cent_tolerance(db, test_user):
+    _make_expense(db, test_user, amount=100.0)
+
+    assert (
+        _is_duplicate(
+            db,
+            date(2026, 10, 15),
+            100.004,
+            "Compra súper",
+            user_id=test_user.id,
+        )
+        is True
+    )
+    assert (
+        _is_duplicate(
+            db,
+            date(2026, 10, 15),
+            100.02,
+            "Compra súper",
+            user_id=test_user.id,
+        )
+        is False
+    )
