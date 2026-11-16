@@ -33,10 +33,12 @@ export function CurrencyInput({
   value,
   onChange,
   placeholder,
+  id,
 }: {
   value: number | null;
   onChange: (v: number | null) => void;
   placeholder?: string;
+  id?: string;
 }) {
   const isEmpty = (v: number | null) => v === null || v === 0;
   const [raw, setRaw] = useState(isEmpty(value) ? "" : formatCurrencyAR(value!));
@@ -67,6 +69,7 @@ export function CurrencyInput({
 
   return (
     <input
+      id={id}
       type="text"
       inputMode="decimal"
       value={raw}

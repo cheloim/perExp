@@ -23,6 +23,8 @@ export function useFocusTrap(isActive: boolean, onEscape?: () => void) {
     if (!isActive || !containerRef.current) return;
 
     const container = containerRef.current;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -60,7 +62,10 @@ export function useFocusTrap(isActive: boolean, onEscape?: () => void) {
     };
 
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
   }, [isActive]);
 
   return containerRef;
