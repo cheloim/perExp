@@ -34,7 +34,7 @@ AREAS: tuple[tuple[str, tuple[str, ...], float, float], ...] = (
             "app/routers/import_jobs.py",
             "app/tasks/import_processor.py",
         ),
-        26.0,
+        29.0,
         80.0,
     ),
     (
@@ -46,7 +46,7 @@ AREAS: tuple[tuple[str, tuple[str, ...], float, float], ...] = (
         11.0,
         60.0,
     ),
-    ("total", ("app/",), 48.0, 60.0),
+    ("total", ("app/",), 48.5, 60.0),
 )
 
 
