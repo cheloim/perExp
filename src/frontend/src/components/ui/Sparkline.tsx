@@ -4,6 +4,7 @@ interface SparklineProps {
   height?: number;
   color?: string;
   strokeWidth?: number;
+  label?: string;
 }
 
 export default function Sparkline({
@@ -12,6 +13,7 @@ export default function Sparkline({
   height = 16,
   color = "currentColor",
   strokeWidth = 1.5,
+  label,
 }: SparklineProps) {
   if (!data || data.length < 2) return null;
 
@@ -34,7 +36,9 @@ export default function Sparkline({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       className="flex-shrink-0"
-      aria-hidden="true"
+      role={label ? "img" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
     >
       <polyline
         points={points}
