@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 from app.models import ImportJob, User
 from app.schemas import ImportJobResponse, RowsConfirmBody
 from app.services import fx
+from app.services.amounts import parse_amount
 from app.services.auth import get_current_user
 from app.services.import_utils import _normalize_text
 from app.tasks.import_processor import sync_process_import_job
@@ -123,7 +124,12 @@ def get_import_job(
 ):
     """Get a specific import job. Jobs expire after 24 hours."""
     # SECURITY: Only user's own jobs
-    job = db.query(ImportJob).filter(ImportJob.id == job_id, ImportJob.user_id == user.id).first()
+    job = (
+        db.query(ImportJob)
+        .filter(ImportJob.id == job_id, ImportJob.user_id == user.id)
+        .with_for_update()
+        .first()
+    )
 
     if not job:
         raise HTTPException(404, "Import job not found")
@@ -156,7 +162,12 @@ def update_import_preview(
 ):
     """Update preview_data for an import job (e.g., after bulk editing)."""
     # SECURITY: Only user's own jobs
-    job = db.query(ImportJob).filter(ImportJob.id == job_id, ImportJob.user_id == user.id).first()
+    job = (
+        db.query(ImportJob)
+        .filter(ImportJob.id == job_id, ImportJob.user_id == user.id)
+        .with_for_update()
+        .first()
+    )
 
     if not job:
         raise HTTPException(404, "Import job not found")
@@ -200,7 +211,12 @@ async def confirm_import_job(
     )
 
     # SECURITY: Only user's own jobs
-    job = db.query(ImportJob).filter(ImportJob.id == job_id, ImportJob.user_id == user.id).first()
+    job = (
+        db.query(ImportJob)
+        .filter(ImportJob.id == job_id, ImportJob.user_id == user.id)
+        .with_for_update()
+        .first()
+    )
 
     if not job:
         raise HTTPException(404, "Import job not found")
@@ -314,9 +330,8 @@ async def confirm_import_job(
                 )
 
         # Validate amount
-        try:
-            amount_value = float(r.get("amount", 0) or 0)
-        except (ValueError, TypeError):
+        amount_value = parse_amount(r.get("amount"))
+        if amount_value is None:
             raise HTTPException(
                 400, f"Monto inválido: '{r.get('amount')}' en '{r.get('description', 'N/A')}'"
             )
@@ -578,7 +593,12 @@ def delete_import_job(
 
     from app.models import Notification
 
-    job = db.query(ImportJob).filter(ImportJob.id == job_id, ImportJob.user_id == user.id).first()
+    job = (
+        db.query(ImportJob)
+        .filter(ImportJob.id == job_id, ImportJob.user_id == user.id)
+        .with_for_update()
+        .first()
+    )
 
     if not job:
         raise HTTPException(404, "Import job not found")
