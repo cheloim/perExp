@@ -40,6 +40,7 @@ import {
 import type { AdminUser, AuditLogEntry, LoginErrorsResponse, PlatformLog } from "../types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import CategorizationReviewTab from "./admin/CategorizationReviewTab";
+import { StepUpProvider, useStepUp } from "../context/StepUpContext";
 
 type Tab = "users" | "logs" | "reports" | "system" | "metrics" | "categorization";
 
@@ -68,36 +69,38 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
-          Panel de Administración
-        </h1>
+    <StepUpProvider>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
+            Panel de Administración
+          </h1>
+        </div>
+
+        <nav className="flex gap-1 border-b border-[var(--border-color)]">
+          {TABS.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                tab === t
+                  ? "border-[var(--color-primary)] text-[var(--color-primary)]"
+                  : "border-transparent text-[var(--text-[var(--text-tertiary)])] hover:text-[var(--text-[var(--text-secondary)])]"
+              }`}
+            >
+              {TAB_LABELS[t]}
+            </button>
+          ))}
+        </nav>
+
+        {tab === "users" && <UsersTab />}
+        {tab === "logs" && <LogsTab />}
+        {tab === "reports" && <ReportsTab />}
+        {tab === "system" && <SystemTab />}
+        {tab === "metrics" && <MetricsTab />}
+        {tab === "categorization" && <CategorizationReviewTab />}
       </div>
-
-      <nav className="flex gap-1 border-b border-[var(--border-color)]">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              tab === t
-                ? "border-[var(--color-primary)] text-[var(--color-primary)]"
-                : "border-transparent text-[var(--text-[var(--text-tertiary)])] hover:text-[var(--text-[var(--text-secondary)])]"
-            }`}
-          >
-            {TAB_LABELS[t]}
-          </button>
-        ))}
-      </nav>
-
-      {tab === "users" && <UsersTab />}
-      {tab === "logs" && <LogsTab />}
-      {tab === "reports" && <ReportsTab />}
-      {tab === "system" && <SystemTab />}
-      {tab === "metrics" && <MetricsTab />}
-      {tab === "categorization" && <CategorizationReviewTab />}
-    </div>
+    </StepUpProvider>
   );
 }
 
@@ -105,6 +108,7 @@ export default function AdminPage() {
 
 function UsersTab() {
   const queryClient = useQueryClient();
+  const { requireStepUp } = useStepUp();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
@@ -234,7 +238,7 @@ function UsersTab() {
                           Lock ({u.lock_ttl}s)
                         </span>
                         <button
-                          onClick={() => unlockMut.mutate(u.id)}
+                          onClick={() => requireStepUp(() => unlockMut.mutate(u.id))}
                           className="text-xs px-1.5 py-0.5 rounded bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)] hover:bg-[var(--gnome-green-2)]"
                           title="Desbloquear usuario"
                         >
@@ -296,7 +300,10 @@ function UsersTab() {
                       </button>
                       {u.is_blocked ? (
                         <button
-                          onClick={() => unblockMut.mutate(u.id)}
+                          onClick={() => {
+                            if (confirm(`¿Desbloquear a ${u.email}?`))
+                              requireStepUp(() => unblockMut.mutate(u.id));
+                          }}
                           className="text-xs px-2 py-1 rounded bg-[var(--gnome-green-1)] text-[var(--gnome-green-5)] hover:bg-[var(--gnome-green-2)]"
                         >
                           Desbloquear
@@ -310,13 +317,19 @@ function UsersTab() {
                         </button>
                       )}
                       <button
-                        onClick={() => toggleAdminMut.mutate(u.id)}
+                        onClick={() => {
+                          if (confirm(`¿Cambiar el rol de ${u.email}?`))
+                            requireStepUp(() => toggleAdminMut.mutate(u.id));
+                        }}
                         className="text-xs px-2 py-1 rounded bg-[var(--gnome-purple-1)] text-[var(--gnome-purple-5)] hover:bg-[var(--gnome-purple-2)]"
                       >
                         {u.is_admin ? "Quitar Admin" : "Hacer Admin"}
                       </button>
                       <button
-                        onClick={() => impersonateMut.mutate(u.id)}
+                        onClick={() => {
+                          if (confirm(`¿Solicitar impersonación de ${u.email}?`))
+                            requireStepUp(() => impersonateMut.mutate(u.id));
+                        }}
                         className="text-xs px-2 py-1 rounded bg-[var(--gnome-blue-1)] text-[var(--gnome-blue-5)] hover:bg-[var(--gnome-blue-2)]"
                       >
                         Impersonar
@@ -376,9 +389,10 @@ function UsersTab() {
           confirmLabel="Bloquear"
           variant="danger"
           onConfirm={() => {
-            blockMut.mutate({ id: blockDialog.id, reason: blockReason });
+            const target = { id: blockDialog.id, reason: blockReason };
             setBlockDialog(null);
             setBlockReason("");
+            requireStepUp(() => blockMut.mutate(target));
           }}
           onCancel={() => {
             setBlockDialog(null);
@@ -1007,6 +1021,7 @@ function PlatformLogsSection() {
 
 function ReportsTab() {
   const queryClient = useQueryClient();
+  const { requireStepUp } = useStepUp();
   const [userFilter, setUserFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -1154,7 +1169,8 @@ function ReportsTab() {
                   <td className="py-1.5 px-2">
                     <button
                       onClick={() => {
-                        if (confirm("¿Eliminar este reporte?")) deleteMut.mutate(r.id);
+                        if (confirm("¿Eliminar este reporte?"))
+                          requireStepUp(() => deleteMut.mutate(r.id));
                       }}
                       className="text-xs px-2 py-1 rounded bg-[var(--gnome-red-1)] text-[var(--gnome-red-5)] hover:bg-[var(--gnome-red-2)]"
                     >
@@ -1175,6 +1191,7 @@ function ReportsTab() {
 
 function SystemTab() {
   const queryClient = useQueryClient();
+  const { requireStepUp } = useStepUp();
   const [editingSetting, setEditingSetting] = useState<{ key: string; value: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [taskRunStates, setTaskRunStates] = useState<
@@ -1423,7 +1440,8 @@ function SystemTab() {
         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Mantenimiento</h3>
         <button
           onClick={() => {
-            if (confirm("¿Ejecutar limpieza de logs antiguos?")) cleanupMut.mutate();
+            if (confirm("¿Ejecutar limpieza de logs antiguos?"))
+              requireStepUp(() => cleanupMut.mutate());
           }}
           className="gnome-btn-secondary-round text-xs"
         >
@@ -1618,6 +1636,7 @@ function MetricsTab() {
 
 function FeatureFlagsSection() {
   const queryClient = useQueryClient();
+  const { requireStepUp } = useStepUp();
 
   const { data: flagsData } = useQuery({
     queryKey: ["admin-feature-flags"],
@@ -1669,7 +1688,12 @@ function FeatureFlagsSection() {
                       return (
                         <button
                           key={opt.value}
-                          onClick={() => updateFlagMut.mutate({ key: f.key, value: opt.value })}
+                          onClick={() => {
+                            if (confirm(`¿Forzar ${opt.label} en ${f.label}?`))
+                              requireStepUp(() =>
+                                updateFlagMut.mutate({ key: f.key, value: opt.value }),
+                              );
+                          }}
                           title={opt.desc}
                           className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
                             isActive

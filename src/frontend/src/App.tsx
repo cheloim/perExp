@@ -26,6 +26,7 @@ import NotificationCenterModal from "./components/NotificationCenterModal";
 import NotificationDetailModal from "./components/NotificationDetailModal";
 import ImpersonationBanner from "./components/ImpersonationBanner";
 import ReAuthModal from "./components/ReAuthModal";
+import RequireAdmin from "./components/RequireAdmin";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   isTelegramWebApp,
@@ -563,9 +564,9 @@ function MainLayout() {
                     <Route
                       path="/x/:slug"
                       element={
-                        <RequireAuth>
+                        <RequireAdmin>
                           <AdminPage />
-                        </RequireAuth>
+                        </RequireAdmin>
                       }
                     />
                     <Route path="/guide" element={<GuidePage />} />

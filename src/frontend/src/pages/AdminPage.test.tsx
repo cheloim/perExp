@@ -12,6 +12,15 @@ vi.mock("../api/client", async (importOriginal) => {
   return {
     ...actual,
     getAdminUsers: vi.fn(async () => ({ users: [], total: 0 })),
+    getMe: vi.fn(async () => ({
+      id: 1,
+      email: "admin@example.com",
+      full_name: "Admin",
+      is_active: true,
+      created_at: "",
+      is_admin: true,
+      mfa_enabled: false,
+    })),
   };
 });
 

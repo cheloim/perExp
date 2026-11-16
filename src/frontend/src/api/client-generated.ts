@@ -163,6 +163,8 @@ import type {
   SetCategoryBudgetGroupBody,
   SetCategoryBudgetGroupParams,
   SettingUpdate,
+  StepUpRequest,
+  StepUpResponse,
   SuggestCategoryBody,
   SummarizeChatAnalysisSummarizePostBody,
   SyncCardHolders200,
@@ -18153,6 +18155,96 @@ export function useGetSlugAdminSlugGet<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+/**
+ * Returns a 5-minute step-up token bound to the current admin.
+ * @summary Verify the admin password/MFA before a destructive action
+ */
+export const adminStepUpAdminStepUpPost = (
+  stepUpRequest: BodyType<StepUpRequest>,
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<StepUpResponse>(
+    {
+      url: `/admin/step-up`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: stepUpRequest,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAdminStepUpAdminStepUpPostMutationKey = () =>
+  ["adminStepUpAdminStepUpPost"] as const;
+
+export const getAdminStepUpAdminStepUpPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminStepUpAdminStepUpPost>>,
+    TError,
+    AdminStepUpAdminStepUpPostMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminStepUpAdminStepUpPost>>,
+  TError,
+  AdminStepUpAdminStepUpPostMutationVariables,
+  TContext
+> => {
+  const mutationKey = getAdminStepUpAdminStepUpPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminStepUpAdminStepUpPost>>,
+    AdminStepUpAdminStepUpPostMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return adminStepUpAdminStepUpPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminStepUpAdminStepUpPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminStepUpAdminStepUpPost>>
+>;
+export type AdminStepUpAdminStepUpPostMutationBody = BodyType<StepUpRequest>;
+export type AdminStepUpAdminStepUpPostMutationError = ErrorType<unknown>;
+export type AdminStepUpAdminStepUpPostMutationVariables = { data: BodyType<StepUpRequest> };
+
+/**
+ * @summary Verify the admin password/MFA before a destructive action
+ */
+export const useAdminStepUpAdminStepUpPost = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof adminStepUpAdminStepUpPost>>,
+      TError,
+      AdminStepUpAdminStepUpPostMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof adminStepUpAdminStepUpPost>>,
+  TError,
+  AdminStepUpAdminStepUpPostMutationVariables,
+  TContext
+> => {
+  return useMutation(getAdminStepUpAdminStepUpPostMutationOptions(options), queryClient);
+};
 
 /**
  * Return a paginated list of users with stats, optionally filtered by search query.

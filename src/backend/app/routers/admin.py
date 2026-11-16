@@ -6,7 +6,9 @@ import os
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, Request
+from jwt import PyJWTError as JWTError
 from pydantic import BaseModel
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
@@ -26,9 +28,16 @@ from app.models import (
     Setting,
     User,
 )
-from app.services.auth import get_current_admin
+from app.services.auth import (
+    ALGORITHM,
+    JWT_SECRET,
+    create_access_token,
+    get_current_admin,
+    verify_password,
+)
+from app.services.mfa import verify_totp
 from app.services.notify import notification_excerpt
-from app.services.rate_limit import _get_redis, is_account_locked
+from app.services.rate_limit import _get_redis, check_rate_limit, is_account_locked
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +57,90 @@ def _get_admin_slug(db: Session) -> str:
         db.commit()
         return slug
     return setting.value
+
+
+class StepUpRequest(BaseModel):
+    password: str
+    mfa_code: str | None = None
+
+
+def _audit_admin(
+    db: Session,
+    admin: User,
+    action: str,
+    request: Request,
+    *,
+    target: User | None = None,
+    details: dict | None = None,
+) -> None:
+    payload = dict(details or {})
+    if target is not None:
+        payload.update({"target_user_id": target.id, "target_email": target.email})
+    db.add(
+        AuditLog(
+            user_id=admin.id,
+            action=action,
+            ip_address=request.client.host if request.client else "unknown",
+            user_agent=request.headers.get("User-Agent", "")[:500],
+            details=json.dumps(payload),
+        )
+    )
+    db.commit()
+
+
+def require_step_up(
+    request: Request,
+    admin: User = Depends(get_current_admin),
+) -> User:
+    """Destructive admin actions require a fresh password/MFA proof.
+
+    The proof is a 5-minute JWT with ``scope=admin_step_up`` bound to the
+    admin's id. It is kept in frontend memory and sent as a header.
+    """
+    token = request.headers.get("X-Step-Up-Token", "")
+    if not token:
+        raise HTTPException(403, "Step-up requerido")
+
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+    except JWTError:
+        raise HTTPException(403, "Step-up inválido o expirado")
+
+    if payload.get("scope") != "admin_step_up" or payload.get("sub") != str(admin.id):
+        raise HTTPException(403, "Step-up inválido o expirado")
+    return admin
+
+
+@router.post(
+    "/step-up",
+    summary="Verify the admin password/MFA before a destructive action",
+    description="Returns a 5-minute step-up token bound to the current admin.",
+)
+def admin_step_up(
+    body: StepUpRequest,
+    request: Request,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    allowed, retry_after = check_rate_limit(f"admin-step-up:{admin.id}", "password_change")
+    if not allowed:
+        raise HTTPException(
+            429,
+            f"Demasiados intentos. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    if not verify_password(body.password, admin.hashed_password):
+        raise HTTPException(401, "Contraseña incorrecta")
+
+    if admin.mfa_enabled and not (
+        body.mfa_code and admin.mfa_secret and verify_totp(admin.mfa_secret, body.mfa_code)
+    ):
+        raise HTTPException(401, "Código MFA incorrecto")
+
+    token = create_access_token(admin.id, expires_minutes=5, scope="admin_step_up")
+    _audit_admin(db, admin, "admin_step_up", request)
+    return {"step_up_token": token, "expires_in": 300}
 
 
 # ──────────────────────────────────────────────
@@ -245,7 +338,8 @@ class BlockRequest(BaseModel):
 def block_user(
     user_id: int,
     body: BlockRequest,
-    admin: User = Depends(get_current_admin),
+    request: Request,
+    admin: User = Depends(require_step_up),
     db: Session = Depends(get_db),
 ):
     u = db.get(User, user_id)
@@ -257,6 +351,7 @@ def block_user(
     u.blocked_at = datetime.now(UTC)
     u.blocked_reason = body.reason
     db.commit()
+    _audit_admin(db, admin, "admin_block_user", request, target=u, details={"reason": body.reason})
     return {"ok": True, "message": f"User {u.email} blocked"}
 
 
@@ -267,7 +362,8 @@ def block_user(
 )
 def unblock_user(
     user_id: int,
-    admin: User = Depends(get_current_admin),
+    request: Request,
+    admin: User = Depends(require_step_up),
     db: Session = Depends(get_db),
 ):
     u = db.get(User, user_id)
@@ -277,6 +373,7 @@ def unblock_user(
     u.blocked_at = None
     u.blocked_reason = None
     db.commit()
+    _audit_admin(db, admin, "admin_unblock_user", request, target=u)
     return {"ok": True, "message": f"User {u.email} unblocked"}
 
 
@@ -287,7 +384,8 @@ def unblock_user(
 )
 def toggle_admin(
     user_id: int,
-    admin: User = Depends(get_current_admin),
+    request: Request,
+    admin: User = Depends(require_step_up),
     db: Session = Depends(get_db),
 ):
     u = db.get(User, user_id)
@@ -304,6 +402,9 @@ def toggle_admin(
     except Exception:
         pass  # non-critical
 
+    _audit_admin(
+        db, admin, "admin_toggle_admin", request, target=u, details={"is_admin": u.is_admin}
+    )
     return {"ok": True, "is_admin": u.is_admin}
 
 
@@ -602,7 +703,8 @@ def get_reports(
 )
 def delete_report(
     report_id: int,
-    admin: User = Depends(get_current_admin),
+    request: Request,
+    admin: User = Depends(require_step_up),
     db: Session = Depends(get_db),
 ):
     report = db.get(MonthlyReport, report_id)
@@ -610,6 +712,7 @@ def delete_report(
         raise HTTPException(404, "Report not found")
     db.delete(report)
     db.commit()
+    _audit_admin(db, admin, "admin_delete_report", request, details={"report_id": report_id})
     return {"ok": True}
 
 
@@ -621,7 +724,8 @@ def delete_report(
 def delete_report_by_user_month(
     user_id: int,
     month: str,
-    admin: User = Depends(get_current_admin),
+    request: Request,
+    admin: User = Depends(require_step_up),
     db: Session = Depends(get_db),
 ):
     report = (
@@ -633,6 +737,13 @@ def delete_report_by_user_month(
         raise HTTPException(404, "Report not found")
     db.delete(report)
     db.commit()
+    _audit_admin(
+        db,
+        admin,
+        "admin_delete_report",
+        request,
+        details={"target_user_id": user_id, "month": month},
+    )
     return {"ok": True}
 
 
@@ -1039,7 +1150,8 @@ class FeatureFlagUpdate(BaseModel):
 def update_feature_flag(
     flag_key: str,
     body: FeatureFlagUpdate,
-    admin: User = Depends(get_current_admin),
+    request: Request,
+    admin: User = Depends(require_step_up),
     db: Session = Depends(get_db),
 ):
     valid_keys = [f["key"] for f in FEATURE_FLAGS]
@@ -1053,6 +1165,9 @@ def update_feature_flag(
     else:
         db.add(Setting(key=setting_key, value=body.value))
     db.commit()
+    _audit_admin(
+        db, admin, "admin_feature_flag", request, details={"key": flag_key, "value": body.value}
+    )
     return {"ok": True, "key": flag_key, "value": body.value}
 
 
@@ -1208,7 +1323,8 @@ def bulk_notify(
     description="Delete audit logs older than 90 days and impersonation messages older than 45 days.",
 )
 def cleanup_audit_logs(
-    admin: User = Depends(get_current_admin),
+    request: Request,
+    admin: User = Depends(require_step_up),
     db: Session = Depends(get_db),
 ):
     cutoff = datetime.now(UTC) - timedelta(days=90)
@@ -1218,6 +1334,13 @@ def cleanup_audit_logs(
         db.query(ImpersonationMessage).filter(ImpersonationMessage.created_at < msg_cutoff).delete()
     )
     db.commit()
+    _audit_admin(
+        db,
+        admin,
+        "admin_cleanup_audit_logs",
+        request,
+        details={"audit_logs_deleted": deleted, "messages_deleted": msg_deleted},
+    )
     return {"ok": True, "audit_logs_deleted": deleted, "messages_deleted": msg_deleted}
 
 
@@ -1233,7 +1356,8 @@ def cleanup_audit_logs(
 )
 def request_impersonation(
     user_id: int,
-    admin: User = Depends(get_current_admin),
+    request: Request,
+    admin: User = Depends(require_step_up),
     db: Session = Depends(get_db),
 ):
     target = db.get(User, user_id)
@@ -1283,6 +1407,14 @@ def request_impersonation(
     db.add(notif)
     db.commit()
 
+    _audit_admin(
+        db,
+        admin,
+        "admin_request_impersonation",
+        request,
+        target=target,
+        details={"session_id": session.id},
+    )
     return {"ok": True, "session_id": session.id}
 
 
