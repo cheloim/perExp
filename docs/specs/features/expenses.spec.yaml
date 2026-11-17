@@ -44,7 +44,7 @@ requirements:
       description: "Computed fields: category_name, category_color, card, bank, person"
       priority: must
     - id: EXP-F10
-      description: "Analytics: stats, by-category, by-person, trend endpoints"
+      description: "Analytics: stats, by-category, by-person, trend endpoints; totals converted to ARS per expense FX snapshot"
       priority: should
     - id: EXP-F11
       description: "Installment detection and grouping"

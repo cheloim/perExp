@@ -14,7 +14,14 @@ from app.models import AnalysisHistory, Category, Expense, User
 from app.prompts import ANALYSIS_SYSTEM_PROMPT
 from app.schemas import AnalysisHistoryResponse, AnalysisRequest
 from app.services.access import scoped_user_ids_for
-from app.services.aggregation import spending_condition
+from app.services.aggregation import (
+    fallback_rate as resolve_fallback_rate,
+)
+from app.services.aggregation import (
+    spending_breakdown_from_expenses,
+    spending_condition,
+    to_ars,
+)
 from app.services.auth import get_current_user
 from app.services.chat_context import to_llm_messages
 from app.services.llm import LLMMessage, get_client, is_configured
@@ -264,18 +271,25 @@ async def stream_analysis(
     if not expenses:
         return StreamingResponse(no_data_stream(), media_type="text/event-stream")
 
-    total = sum(e.amount for e in expenses)
+    needs_fallback = any((e.currency or "ARS") != "ARS" and e.fx_rate is None for e in expenses)
+    fallback = resolve_fallback_rate(db) if needs_fallback else None
+    breakdown = spending_breakdown_from_expenses(expenses, fallback=fallback)
+    total = breakdown.converted_total
+    totals_text = " · ".join(
+        f"{currency} {amount:,.2f}" for currency, amount in sorted(breakdown.totals.items())
+    )
 
     by_cat: dict = {}
     by_month: dict = {}
     by_month_cat: dict = {}
     for e in expenses:
         cat_name = _cat_name(e, cat_map)
-        by_cat[cat_name] = by_cat.get(cat_name, 0.0) + e.amount
+        amount_ars = to_ars(e, fallback)
+        by_cat[cat_name] = by_cat.get(cat_name, 0.0) + amount_ars
         key = e.date.strftime("%Y-%m")
-        by_month[key] = by_month.get(key, 0.0) + e.amount
+        by_month[key] = by_month.get(key, 0.0) + amount_ars
         month_cat = by_month_cat.setdefault(key, {})
-        month_cat[cat_name] = month_cat.get(cat_name, 0.0) + e.amount
+        month_cat[cat_name] = month_cat.get(cat_name, 0.0) + amount_ars
 
     top_10 = sorted(expenses, key=lambda x: x.amount, reverse=True)[:10]
 
@@ -315,10 +329,11 @@ async def stream_analysis(
         for e in expenses:
             key = e.date.strftime("%Y-%m")
             name = _cat_name(e, cat_map)
+            amount_ars = to_ars(e, fallback)
             if key == curr_key:
-                curr_cat[name] = curr_cat.get(name, 0.0) + e.amount
+                curr_cat[name] = curr_cat.get(name, 0.0) + amount_ars
             elif key == prev_key:
-                prev_cat[name] = prev_cat.get(name, 0.0) + e.amount
+                prev_cat[name] = prev_cat.get(name, 0.0) + amount_ars
         for name in sorted(curr_cat, key=lambda k: curr_cat[k], reverse=True):
             curr_val, prev_val = curr_cat[name], prev_cat.get(name, 0.0)
             pct = f"{(curr_val - prev_val) / prev_val * 100:+.1f}%" if prev_val else "sin base"
@@ -384,7 +399,8 @@ async def stream_analysis(
 {period}
 
 RESUMEN:
-- Total gastado: ${total:,.2f}
+- Total gastado (ARS convertido): ${total:,.2f}
+- Totales por moneda: {totals_text or "sin gastos"}{f" (tasa {breakdown.rate:,.2f} {breakdown.rate_source} del {breakdown.rate_date})" if breakdown.rate else ""}
 - Transacciones: {len(expenses)}
 - Promedio por transacción: ${total / len(expenses):,.2f}
 {f"- Meses: {len(by_month)}, promedio mensual: ${total / len(by_month):,.2f}" if len(by_month) > 1 else ""}
@@ -401,7 +417,7 @@ DETALLE POR MES Y CATEGORÍA:
 {f"COMPARACIÓN MES A MES:{chr(10)}{chr(10).join(month_deltas)}" if month_deltas else ""}
 {f"CATEGORÍAS — {month_keys[-1]} vs {month_keys[-2]}:{chr(10)}{chr(10).join(cat_deltas)}" if cat_deltas else ""}
 TOP 10 GASTOS MÁS ALTOS:
-{chr(10).join(f"- {e.date} | {e.description} | ${e.amount:,.2f} | {_cat_name(e, cat_map)}" for e in top_10)}
+{chr(10).join(f"- {e.date} | {e.description} | {e.currency or 'ARS'} {e.amount:,.2f} | {_cat_name(e, cat_map)}" for e in top_10)}
 
 {retrieval}
 """

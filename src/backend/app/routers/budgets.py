@@ -6,7 +6,7 @@ from calendar import monthrange
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import desc, func
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -25,6 +25,10 @@ from app.schemas import (
     BudgetSummaryResponse,
     BudgetUpdate,
 )
+from app.services.aggregation import (
+    fallback_rate as resolve_fallback_rate,
+)
+from app.services.aggregation import spending_breakdown_from_rows
 from app.services.auth import get_current_user
 
 router = APIRouter(prefix="/budgets", tags=["budgets"])
@@ -33,6 +37,22 @@ router = APIRouter(prefix="/budgets", tags=["budgets"])
 BUDGET_AHORRO_ENABLED = os.getenv("BUDGET_AHORRO_ENABLED", "false").lower() == "true"
 
 DEFAULT_ALERT_LEVELS = [0.75, 0.90, 1.0]
+
+
+def _converted_spending(rows, db: Session) -> float:
+    """Convert the rows of a budget query to ARS, never summing nominally."""
+    needs_fallback = any(
+        (currency or "ARS") != "ARS" and fx_rate is None
+        for _amount, currency, fx_rate, _fx_date, _fx_source in rows
+    )
+    fallback = resolve_fallback_rate(db) if needs_fallback else None
+    return spending_breakdown_from_rows(
+        (
+            (abs(float(amount)), currency, fx_rate, fx_date, fx_source)
+            for amount, currency, fx_rate, fx_date, fx_source in rows
+        ),
+        fallback=fallback,
+    ).converted_total
 
 
 def _normalize_levels(levels: list[float] | None) -> list[float] | None:
@@ -81,8 +101,14 @@ def _get_spending_for_category(
     start = date(year, month, 1)
     end = date(year, month, monthrange(year, month)[1])
 
-    total = (
-        db.query(Expense)
+    rows = (
+        db.query(
+            Expense.amount,
+            Expense.currency,
+            Expense.fx_rate,
+            Expense.fx_rate_date,
+            Expense.fx_rate_source,
+        )
         .filter(
             Expense.user_id.in_(uid_list),
             Expense.category_id.in_(cat_ids),
@@ -90,10 +116,9 @@ def _get_spending_for_category(
             Expense.date <= end,
             Expense.is_income == False,
         )
-        .with_entities(Expense.amount)
         .all()
     )
-    return sum(abs(t[0]) for t in total)
+    return _converted_spending(rows, db)
 
 
 def _has_any_expenses(category_id: int, uid_list: list[int], db: Session) -> bool:
@@ -119,8 +144,14 @@ def _get_spending_for_group(
     start = date(year, month, 1)
     end = date(year, month, monthrange(year, month)[1])
 
-    total = (
-        db.query(Expense)
+    rows = (
+        db.query(
+            Expense.amount,
+            Expense.currency,
+            Expense.fx_rate,
+            Expense.fx_rate_date,
+            Expense.fx_rate_source,
+        )
         .filter(
             Expense.user_id.in_(uid_list),
             Expense.category_id.in_(cat_ids),
@@ -128,10 +159,9 @@ def _get_spending_for_group(
             Expense.date <= end,
             Expense.is_income == False,
         )
-        .with_entities(Expense.amount)
         .all()
     )
-    return sum(abs(t[0]) for t in total)
+    return _converted_spending(rows, db)
 
 
 def _get_avg_monthly_spending(category_id: int, uid_list: list[int], db: Session) -> float:
@@ -147,8 +177,14 @@ def _get_avg_monthly_spending(category_id: int, uid_list: list[int], db: Session
         start = month_date.replace(day=1)
         end = start.replace(day=monthrange(start.year, start.month)[1])
 
-        total = (
-            db.query(Expense)
+        rows = (
+            db.query(
+                Expense.amount,
+                Expense.currency,
+                Expense.fx_rate,
+                Expense.fx_rate_date,
+                Expense.fx_rate_source,
+            )
             .filter(
                 Expense.user_id.in_(uid_list),
                 Expense.category_id.in_(cat_ids),
@@ -156,11 +192,9 @@ def _get_avg_monthly_spending(category_id: int, uid_list: list[int], db: Session
                 Expense.date <= end,
                 Expense.is_income == False,
             )
-            .with_entities(func.sum(Expense.amount))
-            .scalar()
-            or 0
+            .all()
         )
-        monthly_totals.append(abs(total))
+        monthly_totals.append(_converted_spending(rows, db))
 
     return sum(monthly_totals) / len(monthly_totals) if monthly_totals else 0
 
@@ -178,8 +212,8 @@ def _get_months_with_spending(category_id: int, uid_list: list[int], db: Session
         start = month_date.replace(day=1)
         end = start.replace(day=monthrange(start.year, start.month)[1])
 
-        total = (
-            db.query(Expense)
+        exists = (
+            db.query(Expense.id)
             .filter(
                 Expense.user_id.in_(uid_list),
                 Expense.category_id.in_(cat_ids),
@@ -187,11 +221,9 @@ def _get_months_with_spending(category_id: int, uid_list: list[int], db: Session
                 Expense.date <= end,
                 Expense.is_income == False,
             )
-            .with_entities(func.sum(Expense.amount))
-            .scalar()
-            or 0
+            .first()
         )
-        if abs(total) > 0:
+        if exists is not None:
             months += 1
     return months
 
@@ -583,8 +615,14 @@ def suggest_budgets(
             start = month_date.replace(day=1)
             end = start.replace(day=monthrange(start.year, start.month)[1])
 
-            total = (
-                db.query(Expense)
+            rows = (
+                db.query(
+                    Expense.amount,
+                    Expense.currency,
+                    Expense.fx_rate,
+                    Expense.fx_rate_date,
+                    Expense.fx_rate_source,
+                )
                 .filter(
                     Expense.user_id.in_(uid_list),
                     Expense.category_id.in_(cat_ids),
@@ -592,11 +630,9 @@ def suggest_budgets(
                     Expense.date <= end,
                     Expense.is_income == False,
                 )
-                .with_entities(func.sum(Expense.amount))
-                .scalar()
-                or 0
+                .all()
             )
-            monthly_totals.append(abs(total))
+            monthly_totals.append(_converted_spending(rows, db))
 
         avg_monthly = sum(monthly_totals) / len(monthly_totals) if monthly_totals else 0
 

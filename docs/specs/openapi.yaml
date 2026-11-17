@@ -1095,7 +1095,7 @@ paths:
           description: 'Free-text search over description, notes and category name (decrypted at application level)'
       responses:
         '200':
-          description: Stats
+          description: Stats in ARS; non-ARS amounts use their FX snapshot or the persisted BNA rate.
 
   /expenses/by-category:
     get:
