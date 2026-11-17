@@ -12,6 +12,15 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.database import get_db
 from app.models import Card, Category, Expense, ExpenseTag, MonthlyReport, Notification, Tag, User
 from app.routers.groups import get_group_user_ids
+from app.services.aggregation import (
+    ars_amount_expression,
+    spending_breakdown_from_expenses,
+    spending_condition,
+    to_ars,
+)
+from app.services.aggregation import (
+    fallback_rate as resolve_fallback_rate,
+)
 from app.services.auth import get_current_user
 from app.services.date_utils import MONTHS_ES, add_months
 from app.services.llm import LLMMessage, get_client, is_configured
@@ -183,7 +192,13 @@ def _compute_summary(
     if parent_ids:
         categories += db.query(Category).filter(Category.id.in_(parent_ids)).all()
     cat_map = {c.id: c for c in categories}
-    total = sum(e.amount for e in expenses if not e.is_income)
+    spending_expenses = [e for e in expenses if not e.is_income]
+    needs_fallback = any(
+        (e.currency or "ARS") != "ARS" and e.fx_rate is None for e in spending_expenses
+    )
+    fallback = resolve_fallback_rate(db) if needs_fallback else None
+    breakdown = spending_breakdown_from_expenses(spending_expenses, fallback=fallback)
+    total = breakdown.converted_total
 
     # Calcular total_by_account (excluir gastos con tarjetas de credito)
     credit_cards = (
@@ -207,9 +222,10 @@ def _compute_summary(
             return True
         return e.id in tag_credit_expense_ids
 
-    total_by_account = sum(
-        e.amount for e in expenses if not is_credit_card_expense(e) and not e.is_income
-    )
+    account_expenses = [e for e in expenses if not is_credit_card_expense(e) and not e.is_income]
+    total_by_account = spending_breakdown_from_expenses(
+        account_expenses, fallback=fallback
+    ).converted_total
 
     by_category: dict = {}
     for e in expenses:
@@ -241,7 +257,7 @@ def _compute_summary(
                 "previous_total": 0.0,
                 "previous_mtd_total": 0.0,
             }
-        by_category[cat_key]["total"] += e.amount
+        by_category[cat_key]["total"] += to_ars(e, fallback)
         by_category[cat_key]["count"] += 1
 
     is_current_month = False
@@ -300,9 +316,10 @@ def _compute_summary(
                             "previous_mtd_total": 0.0,
                         }
                 by_category[prev_cat_key].setdefault("previous_mtd_total", 0.0)
-                by_category[prev_cat_key]["previous_total"] += e.amount
+                previous_amount = to_ars(e, fallback)
+                by_category[prev_cat_key]["previous_total"] += previous_amount
                 if mtd_cutoff is None or e.date.day <= mtd_cutoff:
-                    by_category[prev_cat_key]["previous_mtd_total"] += e.amount
+                    by_category[prev_cat_key]["previous_mtd_total"] += previous_amount
         except (ValueError, IndexError):
             pass
 
@@ -335,11 +352,13 @@ def _compute_summary(
                 "total": 0.0,
                 "count": 0,
             }
-        by_income[cname]["total"] += e.amount  # Already positive
+        by_income[cname]["total"] += to_ars(e, fallback)
         by_income[cname]["count"] += 1
 
     by_period: dict = {}
     for e in expenses:
+        if e.is_income:
+            continue
         if group_by == "week":
             key = e.date.strftime("%G-W%V")
         elif group_by == "year":
@@ -348,7 +367,7 @@ def _compute_summary(
             key = e.date.strftime("%Y-%m")
         if key not in by_period:
             by_period[key] = {"period": key, "total": 0.0, "count": 0}
-        by_period[key]["total"] += e.amount
+        by_period[key]["total"] += to_ars(e, fallback)
         by_period[key]["count"] += 1
 
     by_card: dict = {}
@@ -367,11 +386,13 @@ def _compute_summary(
                 "total": 0.0,
                 "count": 0,
             }
-        by_card[key]["total"] += e.amount
+        by_card[key]["total"] += to_ars(e, fallback)
         by_card[key]["count"] += 1
 
     by_currency: dict = {}
     for e in expenses:
+        if e.is_income:
+            continue
         cur = e.currency or "ARS"
         if cur not in by_currency:
             by_currency[cur] = {
@@ -425,7 +446,11 @@ def _compute_summary(
 
     hist_expenses = (
         db.query(Expense)
-        .filter(Expense.user_id.in_(uid_list), Expense.date >= six_months_ago)
+        .filter(
+            Expense.user_id.in_(uid_list),
+            Expense.date >= six_months_ago,
+            spending_condition(),
+        )
         .all()
     )
     trend_history: dict = {}
@@ -433,7 +458,7 @@ def _compute_summary(
         k = e.date.strftime("%Y-%m")
         if k not in trend_history:
             trend_history[k] = {"month": k, "total": 0.0, "count": 0}
-        trend_history[k]["total"] += e.amount
+        trend_history[k]["total"] += to_ars(e, fallback)
         trend_history[k]["count"] += 1
 
     installments_exp = (
@@ -509,6 +534,10 @@ def _compute_summary(
     return {
         "total_amount": total,
         "total_by_account": total_by_account,
+        "fx_rate": breakdown.rate,
+        "fx_rate_date": breakdown.rate_date.isoformat() if breakdown.rate_date else None,
+        "fx_rate_source": breakdown.rate_source,
+        "fx_missing": breakdown.missing_fx,
         "total_expenses": sum(1 for e in expenses if not e.is_income),
         "previous_total": sum(c.get("previous_total", 0.0) for c in by_category.values()),
         "previous_mtd_total": sum(c.get("previous_mtd_total", 0.0) for c in by_category.values()),
@@ -567,18 +596,19 @@ async def get_monthly_report(
     mtd_cutoff = today.day if is_current_month else None
 
     def _query_totals(start: date, end: date):
+        converted = ars_amount_expression(db, uid_list)
         base_filter = [
             Expense.user_id.in_(uid_list),
             Expense.date >= start,
             Expense.date <= end,
         ]
         total_expenses = (
-            db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+            db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
             .filter(*base_filter, Expense.is_income == False)  # noqa: E712
             .scalar()
         )
         total_income = (
-            db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+            db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
             .filter(*base_filter, Expense.is_income == True)  # noqa: E712
             .scalar()
         )
@@ -604,7 +634,7 @@ async def get_monthly_report(
         cat_rows = (
             db.query(
                 Expense.category_id,
-                func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
+                func.coalesce(func.sum(func.abs(converted)), 0.0),
                 func.count(Expense.id),
             )
             .filter(*base_filter, Expense.is_income == False)  # noqa: E712
@@ -681,11 +711,12 @@ async def get_monthly_report(
     # binds) dos llamadas iguales generan dos parámetros distintos y Postgres rechaza el
     # GROUP BY porque no puede probar que sean la misma expresión.
     month_key = func.to_char(Expense.date, "YYYY-MM")
+    converted = ars_amount_expression(db, uid_list)
     trend_rows = (
         db.query(
             month_key,
             Expense.is_income,
-            func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
+            func.coalesce(func.sum(func.abs(converted)), 0.0),
         )
         .filter(
             Expense.user_id.in_(uid_list), Expense.date >= trend_start, Expense.date <= target_end
@@ -2133,19 +2164,20 @@ def get_category_trend(
         month_keys.append(f"{y}-{m:02d}")
 
     start = date.fromisoformat(f"{month_keys[0]}-01")
+    converted = ars_amount_expression(db, uid_list)
 
     rows_raw = (
         db.query(
             func.to_char(Expense.date, "YYYY-MM").label("month"),
             func.coalesce(Category.name, "Sin categoría").label("cat_name"),
             func.coalesce(Category.color, "#94a3b8").label("cat_color"),
-            func.sum(Expense.amount).label("total"),
+            func.sum(converted).label("total"),
         )
         .outerjoin(Category, Expense.category_id == Category.id)
         .filter(
             Expense.user_id.in_(uid_list),
             Expense.amount > 0,
-            Expense.is_income == False,
+            spending_condition(),
             Expense.date >= start,
         )
     )

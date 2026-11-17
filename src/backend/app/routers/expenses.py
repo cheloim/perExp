@@ -15,7 +15,7 @@ from app.models import Card, Category, Expense, ExpenseTag, Notification, Tag, U
 from app.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.services import fx
 from app.services.access import scoped_user_ids_for
-from app.services.aggregation import spending_condition
+from app.services.aggregation import ars_amount_expression, spending_condition
 from app.services.auth import get_current_user
 from app.services.categorization import _normalize_merchant_key, auto_categorize
 from app.services.date_utils import _normalize_date_str, add_months
@@ -923,8 +923,9 @@ def get_expense_stats(
         sin_cuenta=sin_cuenta,
         search=search,
     )
+    converted = ars_amount_expression(db, uid_list)
     q = db.query(
-        func.coalesce(func.sum(Expense.amount), 0.0),
+        func.coalesce(func.sum(converted), 0.0),
         func.count(Expense.id),
     ).filter(Expense.user_id.in_(uid_list), Expense.amount > 0, spending_condition())
     q = apply_expense_filters(q, uid_list=uid_list, db=db, **filters)
@@ -986,10 +987,11 @@ def get_expenses_by_category(
     uid_list = scoped_user_ids_for(current_user.id, db)
     cat_map = {c.id: c for c in db.query(Category).filter(Category.user_id.in_(uid_list)).all()}
 
+    converted = ars_amount_expression(db, uid_list)
     q = (
         db.query(
             Expense.category_id,
-            func.coalesce(func.sum(Expense.amount), 0.0),
+            func.coalesce(func.sum(converted), 0.0),
             func.count(Expense.id),
         )
         .filter(Expense.user_id.in_(uid_list), Expense.amount > 0, spending_condition())
@@ -1081,11 +1083,12 @@ def get_expenses_by_person(
 ):
     uid_list = scoped_user_ids_for(current_user.id, db)
 
+    converted = ars_amount_expression(db, uid_list)
     q = (
         db.query(
             User.id,
             User.full_name,
-            func.coalesce(func.sum(Expense.amount), 0.0),
+            func.coalesce(func.sum(converted), 0.0),
             func.count(Expense.id),
         )
         .join(User, Expense.user_id == User.id)
@@ -1149,10 +1152,11 @@ def get_expenses_trend(
     today = date.today()
     start_date = add_months(today, -months + 1).replace(day=1)
 
+    converted = ars_amount_expression(db, uid_list)
     rows = (
         db.query(
             func.to_char(Expense.date, "YYYY-MM"),
-            func.coalesce(func.sum(Expense.amount), 0.0),
+            func.coalesce(func.sum(converted), 0.0),
             func.count(Expense.id),
         )
         .filter(
