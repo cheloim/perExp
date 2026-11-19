@@ -140,6 +140,7 @@ export default function ExpensesPage() {
     setSearchParams,
     searchInput,
     setSearchInput,
+    unknownParams,
   } = useExpenseFilters();
 
   const filterCategoryIds = filters.categoryIds;
@@ -152,6 +153,8 @@ export default function ExpensesPage() {
   const filterCuentaId = filters.cuentaId;
   const filterSinCuenta = filters.sinCuenta;
   const filterSearch = filters.q;
+  const filterCardType = filters.cardType;
+  const filterInstallment = filters.installment;
 
   // Category suggestions from API
   const {
@@ -200,6 +203,8 @@ export default function ExpensesPage() {
     cuenta_id: filterCuentaId,
     sin_cuenta: filterSinCuenta || undefined,
     search: filterSearch,
+    card_type: filterCardType,
+    installment: filterInstallment,
   };
 
   const handleCategorySelection = useCallback(
@@ -221,7 +226,7 @@ export default function ExpensesPage() {
 
   const [visibleCount, setVisibleCount] = useState(100);
 
-  const filterKey = `${filterCategoryIds.join(",")}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}-${filterCuentaId}-${filterSinCuenta}-${filterSearch}`;
+  const filterKey = `${filterCategoryIds.join(",")}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}-${filterCuentaId}-${filterSinCuenta}-${filterSearch}-${filterCardType}-${filterInstallment}`;
 
   // A new filter set starts from the first page again. An effect (instead of a
   // state update during render) keeps the render path pure; the list keeps the
@@ -751,6 +756,12 @@ export default function ExpensesPage() {
         case "person":
           setFilter("person", undefined);
           break;
+        case "card_type":
+          setFilter("card_type", undefined);
+          break;
+        case "installment":
+          setFilter("installment", undefined);
+          break;
       }
     },
     [
@@ -793,6 +804,14 @@ export default function ExpensesPage() {
           message="No pudimos actualizar los gastos. Mostramos los últimos datos disponibles."
           onRetry={refetchExpenses}
         />
+      )}
+      {unknownParams.length > 0 && (
+        <div
+          role="status"
+          className="rounded-xl border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/10 px-4 py-3 text-sm"
+        >
+          No reconocemos estos filtros: {unknownParams.join(", ")}. Se ignoraron.
+        </div>
       )}
       {/* Header */}
       <div className="flex items-center justify-between">

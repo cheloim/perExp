@@ -79,6 +79,59 @@ describe("useExpenseFilters", () => {
     expect(result.current.searchParams.get("q")).toBeNull();
   });
 
+  it("reads the dashboard drilldown filters", () => {
+    const { result } = renderHook(() => useExpenseFilters(), {
+      wrapper: makeWrapper("/?card_type=credito&installment=1&search=super"),
+    });
+
+    expect(result.current.filters.cardType).toBe("credito");
+    expect(result.current.filters.installment).toBe(true);
+    expect(result.current.filters.q).toBe("super");
+    expect(result.current.unknownParams).toEqual([]);
+  });
+
+  it("turns dashboard and treemap links into the promised filters", () => {
+    const cases = [
+      [
+        "/?card_type=credito",
+        (filters: ReturnType<typeof useExpenseFilters>["filters"]) =>
+          filters.cardType === "credito",
+      ],
+      [
+        "/?installment=1&date_from=2026-11-01&date_to=2026-11-30",
+        (filters: ReturnType<typeof useExpenseFilters>["filters"]) =>
+          filters.installment === true &&
+          filters.dateFrom === "2026-11-01" &&
+          filters.dateTo === "2026-11-30",
+      ],
+      [
+        "/?category_id=5&month=2026-10",
+        (filters: ReturnType<typeof useExpenseFilters>["filters"]) =>
+          filters.categoryIds.join(",") === "5" && filters.dateFrom === "2026-10-01",
+      ],
+      [
+        "/?category_ids=3,7&month=2026-10",
+        (filters: ReturnType<typeof useExpenseFilters>["filters"]) =>
+          filters.categoryIds.join(",") === "3,7" && filters.dateTo === "2026-10-31",
+      ],
+    ] as const;
+
+    for (const [url, matches] of cases) {
+      const { result } = renderHook(() => useExpenseFilters(), {
+        wrapper: makeWrapper(url),
+      });
+      expect(matches(result.current.filters)).toBe(true);
+    }
+  });
+
+  it("reports unknown params instead of ignoring them silently", () => {
+    const { result } = renderHook(() => useExpenseFilters(), {
+      wrapper: makeWrapper("/?card_type=credito&mystery=42"),
+    });
+
+    expect(result.current.unknownParams).toEqual(["mystery"]);
+  });
+
   it("reads multiple categories from category_ids", () => {
     const { result } = renderHook(() => useExpenseFilters(), {
       wrapper: makeWrapper("/?category_ids=3,7"),

@@ -18,6 +18,8 @@ const FILTERS: ExpenseFilters = {
   cuentaId: undefined,
   sinCuenta: false,
   q: undefined,
+  cardType: undefined,
+  installment: undefined,
 };
 
 const CATEGORIES = [{ id: 1, name: "Salud", color: "#000", keywords: "" }] as Category[];
