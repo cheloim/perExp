@@ -12,7 +12,9 @@ export type FilterChipKind =
   | "tag"
   | "untagged"
   | "date"
-  | "person";
+  | "person"
+  | "card_type"
+  | "installment";
 
 export interface FilterChip {
   key: string;
@@ -91,6 +93,23 @@ export function buildFilterChips(
       label: `Titular: ${filters.person}`,
       kind: "person",
       value: filters.person,
+    });
+  }
+
+  if (filters.cardType) {
+    chips.push({
+      key: "card_type",
+      label: `Tarjeta: ${filters.cardType === "credito" ? "crédito" : filters.cardType}`,
+      kind: "card_type",
+      value: filters.cardType,
+    });
+  }
+  if (filters.installment !== undefined) {
+    chips.push({
+      key: "installment",
+      label: filters.installment ? "En cuotas" : "Sin cuotas",
+      kind: "installment",
+      value: filters.installment ? "1" : "0",
     });
   }
 

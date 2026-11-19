@@ -16,6 +16,8 @@ const EMPTY: ExpenseFilters = {
   cuentaId: undefined,
   sinCuenta: false,
   q: undefined,
+  cardType: undefined,
+  installment: undefined,
 };
 
 const CATEGORIES = [
@@ -54,6 +56,17 @@ describe("buildFilterChips", () => {
       "Últimos 3 meses",
     ]);
     expect(chips.map((chip) => chip.kind)).toEqual(["search", "category", "category", "date"]);
+  });
+
+  it("labels the card and installment drilldowns", () => {
+    const chips = buildFilterChips(
+      { ...EMPTY, cardType: "credito", installment: true },
+      CATEGORIES,
+      TAGS,
+    );
+
+    expect(chips.map((chip) => chip.label)).toEqual(["Tarjeta: crédito", "En cuotas"]);
+    expect(chips.map((chip) => chip.kind)).toEqual(["card_type", "installment"]);
   });
 
   it("labels uncategorized, account, tag and person filters", () => {

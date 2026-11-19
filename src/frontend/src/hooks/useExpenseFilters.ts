@@ -23,9 +23,32 @@ export interface ExpenseFilters {
   cuentaId: number | undefined;
   sinCuenta: boolean;
   q: string | undefined;
+  cardType: string | undefined;
+  installment: boolean | undefined;
 }
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+/** URL keys this hook understands. Anything else is surfaced to the user. */
+const KNOWN_FILTER_PARAMS = new Set([
+  "category_id",
+  "category_ids",
+  "uncategorized",
+  "person",
+  "date_from",
+  "date_to",
+  "range",
+  "month",
+  "tag_id",
+  "untagged",
+  "cuenta_id",
+  "sin_cuenta",
+  "q",
+  "search",
+  "card_type",
+  "installment",
+  "category_suggestions",
+]);
 
 /** Last applied filter set, per tab. */
 export const EXPENSES_FILTERS_KEY = "expenses_filters";
@@ -118,8 +141,19 @@ export function useExpenseFilters() {
     untagged: searchParams.get("untagged") === "1",
     cuentaId: searchParams.get("cuenta_id") ? parseInt(searchParams.get("cuenta_id")!) : undefined,
     sinCuenta: searchParams.get("sin_cuenta") === "1",
-    q: searchParams.get("q") || undefined,
+    q: searchParams.get("q") || searchParams.get("search") || undefined,
+    cardType: searchParams.get("card_type") || undefined,
+    installment:
+      searchParams.get("installment") === "1"
+        ? true
+        : searchParams.get("installment") === "0"
+          ? false
+          : undefined,
   };
+
+  const unknownParams = [
+    ...new Set([...searchParams.keys()].filter((key) => !KNOWN_FILTER_PARAMS.has(key))),
+  ];
 
   const setFilter = useCallback(
     (key: string, value: string | undefined) => {
@@ -258,5 +292,6 @@ export function useExpenseFilters() {
     setSearchParams,
     searchInput,
     setSearchInput,
+    unknownParams,
   };
 }
