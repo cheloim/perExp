@@ -32,12 +32,14 @@
  *
  * OpenAPI spec version: 1.0.0
  */
+import type { BudgetResponseCurrency } from "./budgetResponseCurrency.ts";
 
 export interface BudgetResponse {
   id?: number;
   user_id?: number;
   category_id?: number;
   amount?: number;
+  currency?: BudgetResponseCurrency;
   alert_threshold?: number;
   rollover?: boolean;
   is_active?: boolean;

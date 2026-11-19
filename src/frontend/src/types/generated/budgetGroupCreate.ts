@@ -32,10 +32,13 @@
  *
  * OpenAPI spec version: 1.0.0
  */
+import type { BudgetGroupCreateCurrency } from "./budgetGroupCreateCurrency.ts";
 import type { BudgetGroupCreateName } from "./budgetGroupCreateName.ts";
 
 export interface BudgetGroupCreate {
   name: BudgetGroupCreateName;
   display_name: string;
   percentage: number;
+  amount?: number;
+  currency?: BudgetGroupCreateCurrency;
 }
