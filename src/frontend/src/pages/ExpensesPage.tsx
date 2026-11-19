@@ -24,6 +24,8 @@ import type { Expense, ExpenseCreate } from "../types";
 import { ExpenseModal } from "../components/ExpenseModals";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import EmptyState from "../components/ui/EmptyState";
+import QueryState, { QueryErrorBanner } from "../components/ui/QueryState";
+import { SkeletonRow } from "../components/ui/Skeleton";
 import SymbolicIcon from "../components/SymbolicIcon";
 import QuickEditPopover from "../components/QuickEditPopover";
 import BulkActionBar from "../components/BulkActionBar";
@@ -234,6 +236,8 @@ export default function ExpensesPage() {
     data: expenses = [],
     isLoading,
     isFetching,
+    isError: expensesError,
+    refetch: refetchExpenses,
   } = useQuery<Expense[]>({
     queryKey: expenseQueryKeys.list(filterKey, visibleCount),
     queryFn: () => getExpenses({ ...filterParams, limit: visibleCount }),
@@ -767,8 +771,29 @@ export default function ExpensesPage() {
       ? `${expenses.length}${expenses.length >= visibleCount ? "+" : ""} gastos con los filtros aplicados`
       : "";
 
+  if (expensesError && !isLoading && expenses.length === 0) {
+    return (
+      <div className="p-6">
+        <QueryState
+          isError
+          hasData={false}
+          onRetry={refetchExpenses}
+          errorMessage="No pudimos cargar los gastos."
+        >
+          <div />
+        </QueryState>
+      </div>
+    );
+  }
+
   return (
     <div className={`space-y-6 ${selectedCount > 0 ? "pb-52 md:pb-28" : "pb-20 md:pb-0"}`}>
+      {expensesError && (
+        <QueryErrorBanner
+          message="No pudimos actualizar los gastos. Mostramos los últimos datos disponibles."
+          onRetry={refetchExpenses}
+        />
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Gastos</h1>
@@ -999,30 +1024,13 @@ export default function ExpensesPage() {
             </thead>
             <tbody className="divide-y divide-[var(--border-color)]">
               {isLoading ? (
-                <>
-                  {[...Array(8)].map((_, i) => (
-                    <tr key={i} className="border-b border-[var(--border-color)]">
-                      <td className="px-3 py-3">
-                        <div className="h-4 w-4 rounded bg-[var(--color-base-alt)] animate-pulse" />
-                      </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
-                        <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-16" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-40" />
-                      </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
-                        <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-20" />
-                      </td>
-                      <td className="px-3 py-3 hidden md:table-cell">
-                        <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-16" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="h-4 bg-[var(--color-base-alt)] rounded animate-pulse w-16" />
-                      </td>
-                    </tr>
-                  ))}
-                </>
+                [...Array(8)].map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={6}>
+                      <SkeletonRow />
+                    </td>
+                  </tr>
+                ))
               ) : expenses.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-4">

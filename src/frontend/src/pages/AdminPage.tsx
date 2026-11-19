@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import QueryState, { QueryErrorBanner } from "../components/ui/QueryState";
+import { SkeletonRow } from "../components/ui/Skeleton";
 import {
   AreaChart,
   Area,
@@ -118,7 +120,7 @@ function UsersTab() {
   const [notifyTitle, setNotifyTitle] = useState("");
   const [notifyBody, setNotifyBody] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-users", search, page],
     queryFn: () => getAdminUsers({ search, page, per_page: 50 }),
   });
@@ -163,8 +165,27 @@ function UsersTab() {
   const users: AdminUser[] = data?.users ?? [];
   const total = data?.total ?? 0;
 
+  if (isError && users.length === 0 && !isLoading) {
+    return (
+      <QueryState
+        isError
+        hasData={false}
+        onRetry={refetch}
+        errorMessage="No pudimos cargar los usuarios."
+      >
+        <div />
+      </QueryState>
+    );
+  }
+
   return (
     <div>
+      {isError && (
+        <QueryErrorBanner
+          message="No pudimos actualizar los usuarios. Mostramos los últimos datos disponibles."
+          onRetry={refetch}
+        />
+      )}
       <div className="flex items-center gap-3 mb-4">
         <input
           type="text"
@@ -180,7 +201,11 @@ function UsersTab() {
       </div>
 
       {isLoading ? (
-        <p className="text-[var(--text-[var(--text-tertiary)])]">Cargando...</p>
+        <div aria-label="Cargando usuarios">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <SkeletonRow key={index} />
+          ))}
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
