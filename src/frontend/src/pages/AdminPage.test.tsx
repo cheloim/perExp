@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AdminPage from "./AdminPage";
+import { getAdminUsers } from "../api/client";
 
 vi.mock("./admin/CategorizationReviewTab", () => ({
   default: () => <div>CATEGORIZATION_TAB</div>,
@@ -57,6 +58,15 @@ describe("AdminPage", () => {
     ]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
+  });
+
+  it("distingue un error de una lista vacía y ofrece reintentar", async () => {
+    vi.mocked(getAdminUsers).mockRejectedValueOnce(new Error("500"));
+
+    renderPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos cargar los usuarios");
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
   });
 
   it("al hacer click en Categorización renderiza la revisión interna", () => {
