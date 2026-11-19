@@ -14,6 +14,8 @@ import {
 } from "recharts";
 import { APP_NAME } from "../config";
 import Sparkline from "../components/ui/Sparkline";
+import QueryState, { QueryErrorBanner } from "../components/ui/QueryState";
+import { SkeletonCard } from "../components/ui/Skeleton";
 import {
   getDashboard,
   getTagSummary,
@@ -124,6 +126,20 @@ export const CardRow = memo(function CardRow({
   );
 });
 
+function DashboardSkeleton() {
+  return (
+    <div className="@container space-y-6 p-1" aria-label="Cargando Dashboard">
+      <SkeletonCard lines={2} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <SkeletonCard key={index} lines={2} />
+        ))}
+      </div>
+      <SkeletonCard lines={6} />
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -165,7 +181,12 @@ export default function Dashboard() {
     await createMut.mutateAsync(data);
   };
 
-  const { data: dashData } = useQuery({
+  const {
+    data: dashData,
+    isLoading: dashLoading,
+    isError: dashError,
+    refetch: refetchDash,
+  } = useQuery({
     queryKey: ["dashboard", month],
     queryFn: () => getDashboard({ month }),
     placeholderData: (prev) => prev,
@@ -484,8 +505,29 @@ export default function Dashboard() {
   const momVariation =
     prevMonthTotal > 0 ? ((displaySpending - prevMonthTotal) / prevMonthTotal) * 100 : 0;
 
+  if (!dashData && (dashLoading || dashError)) {
+    return (
+      <QueryState
+        isLoading={dashLoading}
+        isError={dashError}
+        hasData={false}
+        onRetry={refetchDash}
+        skeleton={<DashboardSkeleton />}
+        errorMessage="No pudimos cargar el Dashboard."
+      >
+        <div />
+      </QueryState>
+    );
+  }
+
   return (
     <div className="@container space-y-8">
+      {dashError && (
+        <QueryErrorBanner
+          message="No pudimos actualizar el Dashboard. Mostramos los últimos datos disponibles."
+          onRetry={refetchDash}
+        />
+      )}
       {/* Page header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">

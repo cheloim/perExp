@@ -13,6 +13,8 @@ import {
 } from "../api/client";
 import { Select } from "../components/ui/Select";
 import EmptyState from "../components/ui/EmptyState";
+import QueryState, { QueryErrorBanner } from "../components/ui/QueryState";
+import Skeleton, { SkeletonCard } from "../components/ui/Skeleton";
 import SymbolicIcon from "../components/SymbolicIcon";
 import { CurrencyInput } from "../components/ui/CurrencyInput";
 import { getCategoryIcon } from "../utils/categoryIcon";
@@ -1894,17 +1896,32 @@ export default function BudgetPage() {
   const [linkingEvent, setLinkingEvent] = useState<BudgetEvent | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<BudgetEvent | null>(null);
 
-  const { data: summary, isLoading: loadingSummary } = useQuery({
+  const {
+    data: summary,
+    isLoading: loadingSummary,
+    isError: summaryError,
+    refetch: refetchSummary,
+  } = useQuery({
     queryKey: ["budget-summary"],
     queryFn: () => getBudgetSummary(),
   });
 
-  const { data: groups = [], isLoading: loadingGroups } = useQuery({
+  const {
+    data: groups = [],
+    isLoading: loadingGroups,
+    isError: groupsError,
+    refetch: refetchGroups,
+  } = useQuery({
     queryKey: ["budget-groups"],
     queryFn: getBudgetGroups,
   });
 
-  const { data: events = [], isLoading: loadingEvents } = useQuery({
+  const {
+    data: events = [],
+    isLoading: loadingEvents,
+    isError: eventsError,
+    refetch: refetchEvents,
+  } = useQuery({
     queryKey: ["budget-events"],
     queryFn: getBudgetEvents,
   });
@@ -1932,6 +1949,13 @@ export default function BudgetPage() {
   };
 
   const isLoading = loadingSummary || loadingGroups || loadingEvents;
+  const isError = summaryError || groupsError || eventsError;
+  const hasData = Boolean(summary) || groups.length > 0 || events.length > 0;
+  const retryAll = () => {
+    void refetchSummary();
+    void refetchGroups();
+    void refetchEvents();
+  };
 
   // Compute KPIs
   const totalBudget = useMemo(() => groups.reduce((s, g) => s + g.amount, 0), [groups]);
@@ -1965,28 +1989,41 @@ export default function BudgetPage() {
     ahorro: "var(--color-success)",
   };
 
-  if (isLoading) {
+  if ((isLoading || isError) && !hasData) {
     return (
       <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-[var(--color-base-alt)] rounded w-48" />
-          <div className="grid grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-24 bg-[var(--color-base-alt)] rounded-xl" />
-            ))}
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-48 bg-[var(--color-base-alt)] rounded-xl" />
-            ))}
-          </div>
-        </div>
+        <QueryState
+          isLoading={isLoading}
+          isError={isError}
+          hasData={hasData}
+          onRetry={retryAll}
+          errorMessage="No pudimos cargar el presupuesto."
+          skeleton={
+            <div className="space-y-4">
+              <Skeleton className="h-8 w-48" variant="text" />
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <SkeletonCard key={i} lines={2} />
+                ))}
+              </div>
+              <SkeletonCard lines={6} />
+            </div>
+          }
+        >
+          <div />
+        </QueryState>
       </div>
     );
   }
 
   return (
     <div className="p-6">
+      {isError && (
+        <QueryErrorBanner
+          message="No pudimos actualizar el presupuesto. Mostramos los últimos datos disponibles."
+          onRetry={retryAll}
+        />
+      )}
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div>
