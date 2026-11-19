@@ -33,8 +33,16 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { BudgetSummaryResponseCategoriesItem } from "./budgetSummaryResponseCategoriesItem.ts";
+import type { BudgetSummaryResponseCurrency } from "./budgetSummaryResponseCurrency.ts";
 
 export interface BudgetSummaryResponse {
+  currency?: BudgetSummaryResponseCurrency;
+  /** @nullable */
+  fx_rate?: number | null;
+  /** @nullable */
+  fx_rate_date?: string | null;
+  /** @nullable */
+  fx_rate_source?: string | null;
   total_budgeted?: number;
   total_spent?: number;
   categories?: BudgetSummaryResponseCategoriesItem[];

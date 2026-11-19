@@ -1950,6 +1950,7 @@ export default function BudgetPage() {
 
   const isLoading = loadingSummary || loadingGroups || loadingEvents;
   const isError = summaryError || groupsError || eventsError;
+  const budgetCurrency = summary?.currency ?? "ARS";
   const hasData = Boolean(summary) || groups.length > 0 || events.length > 0;
   const retryAll = () => {
     void refetchSummary();
@@ -2028,7 +2029,15 @@ export default function BudgetPage() {
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div>
           <h1 className="adw-title-2 text-primary">Presupuesto</h1>
-          <p className="adw-caption adw-dim-label">{monthLabel} · montos en ARS</p>
+          <p className="adw-caption adw-dim-label">
+            {monthLabel} · montos en {budgetCurrency}
+          </p>
+          {summary?.fx_rate && (
+            <p className="adw-caption adw-dim-label">
+              Tasa usada: {summary.fx_rate.toLocaleString("es-AR")} {summary.fx_rate_source}
+              {summary.fx_rate_date ? ` (${summary.fx_rate_date})` : ""}
+            </p>
+          )}
         </div>
         <div className="flex gap-2 flex-wrap">
           <button
@@ -2065,16 +2074,18 @@ export default function BudgetPage() {
                     : "text-[var(--color-success-text)]"
                 }`}
               >
-                {formatCurrency(totalAvailable)}
+                {formatCurrency(totalAvailable, budgetCurrency)}
               </p>
               <p className="adw-caption adw-dim-label mt-1">
-                de {formatCurrency(totalBudget)} presupuestados
+                de {formatCurrency(totalBudget, budgetCurrency)} presupuestados
               </p>
               <TrendSpark values={trendValues} />
             </div>
             <div className="card p-4">
               <p className="adw-caption adw-dim-label mb-1">GASTADO VS PRESUPUESTO</p>
-              <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
+              <p className="text-lg font-bold text-primary">
+                {formatCurrency(totalSpent, budgetCurrency)}
+              </p>
               <p className="adw-caption adw-dim-label mt-1">{spentPct}% del presupuesto</p>
               <TrendSpark values={trendValues} />
             </div>
@@ -2085,7 +2096,8 @@ export default function BudgetPage() {
                 <span className="adw-caption adw-dim-label font-normal">/día</span>
               </p>
               <p className="adw-caption adw-dim-label mt-1">
-                esperado a hoy {formatCurrency(expectedToday)} · real {formatCurrency(totalSpent)}
+                esperado a hoy {formatCurrency(expectedToday, budgetCurrency)} · real{" "}
+                {formatCurrency(totalSpent, budgetCurrency)}
               </p>
               <div className="h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden mt-2">
                 <div

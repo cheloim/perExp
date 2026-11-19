@@ -2,6 +2,7 @@
 
 from datetime import date
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.database import get_db
@@ -245,6 +246,51 @@ def test_budget_summary_converts_usd_with_the_snapshot(db):
     result = budget_summary(db=db, current_user=user)
 
     assert result.total_spent == 10000.0
+
+
+def test_usd_budget_uses_usd_spending(db):
+    from app.models import Budget
+    from app.routers.budgets import budget_summary
+
+    user = _user(db, "budget-usd@example.com")
+    category = Category(name="Comida", user_id=user.id)
+    db.add(category)
+    db.flush()
+    db.add(Budget(user_id=user.id, category_id=category.id, amount=100.0, currency="USD"))
+    _expense(db, user, 10.0, currency="USD", category=category)
+    _expense(db, user, 5000.0, currency="ARS", category=category)
+    db.flush()
+
+    result = budget_summary(db=db, current_user=user)
+
+    assert result.currency == "USD"
+    assert result.total_spent == 10.0
+
+
+def test_mixed_currency_budgets_are_rejected(db):
+    from fastapi import HTTPException
+
+    from app.models import Budget
+    from app.routers.budgets import create_budget
+    from app.schemas import BudgetCreate
+
+    user = _user(db, "mixed-budget@example.com")
+    first = Category(name="Comida", user_id=user.id)
+    second = Category(name="Transporte", user_id=user.id)
+    db.add_all([first, second])
+    db.flush()
+    db.add(Budget(user_id=user.id, category_id=first.id, amount=100.0, currency="ARS"))
+    db.flush()
+
+    with pytest.raises(HTTPException) as exc:
+        create_budget(
+            BudgetCreate(category_id=second.id, amount=100.0, currency="USD"),
+            db=db,
+            current_user=user,
+        )
+
+    assert exc.value.status_code == 400
+    assert "misma moneda" in exc.value.detail
 
 
 def test_expense_stats_excludes_income(db):
