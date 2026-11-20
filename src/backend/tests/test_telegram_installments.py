@@ -160,7 +160,7 @@ def test_saved_text_shows_a_current_installment_without_repeating_the_total():
     )
     text = telegram_bot._saved_text(expense)
     assert "Cuota 3 de 12" in text
-    assert "$15.000" in text
+    assert "$ 15.000,00" in text
     assert "12 cuotas de" not in text
 
 
@@ -175,8 +175,8 @@ def test_saved_text_shows_the_split_for_a_new_purchase():
         _tags=[],
     )
     text = telegram_bot._saved_text(expense)
-    assert "$120.000" in text
-    assert "12 cuotas de $10.000" in text
+    assert "$ 120.000,00" in text
+    assert "12 cuotas de $ 10.000,00" in text
 
 
 def test_confirm_text_shows_the_current_installment():
@@ -190,7 +190,7 @@ def test_confirm_text_shows_the_current_installment():
     }
     text = telegram_bot._confirm_text(parsed, "Visa", installments=12)
     assert "Cuota 3 de 12" in text
-    assert "$15.000" in text
+    assert "$ 15.000,00" in text
 
 
 class _EmptyQuery:

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getScheduledSummary, getRecurringExpenses } from "../../api/client";
-import { formatCurrency, toUpperCase } from "../../utils/format";
+import { formatMoney, toUpperCase } from "../../utils/format";
 
 interface UpcomingItem {
   description: string;
@@ -119,11 +119,11 @@ export default function QuickUpcoming() {
         <div className="bg-[var(--color-surface)] border border-[var(--border-color)] rounded-xl p-3 text-center">
           <div className="text-[10px] text-[var(--text-secondary)]">Total próximo</div>
           <div className="text-lg font-bold text-[var(--text-primary)]">
-            {formatCurrency(totalArs)}
+            {formatMoney(totalArs, "ARS")}
           </div>
           {totalUsd > 0 && (
             <div className="text-[10px] text-[var(--text-tertiary)]">
-              + {formatCurrency(totalUsd, "USD")}
+              + {formatMoney(totalUsd, "USD")}
             </div>
           )}
         </div>
@@ -150,8 +150,8 @@ export default function QuickUpcoming() {
                 {label}
               </span>
               <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                {formatCurrency(monthArs)}
-                {monthUsd > 0 && ` + ${formatCurrency(monthUsd, "USD")}`}
+                {formatMoney(monthArs, "ARS")}
+                {monthUsd > 0 && ` + ${formatMoney(monthUsd, "USD")}`}
               </span>
             </div>
             <div className="space-y-1.5">
@@ -174,7 +174,7 @@ export default function QuickUpcoming() {
                     </div>
                   </div>
                   <span className="text-xs font-semibold text-[var(--text-primary)] whitespace-nowrap">
-                    {formatCurrency(item.amount, item.currency)}
+                    {formatMoney(item.amount, item.currency)}
                   </span>
                 </div>
               ))}

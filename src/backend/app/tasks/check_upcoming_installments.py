@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Notification, ScheduledExpense, Setting
+from app.services.money import format_money
 from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
@@ -93,14 +94,14 @@ def check_upcoming_installments():
 
             if days_until == 0:
                 title = f"💳 Cuota{installment_label} — vence hoy"
-                body = f"{se.description} — ${se.amount:,.0f} vence hoy."
+                body = f"{se.description} — {format_money(se.amount, se.currency)} vence hoy."
             elif days_until == 1:
                 title = f"💳 Cuota{installment_label} — vence mañana"
-                body = f"{se.description} — ${se.amount:,.0f} vence mañana."
+                body = f"{se.description} — {format_money(se.amount, se.currency)} vence mañana."
             else:
                 title = f"💳 Cuota{installment_label} — vence en {days_until} días"
                 body = (
-                    f"{se.description} — ${se.amount:,.0f} "
+                    f"{se.description} — {format_money(se.amount, se.currency)} "
                     f"vence el {se.scheduled_date.strftime('%d/%m/%Y')}."
                 )
 

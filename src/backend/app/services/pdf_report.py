@@ -9,6 +9,7 @@ from jinja2 import Environment, FileSystemLoader
 from playwright.sync_api import sync_playwright
 
 from app.services.date_utils import MONTHS_ES
+from app.services.money import format_money
 
 
 def _strip_emojis(text: str) -> str:
@@ -16,7 +17,28 @@ def _strip_emojis(text: str) -> str:
 
 
 def _fmt(amount: float) -> str:
-    return f"${amount:,.2f}"
+    return format_money(amount, "ARS")
+
+
+def _parse_amount(value: object) -> float:
+    if isinstance(value, (int, float)):
+        return float(value)
+    cleaned = (
+        str(value or "").replace("U$S", "").replace("$", "").replace("\u00a0", "").replace(" ", "")
+    )
+    if "," in cleaned:
+        cleaned = cleaned.replace(".", "").replace(",", ".")
+    return float(cleaned or 0)
+
+
+def _fmt_budget_summary(summary: dict) -> dict:
+    if not summary:
+        return {}
+    return {
+        **summary,
+        "total_budget": _fmt(summary.get("total_budget", 0)),
+        "total_spent": _fmt(summary.get("total_spent", 0)),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -134,9 +156,7 @@ def _build_account_doughnut_data(accounts: list[dict], cards: list[dict]) -> dic
 
     # Use cards data (which has actual spending)
     for c in cards:
-        total_val = c.get("total_raw", 0) or c.get("total", 0)
-        if isinstance(total_val, str):
-            total_val = float(total_val.replace("$", "").replace(",", "")) if total_val else 0
+        total_val = _parse_amount(c.get("total_raw", 0) or c.get("total", 0))
         if total_val > 0:
             labels.append(f"{c['name']} {c.get('bank', '')}".strip()[:20])
             values.append(round(total_val, 2))
@@ -152,18 +172,14 @@ def _build_polar_area_data(accounts: list[dict], cards: list[dict]) -> dict:
 
     # Add accounts
     for a in accounts:
-        total_val = a.get("total_raw", 0) or a.get("total", 0)
-        if isinstance(total_val, str):
-            total_val = float(total_val.replace("$", "").replace(",", "")) if total_val else 0
+        total_val = _parse_amount(a.get("total_raw", 0) or a.get("total", 0))
         if total_val > 0:
             labels.append(a["name"][:20])
             values.append(round(total_val, 2))
 
     # Add cards
     for c in cards:
-        total_val = c.get("total_raw", 0) or c.get("total", 0)
-        if isinstance(total_val, str):
-            total_val = float(total_val.replace("$", "").replace(",", "")) if total_val else 0
+        total_val = _parse_amount(c.get("total_raw", 0) or c.get("total", 0))
         if total_val > 0:
             labels.append(f"{c['name']} {c.get('bank', '')}".strip()[:20])
             values.append(round(total_val, 2))
@@ -360,7 +376,7 @@ def generate_report_image(report_data: dict, user_name: str) -> bytes:
         "analysis": analysis,
         # Budget data
         "budgets": _fmt_list(report_data.get("budgets", []), "budget_amount"),
-        "budget_summary": report_data.get("budget_summary", {}),
+        "budget_summary": _fmt_budget_summary(report_data.get("budget_summary", {})),
         "budget_groups": _fmt_list(report_data.get("budget_groups", []), "amount"),
         "budget_events": _fmt_list(report_data.get("budget_events", []), "total_amount"),
         "budget_groups_data": json.dumps(

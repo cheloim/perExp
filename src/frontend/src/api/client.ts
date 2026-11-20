@@ -724,6 +724,7 @@ export const getInstallmentsMonthlyLoad = () =>
       {
         month: string;
         total: number;
+        by_currency: Record<string, number>;
         count: number;
         is_past: boolean;
         is_current: boolean;

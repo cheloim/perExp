@@ -6,6 +6,8 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from app.services.money import format_money
+
 DEFAULT_ALERT_LEVELS = [0.75, 0.90, 1.0]
 
 
@@ -294,7 +296,7 @@ def _check_budget_threshold(db: Session, user_id: int, category_id: int) -> None
                 user_id,
                 "budget_warning",
                 f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {cat.name}",
-                f"Presupuesto ${budget.amount:,.0f} | Gastado ${spent:,.0f} ({pct:.0%})",
+                f"Presupuesto {format_money(budget.amount, 'ARS')} | Gastado {format_money(spent, 'ARS')} ({pct:.0%})",
                 {
                     "category_id": category_id,
                     "category_name": cat.name,
@@ -339,7 +341,7 @@ def _check_budget_threshold(db: Session, user_id: int, category_id: int) -> None
             user_id,
             "budget_warning",
             f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {display_names.get(cat.budget_group, cat.budget_group)}",
-            f"Presupuesto ${group.amount:,.0f} | Gastado ${group_spent:,.0f} ({pct:.0%})",
+            f"Presupuesto {format_money(group.amount, 'ARS')} | Gastado {format_money(group_spent, 'ARS')} ({pct:.0%})",
             {
                 "group_name": cat.budget_group,
                 "month": month_key,

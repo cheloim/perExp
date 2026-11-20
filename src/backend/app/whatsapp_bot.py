@@ -376,7 +376,7 @@ async def _handle_text_message(
             "🤔 No entendí bien. Mandame un gasto como:\n\n"
             '• "farmacity 3200"\n'
             '• "uber ayer 1800"\n'
-            '• "Netflix USD 5"\n\n'
+            '• "Netflix U$S 5"\n\n'
             "O escribí *ayuda* para ver los comandos.",
         )
         return
@@ -507,7 +507,7 @@ async def _handle_auth(phone: str, phone_hash: str, text: str, session: dict, us
             "Mandame un gasto como le dirías a un amigo:\n"
             '• "gasté 1500 en farmacity"\n'
             '• "uber 3200 ayer"\n'
-            '• "Netflix USD 5"\n\n'
+            '• "Netflix U$S 5"\n\n'
             "Escribí *ayuda* para ver los comandos disponibles.",
         )
     finally:
@@ -1169,7 +1169,7 @@ async def _send_help(phone: str) -> None:
         '• "farmacity 3200"\n'
         '• "almuerzo con el equipo 8500 pesos"\n'
         '• "uber ayer 1800"\n'
-        '• "Netflix USD 5"\n\n'
+        '• "Netflix U$S 5"\n\n'
         "🔔 *O reenviame notificaciones de tu banco:*\n"
         '• "Compra aprobada Visa ****4521 $15.200 Supermercado"\n'
         '• "Débito Mastercard ****1234 $8.500 Netflix"\n\n'

@@ -12,7 +12,7 @@ import type { Expense, ExpenseCreate, ExpenseImageDraft } from "../types";
 import { Select } from "./ui/Select";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { formatCurrency } from "../utils/format";
+import { formatMoney } from "../utils/format";
 
 // Helper function to get today's date in DD-MM-YYYY format
 export function todayDDMMYYYY() {
@@ -627,7 +627,7 @@ export function ExpenseModal({
                           } disabled:opacity-60`}
                         >
                           {index + 1}. {draft.description} ·{" "}
-                          {formatCurrency(draft.amount, draft.currency)}
+                          {formatMoney(draft.amount, draft.currency)}
                           {draftStatuses[index] === "saved"
                             ? " ✓"
                             : draftStatuses[index] === "skipped"
@@ -640,8 +640,7 @@ export function ExpenseModal({
                 ) : (
                   <>
                     <p className="font-medium text-[var(--text-primary)]">
-                      Comprobante detectado: {imageDraft.currency}{" "}
-                      {imageDraft.amount.toLocaleString("es-AR")}
+                      Comprobante detectado: {formatMoney(imageDraft.amount, imageDraft.currency)}
                     </p>
                     <p className="text-[var(--text-secondary)]">Revisalo antes de guardar.</p>
                   </>
@@ -704,8 +703,8 @@ export function ExpenseModal({
               value={form.currency ?? "ARS"}
               onChange={(v) => set("currency", v)}
               options={[
-                { value: "ARS", label: "ARS $" },
-                { value: "USD", label: "USD $" },
+                { value: "ARS", label: "ARS ($)" },
+                { value: "USD", label: "USD (U$S)" },
               ]}
             />
           </div>
@@ -992,8 +991,8 @@ export function ExpenseModal({
                       {installmentsActive && form.amount > 0 && (
                         <p className="text-xs text-[var(--text-tertiary)]">
                           {isCurrentInstallment
-                            ? `Cuota de ${formatCurrency(form.amount, form.currency)}; se programan ${Math.max(installmentTotal - installmentNumber, 0)} cuotas.`
-                            : `${installmentTotal} cuotas de ${formatCurrency(perInstallment, form.currency)}.`}
+                            ? `Cuota de ${formatMoney(form.amount, form.currency)}; se programan ${Math.max(installmentTotal - installmentNumber, 0)} cuotas.`
+                            : `${installmentTotal} cuotas de ${formatMoney(perInstallment, form.currency)}.`}
                         </p>
                       )}
                     </>

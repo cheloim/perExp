@@ -51,6 +51,7 @@ from app.services.encryption import compute_hmac
 from app.services.import_utils import _normalize_text
 from app.services.installments import create_future_installments, split_installments
 from app.services.llm import LLMMessage, get_client, is_configured, parse_json_block
+from app.services.money import format_money, format_totals
 from app.services.rate_limit import check_rate_limit
 
 logger = logging.getLogger(__name__)
@@ -744,10 +745,7 @@ def _should_ask_installments(
 
 
 def _format_amount(amount: float, currency: str) -> str:
-    if currency == "USD":
-        return f"USD {amount:,.2f}"
-    # Argentine grouping: $3.200, not $3,200.
-    return f"${amount:,.0f}".replace(",", ".")
+    return format_money(amount, currency)
 
 
 # Payment entity prefixes to strip from bank notification descriptions
@@ -1632,7 +1630,7 @@ async def handle_auth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             "Mandame un gasto como le dirías a un amigo:\n"
             '• _"gasté 1500 en farmacity"_\n'
             '• _"uber 3200 ayer"_\n'
-            '• _"Netflix USD 5"_\n\n'
+            '• _"Netflix U$S 5"_\n\n'
             "📌 <b>Comandos disponibles:</b>\n"
             "/gastos — Ver gastos del mes\n"
             "/presupuesto — Ver presupuestos\n"
@@ -1655,7 +1653,7 @@ _HELP_TEXT = (
     '• <i>"farmacity 3200"</i>\n'
     '• <i>"almuerzo con el equipo 8500 pesos"</i>\n'
     '• <i>"uber ayer 1800"</i>\n'
-    '• <i>"Netflix USD 5"</i>\n'
+    '• <i>"Netflix U$S 5"</i>\n'
     '• <i>"cargué nafta 15000 el viernes"</i>\n\n'
     "🔔 <b>O reenviame notificaciones de tu banco:</b>\n"
     '• <i>"Compra aprobada Visa ****4521 $15.200 Supermercado"</i>\n'
@@ -3465,16 +3463,20 @@ def _format_scheduled_report(report) -> str:
     lines = ["📅 <b>Cuotas pendientes</b> — próximos 30 días"]
 
     for week in report.weeks:
-        lines.append(f"\n<b>{week.label}</b> ({_format_amount(week.total, 'ARS')}):")
+        lines.append(
+            f"\n<b>{week.label}</b> ({format_totals((amount, cur) for cur, amount in week.total_by_currency.items())}):"
+        )
         for item in week.items:
             badge = f" [{item.installment_label}]" if item.is_installment else ""
             card = f" · {item.card}" if item.card else ""
             lines.append(
-                f"  • {item.day} — {_format_amount(item.amount, 'ARS')}{badge}\n"
+                f"  • {item.day} — {_format_amount(item.amount, item.currency)}{badge}\n"
                 f"    {_escape_html(item.description)}{card}"
             )
 
-    lines.append(f"\n💰 <b>Total:</b> {_format_amount(report.total, 'ARS')}")
+    lines.append(
+        f"\n💰 <b>Total:</b> {format_totals((amount, cur) for cur, amount in report.total_by_currency.items())}"
+    )
     lines.append(f"📋 <b>Cantidad:</b> {report.count}")
 
     return "\n".join(lines)
@@ -3502,10 +3504,12 @@ def _format_recurring_report(report) -> str:
         )
         lines.append(
             f"  📌 {_escape_html(item.description)}\n"
-            f"     {_format_amount(item.amount, 'ARS')} · {freq} · {when} ({item.next_date})"
+            f"     {_format_amount(item.amount, item.currency)} · {freq} · {when} ({item.next_date})"
         )
 
-    lines.append(f"\n💰 <b>Total próximo:</b> {_format_amount(report.total, 'ARS')}")
+    lines.append(
+        f"\n💰 <b>Total próximo:</b> {format_totals((amount, cur) for cur, amount in report.total_by_currency.items())}"
+    )
 
     return "\n".join(lines)
 
@@ -3786,7 +3790,7 @@ async def handle_reportimg_callback(update: Update, context: ContextTypes.DEFAUL
 
             ars_inc = report.income_by_currency.get("ARS", 0)
             usd_inc = report.income_by_currency.get("USD", 0)
-            inc_label = _format_amount(ars_inc, "ARS") if ars_inc > 0 else "$0"
+            inc_label = _format_amount(ars_inc, "ARS") if ars_inc > 0 else _format_amount(0, "ARS")
             if usd_inc > 0:
                 inc_label += f" + {_format_amount(usd_inc, 'USD')}"
 

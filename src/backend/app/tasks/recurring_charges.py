@@ -18,6 +18,7 @@ from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Expense, ExpenseTag, RecurringExpense, Tag
 from app.services.encryption import compute_hmac
+from app.services.money import format_money, format_totals
 from app.services.recurring_schedule import (
     add_charge_period,
     advance_charge_date,
@@ -133,19 +134,18 @@ def _format_executions(executions: list[dict]) -> tuple[str, str]:
     if len(executions) == 1:
         item = executions[0]
         title = "✅ Cobro recurrente registrado"
-        body = f"{item['description']} — ${item['amount']:,.0f} ({item['date']})"
+        body = f"{item['description']} — {format_money(item['amount'], item['currency'])} ({item['date']})"
         return title, body
 
     title = f"✅ {len(executions)} cobros recurrentes registrados"
     lines = [
-        f"  • {item['description']} — ${item['amount']:,.0f} ({item['date']})"
+        f"  • {item['description']} — {format_money(item['amount'], item['currency'])} ({item['date']})"
         for item in executions[:5]
     ]
-    total = sum(item["amount"] for item in executions)
     body = "\n".join(lines)
     if len(executions) > 5:
         body += f"\n... y {len(executions) - 5} más"
-    body += f"\n\nTotal: ${total:,.0f}"
+    body += f"\n\nTotal: {format_totals((item['amount'], item['currency']) for item in executions)}"
     return title, body
 
 
@@ -195,6 +195,7 @@ def _process_due_recurring(db, today: date | None = None) -> dict[str, int]:
                             "recurring_id": recurring.id,
                             "description": recurring.description,
                             "amount": recurring.amount,
+                            "currency": recurring.currency,
                             "date": charge_date.strftime("%d/%m/%Y"),
                         }
                     )

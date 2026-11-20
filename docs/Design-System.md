@@ -61,6 +61,7 @@ Nunca por debajo de **12 px** en un dato que el usuario tenga que leer. Hoy hay 
 | `Select` | ⚠️ | No expone `role=combobox` ni `aria-activedescendant`; `allowCustomValue` por defecto permite valores inválidos ([#517](https://github.com/cheloim/perExp/issues/517)). |
 | `Skeleton` | ⚠️ | Existe y **no se usa**. Adoptarlo es parte de [#511](https://github.com/cheloim/perExp/issues/511). |
 | `Sparkline` | ⚠️ | `aria-hidden="true"`, sin alternativa textual ([#519](https://github.com/cheloim/perExp/issues/519)). |
+| `formatMoney` | ✅ | `utils/money.ts`. Notación única: `$ 1.234,50` / `U$S 1.234,50`; `formatMoneyTotals` nunca suma monedas. |
 
 ## Primitivas que faltan
 
@@ -71,7 +72,7 @@ Estas se repiten copiadas en las pantallas y deberían extraerse:
 | `Field` | ~72 `<label>` sueltos, 60 sin `htmlFor` | `id`, `label`, `error`, `aria-invalid`, `aria-describedby` |
 | `Dialog` | 6 modales con implementaciones distintas | `role="dialog"`, focus trap, restauración de foco, Escape |
 | `PageState` | loading/error/empty ad hoc en cada página | `isLoading`, `isError`, `isEmpty`, retry |
-| `Money` | `formatCurrency` + prefijos manuales | Una sola notación por moneda |
+| `Money` | Prefijos manuales y `toLocaleString` sueltos | Componente visual sobre `formatMoney`; el util ya existe. |
 | `Badge` | Estados con color + texto | Variante accesible (color + ícono + texto) |
 | `Table` | Tablas densas del admin | `aria-sort`, columnas configurables, densidad |
 

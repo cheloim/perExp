@@ -697,12 +697,12 @@
           style="display: flex; gap: 24px; margin-bottom: 16px; font-size: 13px"
         >
           <div>
-            <strong>Presupuesto total:</strong> ${{ budget_summary.total_budget
-            | default(0) | round(2) }}
+            <strong>Presupuesto total:</strong> {{ budget_summary.total_budget
+            | default(0) }}
           </div>
           <div>
-            <strong>Gastado:</strong> ${{ budget_summary.total_spent |
-            default(0) | round(2) }}
+            <strong>Gastado:</strong> {{ budget_summary.total_spent |
+            default(0) }}
           </div>
           <div>
             <strong>Avance:</strong> {{ budget_summary.total_percentage |
@@ -779,7 +779,7 @@
             <span
               style="margin-left: 12px; font-weight: 700; color: {% if ev.remaining_raw <= 0 %}#ed333b{% elif ev.remaining_raw < ev.total_amount_raw * 0.2 %}#ff7800{% else %}#33d17a{% endif %};"
             >
-              ${{ ev.remaining }} restante
+              {{ ev.remaining }} restante
             </span>
           </div>
         </div>

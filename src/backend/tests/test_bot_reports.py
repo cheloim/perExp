@@ -515,7 +515,7 @@ def test_format_period_report_with_data():
     )
     text = _format_period_report(report)
     assert "Semana 01/09" in text
-    assert "USD" in text
+    assert "U$S" in text
     assert "Supermercado" in text
     assert "vs. anterior" not in text
     assert "Gastos:" in text
@@ -524,7 +524,7 @@ def test_format_period_report_with_data():
 def test_format_scheduled_report_empty():
     from app.services.bot_reports import UpcomingScheduledReport
 
-    report = UpcomingScheduledReport(weeks=[], total=0, count=0)
+    report = UpcomingScheduledReport(weeks=[], total=0, total_by_currency={}, count=0)
     text = _format_scheduled_report(report)
     assert "No hay cuotas" in text
 
@@ -532,7 +532,7 @@ def test_format_scheduled_report_empty():
 def test_format_recurring_report_empty():
     from app.services.bot_reports import UpcomingRecurringReport
 
-    report = UpcomingRecurringReport(items=[], total=0, count=0)
+    report = UpcomingRecurringReport(items=[], total=0, total_by_currency={}, count=0)
     text = _format_recurring_report(report)
     assert "No hay cobros" in text
 
@@ -545,16 +545,18 @@ def test_format_recurring_report_with_items():
             RecurringItem(
                 description="Netflix",
                 amount=3000,
+                currency="ARS",
                 next_date="07/09",
                 days_until=1,
                 frequency="monthly",
             )
         ],
         total=3000,
+        total_by_currency={"ARS": 3000},
         count=1,
     )
     text = _format_recurring_report(report)
     assert "Netflix" in text
-    assert "$3.000" in text
+    assert "$ 3.000,00" in text
     assert "Mensual" in text
     assert "mañana" in text

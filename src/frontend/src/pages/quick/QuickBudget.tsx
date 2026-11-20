@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getBudgetGroups, getBudgetSummary } from "../../api/client";
-import { formatCurrency } from "../../utils/format";
+import { formatMoney } from "../../utils/format";
 import SymbolicIcon from "../../components/SymbolicIcon";
 import EmptyState from "../../components/ui/EmptyState";
 import { getCategoryIcon } from "../../utils/categoryIcon";
@@ -101,16 +101,17 @@ function CategoryRow({ cat }: { cat: BudgetSummaryItem }) {
           <>
             {remaining >= 0 ? (
               <>
-                {formatCurrency(remaining)} restantes de {formatCurrency(cat.budget_amount)}
+                {formatMoney(remaining, "ARS")} restantes de {formatMoney(cat.budget_amount, "ARS")}
               </>
             ) : (
               <span className="text-[var(--color-danger)]">
-                {formatCurrency(Math.abs(remaining))} sobre {formatCurrency(cat.budget_amount)}
+                {formatMoney(Math.abs(remaining), "ARS")} sobre{" "}
+                {formatMoney(cat.budget_amount, "ARS")}
               </span>
             )}
           </>
         ) : (
-          <>{formatCurrency(cat.spent_amount)} gastados</>
+          <>{formatMoney(cat.spent_amount, "ARS")} gastados</>
         )}
       </p>
       <div className="flex items-center gap-2 ml-9">
@@ -130,12 +131,12 @@ function CategoryRow({ cat }: { cat: BudgetSummaryItem }) {
         </div>
         <span className="text-[11px] text-[var(--text-secondary)] whitespace-nowrap">
           <b className="text-[var(--text-primary)] font-semibold">
-            {cat.has_budget ? `${Math.round(pct)}%` : formatCurrency(cat.spent_amount)}
+            {cat.has_budget ? `${Math.round(pct)}%` : formatMoney(cat.spent_amount, "ARS")}
           </b>
           {cat.avg_monthly > 0 && (
             <span className="text-[var(--text-tertiary)]">
               {" "}
-              · prom {formatCurrency(cat.avg_monthly)}
+              · prom {formatMoney(cat.avg_monthly, "ARS")}
             </span>
           )}
         </span>
@@ -207,8 +208,8 @@ export default function QuickBudget() {
           />
         </div>
         <div className="flex items-center justify-between mt-1.5 text-[10px] text-[var(--text-secondary)]">
-          <span>{formatCurrency(totalSpent)} gastado</span>
-          <span>{formatCurrency(totalBudget)} total</span>
+          <span>{formatMoney(totalSpent, "ARS")} gastado</span>
+          <span>{formatMoney(totalBudget, "ARS")} total</span>
         </div>
         <MiniSpark values={trendValues} />
       </div>
@@ -223,7 +224,7 @@ export default function QuickBudget() {
             </span>
           </div>
           <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
-            {formatCurrency(dailyAvg)}
+            {formatMoney(dailyAvg, "ARS")}
             <span className="adw-caption adw-dim-label font-normal">/día</span>
           </p>
           <div className="h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden mt-2">
@@ -241,7 +242,7 @@ export default function QuickBudget() {
             />
           </div>
           <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
-            esperado a hoy {formatCurrency(expectedToday)}
+            esperado a hoy {formatMoney(expectedToday, "ARS")}
           </p>
         </div>
       )}
@@ -289,8 +290,8 @@ export default function QuickBudget() {
                   />
                 </div>
                 <div className="flex items-center justify-between mt-1 text-[10px] text-[var(--text-secondary)]">
-                  <span>{formatCurrency(g.spent)}</span>
-                  <span>de {formatCurrency(g.amount)}</span>
+                  <span>{formatMoney(g.spent, "ARS")}</span>
+                  <span>de {formatMoney(g.amount, "ARS")}</span>
                 </div>
               </div>
             );

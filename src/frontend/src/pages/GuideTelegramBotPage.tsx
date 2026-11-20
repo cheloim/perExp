@@ -158,7 +158,7 @@ export default function GuideTelegramBotPage() {
               <p className="text-xs text-[var(--text-secondary)]">
                 • "almuerzo con Pedro 8500 pesos"
               </p>
-              <p className="text-xs text-[var(--text-secondary)]">• "Netflix USD 5"</p>
+              <p className="text-xs text-[var(--text-secondary)]">• "Netflix U$S 5"</p>
               <p className="text-xs text-[var(--text-secondary)]">
                 • "cargué nafta 15000 el viernes"
               </p>

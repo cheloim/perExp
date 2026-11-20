@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Notification, RecurringExpense
+from app.services.money import format_money
 from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
@@ -82,14 +83,15 @@ def check_upcoming_recurring():
             # Build message
             if days_until == 0:
                 title = f"🔔 {rec.merchant_key} — cobro hoy"
-                body = f"Se cobra ${rec.amount:,.0f} hoy."
+                body = f"Se cobra {format_money(rec.amount, rec.currency)} hoy."
             elif days_until == 1:
                 title = f"🔔 {rec.merchant_key} — cobro mañana"
-                body = f"Se cobra ${rec.amount:,.0f} mañana."
+                body = f"Se cobra {format_money(rec.amount, rec.currency)} mañana."
             else:
                 title = f"🔔 {rec.merchant_key} — cobro en {days_until} días"
                 body = (
-                    f"Se cobra ${rec.amount:,.0f} el {rec.next_charge_date.strftime('%d/%m/%Y')}."
+                    f"Se cobra {format_money(rec.amount, rec.currency)} "
+                    f"el {rec.next_charge_date.strftime('%d/%m/%Y')}."
                 )
 
             notify_user(

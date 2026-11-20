@@ -35,6 +35,7 @@ from app.services.categorization import (
     match_keyword_tier,
 )
 from app.services.llm import LLMMessage, get_client
+from app.services.money import format_money
 
 logger = logging.getLogger(__name__)
 
@@ -430,7 +431,9 @@ def _format_categories(categories: list[Category]) -> str:
 def _format_expenses(expenses: list[Expense], cat_by_id: dict[int, Category]) -> str:
     lines = []
     for exp in expenses:
-        amount = f"${exp.amount:,.2f}" if exp.amount is not None else "no especificado"
+        amount = (
+            format_money(exp.amount, exp.currency) if exp.amount is not None else "no especificado"
+        )
         day = exp.date.isoformat() if exp.date else "sin fecha"
         cat = cat_by_id.get(exp.category_id)
         current = cat.name if cat else "?"
