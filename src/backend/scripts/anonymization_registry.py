@@ -91,6 +91,7 @@ OPTIONAL_COLUMNS = frozenset(
         ("expenses", "search_grams"),
         ("budgets", "currency"),
         ("budget_groups", "currency"),
+        ("users", "token_version"),
         ("categorization_reviews", "bulk_applied"),
     }
 )
@@ -422,6 +423,7 @@ RULES: dict[str, dict[str, Rule]] = {
             "mfa_enabled",
             "email_verified",
             "force_password_change",
+            "token_version",
             "onboarding_completed",
             "auto_detected_banner_dismissed_at",
             "is_admin",

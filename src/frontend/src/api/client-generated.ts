@@ -9803,6 +9803,83 @@ export const useLogoutAuthLogoutPost = <TError = ErrorType<unknown>, TContext = 
 };
 
 /**
+ * Invalidates every access and refresh token issued for this user.
+ * @summary Logout all devices
+ */
+export const logoutAllAuthLogoutAllPost = (
+  options?: SecondParameter<typeof customInstance>,
+  signal?: AbortSignal,
+) => {
+  return customInstance<void>({ url: `/auth/logout-all`, method: "POST", signal }, options);
+};
+
+export const getLogoutAllAuthLogoutAllPostMutationKey = () =>
+  ["logoutAllAuthLogoutAllPost"] as const;
+
+export const getLogoutAllAuthLogoutAllPostMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logoutAllAuthLogoutAllPost>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof logoutAllAuthLogoutAllPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = getLogoutAllAuthLogoutAllPostMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof logoutAllAuthLogoutAllPost>>,
+    void
+  > = () => {
+    return logoutAllAuthLogoutAllPost(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LogoutAllAuthLogoutAllPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof logoutAllAuthLogoutAllPost>>
+>;
+
+export type LogoutAllAuthLogoutAllPostMutationError = ErrorType<void>;
+
+/**
+ * @summary Logout all devices
+ */
+export const useLogoutAllAuthLogoutAllPost = <TError = ErrorType<void>, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof logoutAllAuthLogoutAllPost>>,
+      TError,
+      void,
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof logoutAllAuthLogoutAllPost>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getLogoutAllAuthLogoutAllPostMutationOptions(options), queryClient);
+};
+
+/**
  * Records that the user has dismissed the What's New popup for a specific version. This preference syncs across all devices.
  * @summary Dismiss What's New popup for a version
  */
