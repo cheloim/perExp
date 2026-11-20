@@ -134,7 +134,7 @@ def _issue_session(response, db: Session, user: User, request: Request) -> str:
     Applies the access token, not the 5-minute partial tokens used before MFA
     or a forced password change.
     """
-    token = create_access_token(user.id)
+    token = create_access_token(user.id, token_version=user.token_version)
     refresh = create_refresh_token(
         db,
         user.id,
@@ -267,7 +267,9 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
     if user.mfa_enabled:
         # Return a partial token that cannot open the API until the second
         # factor is verified.
-        partial_token = create_access_token(user.id, expires_minutes=5, scope="mfa")
+        partial_token = create_access_token(
+            user.id, expires_minutes=5, scope="mfa", token_version=user.token_version
+        )
         _log_audit(db, user.id, "login_mfa_required", request)
         return Token(
             access_token=partial_token,
@@ -277,7 +279,9 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
 
     # Check forced password change
     if user.force_password_change:
-        force_token = create_access_token(user.id, expires_minutes=5, scope="password_change")
+        force_token = create_access_token(
+            user.id, expires_minutes=5, scope="password_change", token_version=user.token_version
+        )
         _log_audit(db, user.id, "login_force_password_change", request)
         return Token(
             access_token=force_token,
@@ -351,7 +355,9 @@ def login_mfa(
     # MFA is done, but a forced password change still applies. Do not start a
     # full session before the user completes it.
     if user.force_password_change:
-        token = create_access_token(user.id, expires_minutes=5, scope="password_change")
+        token = create_access_token(
+            user.id, expires_minutes=5, scope="password_change", token_version=user.token_version
+        )
         _set_auth_cookie(response, token)
         return Token(access_token=token, token_type="bearer", force_password_change=True)
 
@@ -543,12 +549,16 @@ async def oauth_callback(
     # Google proves the identity, not the second factor or a pending password
     # change. Return a scoped partial token instead of a full session.
     if user.mfa_enabled:
-        partial = create_access_token(user.id, expires_minutes=5, scope="mfa")
+        partial = create_access_token(
+            user.id, expires_minutes=5, scope="mfa", token_version=user.token_version
+        )
         _log_audit(db, user.id, "oauth_login_mfa_required", request, details=body.provider)
         return Token(access_token=partial, token_type="bearer", mfa_required=True)
 
     if user.force_password_change:
-        partial = create_access_token(user.id, expires_minutes=5, scope="password_change")
+        partial = create_access_token(
+            user.id, expires_minutes=5, scope="password_change", token_version=user.token_version
+        )
         _log_audit(db, user.id, "oauth_login_force_password_change", request, details=body.provider)
         return Token(access_token=partial, token_type="bearer", force_password_change=True)
 
@@ -1029,6 +1039,7 @@ def change_password(
         )
     current_user.hashed_password = get_password_hash(body.new_password)
     current_user.force_password_change = False
+    current_user.token_version = int(current_user.token_version or 0) + 1
     revoke_all_refresh_tokens(db, current_user.id, reason="password_changed")
     db.commit()
     _log_audit(db, current_user.id, "password_changed", request)
@@ -1080,6 +1091,7 @@ def force_change_password(
 
     user.hashed_password = get_password_hash(body.new_password)
     user.force_password_change = False
+    user.token_version = int(user.token_version or 0) + 1
     revoke_all_refresh_tokens(db, user.id, reason="password_changed")
     db.commit()
 
@@ -1237,7 +1249,7 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
             detail="Sesión expirada. Iniciá sesión nuevamente.",
         ) from exc
 
-    token = create_access_token(user.id)
+    token = create_access_token(user.id, token_version=user.token_version)
     _set_auth_cookie(response, token)
     _set_refresh_cookie(response, new_refresh)
     return Token(access_token=token, token_type="bearer")
@@ -1255,6 +1267,24 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
     _clear_auth_cookie(response)
     _clear_refresh_cookie(response)
     return {"detail": "Sesión cerrada"}
+
+
+@router.post(
+    "/logout-all",
+    summary="Logout all devices",
+    description="Invalidates every access and refresh token issued for this user.",
+)
+def logout_all(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    current_user.token_version = int(current_user.token_version or 0) + 1
+    revoke_all_refresh_tokens(db, current_user.id, reason="logout_all")
+    db.commit()
+    _clear_auth_cookie(response)
+    _clear_refresh_cookie(response)
+    return {"detail": "Sesiones cerradas en todos los dispositivos"}
 
 
 class WhatsNewDismissRequest(BaseModel):
@@ -1337,6 +1367,7 @@ def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     user.hashed_password = get_password_hash(body.new_password)
     user.reset_token = None
     user.reset_token_expires = None
+    user.token_version = int(user.token_version or 0) + 1
     revoke_all_refresh_tokens(db, user.id, reason="password_reset")
     db.commit()
 

@@ -33,6 +33,7 @@ from app.services.auth import (
     JWT_SECRET,
     create_access_token,
     get_current_admin,
+    revoke_all_refresh_tokens,
     verify_password,
 )
 from app.services.mfa import verify_totp
@@ -350,6 +351,8 @@ def block_user(
     u.is_blocked = True
     u.blocked_at = datetime.now(UTC)
     u.blocked_reason = body.reason
+    u.token_version = int(u.token_version or 0) + 1
+    revoke_all_refresh_tokens(db, u.id, reason="blocked")
     db.commit()
     _audit_admin(db, admin, "admin_block_user", request, target=u, details={"reason": body.reason})
     return {"ok": True, "message": f"User {u.email} blocked"}

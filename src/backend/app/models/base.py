@@ -45,6 +45,9 @@ class User(Base):
     email_verification_token = Column(String(64), nullable=True, unique=True, index=True)
     # Security: Forced password change
     force_password_change = Column(Boolean, default=False)
+    # Bumped on password reset/change, logout-all and block. Access tokens
+    # carry it; a mismatch means the token predates the revocation.
+    token_version = Column(Integer, nullable=False, default=0, server_default="0")
     # Onboarding
     onboarding_completed = Column(Boolean, default=False)
     # Auto-detect recurring banner

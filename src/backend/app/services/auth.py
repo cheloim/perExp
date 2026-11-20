@@ -58,7 +58,10 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(
-    user_id: int, expires_minutes: int | None = None, scope: str = "access"
+    user_id: int,
+    expires_minutes: int | None = None,
+    scope: str = "access",
+    token_version: int = 0,
 ) -> str:
     """Issue a JWT.
 
@@ -76,6 +79,7 @@ def create_access_token(
         # token (and the refresh response would look like a no-op).
         "jti": secrets.token_hex(16),
         "scope": scope,
+        "ver": token_version,
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
 
@@ -247,6 +251,7 @@ def get_current_user(
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise credentials_exc
+        token_version = int(payload.get("ver", 0))
         # Tokens issued between factors are deliberately not access tokens.
         # Old tokens have no scope: treat them as access for compatibility.
         if payload.get("scope", "access") != "access":
@@ -259,6 +264,8 @@ def get_current_user(
         raise credentials_exc
     user = db.get(User, int(user_id))
     if user is None or not user.is_active:
+        raise credentials_exc
+    if token_version != int(user.token_version or 0):
         raise credentials_exc
     if user.is_blocked:
         raise HTTPException(
