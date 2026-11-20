@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Popover } from "../components/ui/Popover";
 
-export { formatMoney, formatMoneyTotals } from "./money";
 import { formatMoney } from "./money";
+export { formatMoney, formatMoneyTotals } from "./money";
 
 export function formatDate(dateStr: string, format: "short" | "long" | "iso" = "short"): string {
   if (!dateStr) return "";

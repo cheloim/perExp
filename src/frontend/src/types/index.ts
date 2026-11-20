@@ -204,6 +204,7 @@ export interface Budget {
   category_name: string;
   category_color: string;
   amount: number;
+  currency: string;
   alert_threshold: number;
   alert_thresholds: number[] | null;
   rollover: boolean;
@@ -216,6 +217,7 @@ export interface BudgetGroup {
   display_name: string;
   percentage: number;
   amount: number;
+  currency: string;
   spent: number;
   committed: number;
   available: number;
@@ -237,6 +239,7 @@ export interface BudgetSummaryItem {
   category_name: string;
   category_color: string;
   budget_group: string;
+  currency?: string;
   budget_amount: number;
   spent_amount: number;
   avg_monthly: number;
@@ -249,6 +252,10 @@ export interface BudgetSummaryItem {
 
 export interface BudgetSummaryResponse {
   month: string;
+  currency: string;
+  fx_rate?: number | null;
+  fx_rate_date?: string | null;
+  fx_rate_source?: string | null;
   total_budget: number;
   total_spent: number;
   total_percentage: number;
@@ -279,6 +286,7 @@ export interface BudgetSuggestion {
   avg_monthly: number;
   months_with_data: number;
   suggested: number;
+  currency?: string;
   has_budget: boolean;
   current_budget: number;
 }

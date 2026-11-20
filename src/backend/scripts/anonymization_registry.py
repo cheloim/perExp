@@ -89,6 +89,8 @@ OPTIONAL_COLUMNS = frozenset(
         ("expenses", "fx_rate_date"),
         ("expenses", "fx_rate_source"),
         ("expenses", "search_grams"),
+        ("budgets", "currency"),
+        ("budget_groups", "currency"),
         ("categorization_reviews", "bulk_applied"),
     }
 )
@@ -153,6 +155,7 @@ RULES: dict[str, dict[str, Rule]] = {
             "name",
             "percentage",
             "amount",
+            "currency",
             "spent",
             "is_active",
             "created_at",
@@ -166,6 +169,7 @@ RULES: dict[str, dict[str, Rule]] = {
         "user_id",
         "category_id",
         "amount",
+        "currency",
         "alert_threshold",
         "rollover",
         "is_active",

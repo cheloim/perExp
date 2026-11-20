@@ -1,12 +1,15 @@
 from datetime import date
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
+
+Currency = Literal["ARS", "USD"]
 
 
 class BudgetCreate(BaseModel):
     category_id: int
     amount: float
+    currency: Currency = "ARS"
     alert_threshold: float = 0.80
     alert_thresholds: list[float] | None = None
     rollover: bool = False
@@ -14,6 +17,7 @@ class BudgetCreate(BaseModel):
 
 class BudgetUpdate(BaseModel):
     amount: float | None = None
+    currency: Currency | None = None
     alert_threshold: float | None = None
     alert_thresholds: list[float] | None = None
     rollover: bool | None = None
@@ -26,6 +30,7 @@ class BudgetResponse(BaseModel):
     category_name: str = ""
     category_color: str = ""
     amount: float
+    currency: str = "ARS"
     alert_threshold: float
     alert_thresholds: list[float] | None = None
     rollover: bool
@@ -38,6 +43,7 @@ class BudgetSummaryItem(BaseModel):
     category_name: str
     category_color: str = ""
     budget_group: str = "necesidades"
+    currency: str = "ARS"
     budget_amount: float = 0
     spent_amount: float = 0
     avg_monthly: float = 0
@@ -50,6 +56,10 @@ class BudgetSummaryItem(BaseModel):
 
 class BudgetSummaryResponse(BaseModel):
     month: str
+    currency: str = "ARS"
+    fx_rate: float | None = None
+    fx_rate_date: str | None = None
+    fx_rate_source: str | None = None
     total_budget: float
     total_spent: float
     total_percentage: float
@@ -67,12 +77,14 @@ class BudgetGroupCreate(BaseModel):
     display_name: str
     percentage: float
     amount: float = 0
+    currency: Currency = "ARS"
 
 
 class BudgetGroupUpdate(BaseModel):
     display_name: str | None = None
     percentage: float | None = None
     amount: float | None = None
+    currency: Currency | None = None
     alert_thresholds: list[float] | None = None
     is_active: bool | None = None
 
@@ -91,6 +103,7 @@ class BudgetGroupResponse(BaseModel):
     display_name: str
     percentage: float
     amount: float
+    currency: str = "ARS"
     spent: float = 0
     committed: float = 0
     available: float = 0

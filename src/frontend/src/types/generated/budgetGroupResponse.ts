@@ -32,10 +32,12 @@
  *
  * OpenAPI spec version: 1.0.0
  */
+import type { BudgetGroupResponseCurrency } from "./budgetGroupResponseCurrency.ts";
 
 export interface BudgetGroupResponse {
   id?: number;
   user_id?: number;
+  currency?: BudgetGroupResponseCurrency;
   name?: string;
   display_name?: string;
   percentage?: number;
