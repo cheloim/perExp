@@ -104,9 +104,7 @@ def _get_group_user_ids(user_id: int, db: Session) -> list[int]:
 def _assert_single_currency(
     db: Session, user_id: int, currency: str, exclude_budget_id: int | None = None
 ) -> None:
-    query = db.query(Budget.currency).filter(
-        Budget.user_id == user_id, Budget.is_active == True
-    )
+    query = db.query(Budget.currency).filter(Budget.user_id == user_id, Budget.is_active == True)
     if exclude_budget_id is not None:
         query = query.filter(Budget.id != exclude_budget_id)
     other = query.first()
@@ -354,9 +352,7 @@ def create_budget(
         .filter(Budget.user_id == current_user.id, Budget.category_id == data.category_id)
         .first()
     )
-    _assert_single_currency(
-        db, current_user.id, data.currency, existing.id if existing else None
-    )
+    _assert_single_currency(db, current_user.id, data.currency, existing.id if existing else None)
     if existing:
         existing.amount = data.amount
         existing.currency = data.currency
@@ -579,7 +575,9 @@ def budget_summary(
                         currency=currency,
                         budget_amount=child_budget_amount,
                         spent_amount=round(child_spent, 2),
-                        avg_monthly=round(_get_avg_monthly_spending(child.id, uid_list, db, currency), 2),
+                        avg_monthly=round(
+                            _get_avg_monthly_spending(child.id, uid_list, db, currency), 2
+                        ),
                         months_with_data=_get_months_with_spending(child.id, uid_list, db),
                         percentage=round(child_pct, 4),
                         status=child_status,
@@ -825,7 +823,9 @@ def list_budget_groups(
             committed += budget_amount
 
             # Get spending for this category
-            spent = _get_spending_for_category(cat.id, today.year, today.month, uid_list, db, group.currency)
+            spent = _get_spending_for_category(
+                cat.id, today.year, today.month, uid_list, db, group.currency
+            )
             pct = spent / budget_amount if budget_amount > 0 else 0
             status = (
                 "exceeded"
@@ -848,7 +848,9 @@ def list_budget_groups(
             )
 
         # Get actual spending for the group
-        spent = _get_spending_for_group(group.name, today.year, today.month, uid_list, db, group.currency)
+        spent = _get_spending_for_group(
+            group.name, today.year, today.month, uid_list, db, group.currency
+        )
 
         result.append(
             BudgetGroupResponse(
@@ -995,7 +997,9 @@ def update_budget_group(
         budget_amount = budget.amount if budget else 0
         committed += budget_amount
 
-        spent = _get_spending_for_category(cat.id, today.year, today.month, uid_list, db, group.currency)
+        spent = _get_spending_for_category(
+            cat.id, today.year, today.month, uid_list, db, group.currency
+        )
         pct = spent / budget_amount if budget_amount > 0 else 0
         status = (
             "exceeded"
@@ -1016,7 +1020,9 @@ def update_budget_group(
             )
         )
 
-    spent = _get_spending_for_group(group.name, today.year, today.month, uid_list, db, group.currency)
+    spent = _get_spending_for_group(
+        group.name, today.year, today.month, uid_list, db, group.currency
+    )
 
     return BudgetGroupResponse(
         id=group.id,
