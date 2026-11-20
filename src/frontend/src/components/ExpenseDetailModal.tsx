@@ -1,6 +1,6 @@
 import { DetailModal } from "./DetailModal";
 import type { Expense } from "../types";
-import { formatCurrency, toUpperCase, formatDateDMY } from "../utils/format";
+import { formatMoney, toUpperCase, formatDateDMY } from "../utils/format";
 import SymbolicIcon from "./SymbolicIcon";
 
 interface Props {
@@ -37,7 +37,7 @@ export default function ExpenseDetailModal({ expense, onClose, onEdit }: Props) 
         {/* Monto */}
         <div className="bg-[var(--color-base-alt)] rounded-lg p-4 text-center">
           <span className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-            {formatCurrency(expense.amount, expense.currency)}
+            {formatMoney(expense.amount, expense.currency)}
           </span>
         </div>
 

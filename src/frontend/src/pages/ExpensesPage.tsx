@@ -32,7 +32,7 @@ import BulkActionBar from "../components/BulkActionBar";
 import BulkTagPicker from "../components/BulkTagPicker";
 import { getCategoryIcon } from "../utils/categoryIcon";
 import {
-  formatCurrency,
+  formatMoney,
   titleCase,
   SortIcon,
   categoryGroupOptions,
@@ -88,9 +88,7 @@ function selectionSummary(selected: Expense[]): string {
     const currency = expense.currency || "ARS";
     totals.set(currency, (totals.get(currency) ?? 0) + expense.amount);
   }
-  return [...totals.entries()]
-    .map(([currency, total]) => formatCurrency(total, currency))
-    .join(" + ");
+  return [...totals.entries()].map(([currency, total]) => formatMoney(total, currency)).join(" + ");
 }
 
 function SortableHeader({
@@ -938,12 +936,12 @@ export default function ExpensesPage() {
                 }`}
               >
                 <div className="card p-3">
-                  <p className="text-[10px] text-tertiary uppercase">Total</p>
+                  <p className="text-[10px] text-tertiary uppercase">Total ARS</p>
                   <p className="text-lg font-bold text-primary">
                     {expenseStats === undefined ? (
                       <span className="inline-block h-5 w-20 animate-pulse rounded bg-[var(--color-base-alt)]" />
                     ) : (
-                      formatCurrency(arsTotal)
+                      formatMoney(arsTotal, "ARS")
                     )}
                   </p>
                 </div>
@@ -958,22 +956,22 @@ export default function ExpensesPage() {
                   </p>
                 </div>
                 <div className="card p-3">
-                  <p className="text-[10px] text-tertiary uppercase">Promedio</p>
+                  <p className="text-[10px] text-tertiary uppercase">Promedio ARS</p>
                   <p className="text-lg font-bold text-primary">
                     {expenseStats === undefined ? (
                       <span className="inline-block h-5 w-20 animate-pulse rounded bg-[var(--color-base-alt)]" />
                     ) : (
-                      formatCurrency(avg)
+                      formatMoney(avg, "ARS")
                     )}
                   </p>
                 </div>
                 <div className="card p-3">
-                  <p className="text-[10px] text-tertiary uppercase">Mayor gasto</p>
+                  <p className="text-[10px] text-tertiary uppercase">Mayor ARS</p>
                   <p className="text-lg font-bold text-primary">
                     {expenseStats === undefined ? (
                       <span className="inline-block h-5 w-20 animate-pulse rounded bg-[var(--color-base-alt)]" />
                     ) : (
-                      formatCurrency(max)
+                      formatMoney(max, "ARS")
                     )}
                   </p>
                 </div>
@@ -1464,7 +1462,7 @@ export default function ExpensesPage() {
                                     : "text-[var(--text-primary)]"
                                 }`}
                               >
-                                {formatCurrency(exp.amount, exp.currency)}
+                                {formatMoney(exp.amount, exp.currency)}
                               </span>
                             </button>
                           </td>

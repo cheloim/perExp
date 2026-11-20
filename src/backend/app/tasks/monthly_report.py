@@ -9,7 +9,10 @@ from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Category, Expense, MonthlyReport, Notification, Tag, User
 from app.routers.groups import get_group_user_ids
+from app.services.aggregation import ars_amount_expression, to_ars
+from app.services.aggregation import fallback_rate as resolve_fallback_rate
 from app.services.date_utils import MONTHS_ES
+from app.services.money import format_money
 from app.services.notify import notification_excerpt
 
 logger = logging.getLogger(__name__)
@@ -32,13 +35,15 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         Expense.date >= target_start,
         Expense.date <= target_end,
     ]
+    converted = ars_amount_expression(db, uid_list)
+    fallback = resolve_fallback_rate(db)
     total_expenses = (
-        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
         .filter(*month_filter, Expense.is_income == False)  # noqa: E712
         .scalar()
     )
     total_income = (
-        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
         .filter(*month_filter, Expense.is_income == True)  # noqa: E712
         .scalar()
     )
@@ -84,7 +89,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     cat_rows = (
         db.query(
             Expense.category_id,
-            func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
+            func.coalesce(func.sum(func.abs(converted)), 0.0),
             func.count(Expense.id),
         )
         .filter(*month_filter, Expense.is_income == False)  # noqa: E712
@@ -113,12 +118,12 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         Expense.date <= prev_end,
     ]
     previous_total = (
-        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
         .filter(*prev_filter, Expense.is_income == False)  # noqa: E712
         .scalar()
     )
     previous_income = (
-        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
         .filter(*prev_filter, Expense.is_income == True)  # noqa: E712
         .scalar()
     )
@@ -132,12 +137,12 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         Expense.date <= last_year_end,
     ]
     last_year_total = (
-        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
         .filter(*ly_filter, Expense.is_income == False)  # noqa: E712
         .scalar()
     )
     last_year_income = (
-        db.query(func.coalesce(func.sum(func.abs(Expense.amount)), 0.0))
+        db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
         .filter(*ly_filter, Expense.is_income == True)  # noqa: E712
         .scalar()
     )
@@ -146,7 +151,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     prev_cat_rows = (
         db.query(
             Expense.category_id,
-            func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
+            func.coalesce(func.sum(func.abs(converted)), 0.0),
         )
         .filter(*prev_filter, Expense.is_income == False)  # noqa: E712
         .group_by(Expense.category_id)
@@ -191,7 +196,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         db.query(
             month_key,
             Expense.is_income,
-            func.coalesce(func.sum(func.abs(Expense.amount)), 0.0),
+            func.coalesce(func.sum(func.abs(converted)), 0.0),
         )
         .filter(
             Expense.user_id.in_(uid_list),
@@ -245,6 +250,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
                 "date": e.date.strftime("%d/%m"),
                 "description": (e.description or "")[:40],
                 "amount": abs(e.amount),
+                "currency": e.currency,
                 "category": cat_name,
             }
         )
@@ -259,15 +265,15 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         if e.is_income:
             continue
         if e.account_id:
-            prev_by_account[e.account_id] += abs(e.amount)
+            prev_by_account[e.account_id] += abs(to_ars(e, fallback))
         if e.card_id:
-            prev_by_card[e.card_id] += abs(e.amount)
+            prev_by_card[e.card_id] += abs(to_ars(e, fallback))
 
     accounts = db.query(Account).filter(Account.user_id.in_(uid_list)).all()
     accounts_summary = []
     for acc in accounts:
         acc_expenses = [e for e in expenses if e.account_id == acc.id and not e.is_income]
-        acc_total = sum(abs(e.amount) for e in acc_expenses)
+        acc_total = sum(abs(to_ars(e, fallback)) for e in acc_expenses)
         accounts_summary.append(
             {
                 "name": acc.name,
@@ -284,7 +290,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     cards_summary = []
     for card in cards:
         card_expenses = [e for e in expenses if e.card_id == card.id and not e.is_income]
-        card_total = sum(abs(e.amount) for e in card_expenses)
+        card_total = sum(abs(to_ars(e, fallback)) for e in card_expenses)
         cards_summary.append(
             {
                 "name": card.card_name,
@@ -305,13 +311,13 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         for t in e.tags or []:
             if t.group_name == "categoria":
                 continue
-            tag_totals[t.id] = tag_totals.get(t.id, 0) + abs(e.amount)
+            tag_totals[t.id] = tag_totals.get(t.id, 0) + abs(to_ars(e, fallback))
             tag_counts[t.id] = tag_counts.get(t.id, 0) + 1
     for e in prev_expenses:
         for t in e.tags or []:
             if t.group_name == "categoria":
                 continue
-            tag_prev_totals[t.id] = tag_prev_totals.get(t.id, 0) + abs(e.amount)
+            tag_prev_totals[t.id] = tag_prev_totals.get(t.id, 0) + abs(to_ars(e, fallback))
 
     tags_summary = []
     for t in sorted(tags, key=lambda t: tag_totals.get(t.id, 0), reverse=True):
@@ -327,12 +333,12 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
                 }
             )
     untagged_total = sum(
-        abs(e.amount)
+        abs(to_ars(e, fallback))
         for e in expenses
         if not [t for t in (e.tags or []) if t.group_name != "categoria"] and not e.is_income
     )
     untagged_prev = sum(
-        abs(e.amount)
+        abs(to_ars(e, fallback))
         for e in prev_expenses
         if not [t for t in (e.tags or []) if t.group_name != "categoria"] and not e.is_income
     )
@@ -367,12 +373,20 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
         .all()
     )
     future_installments = []
+
+    def _scheduled_ars(s) -> float:
+        if (s.currency or "ARS") == "ARS":
+            return abs(float(s.amount))
+        rate = (fallback or {}).get("rate")
+        return abs(float(s.amount)) * float(rate) if rate else 0.0
+
     for s in scheduled:
         future_installments.append(
             {
                 "date": s.scheduled_date.strftime("%d/%m/%Y"),
                 "description": (s.description or "")[:40],
-                "amount": abs(s.amount),
+                "amount": _scheduled_ars(s),
+                "currency": "ARS",
             }
         )
 
@@ -383,7 +397,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     day_totals = defaultdict(float)
     for e in expenses:
         if not e.is_income and e.date:
-            day_totals[e.date.weekday()] += abs(e.amount)
+            day_totals[e.date.weekday()] += abs(to_ars(e, fallback))
     daily_pattern = [{"day": DAY_NAMES[d], "total": round(day_totals[d], 2)} for d in range(7)]
 
     # Category trends (which categories increased vs last month)
@@ -424,7 +438,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             method = "Efectivo/Transferencia"
         else:
             method = "Otro"
-        payment_methods[method]["total"] += abs(e.amount)
+        payment_methods[method]["total"] += abs(to_ars(e, fallback))
         payment_methods[method]["count"] = int(payment_methods[method]["count"]) + 1
         payment_methods[method]["name"] = method
     payment_list = sorted(payment_methods.values(), key=lambda x: x["total"], reverse=True)
@@ -456,7 +470,9 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     }
 
     # Recurring expenses (same description + amount, 2+ times)
-    merchant_amounts = [(e.description.strip(), abs(e.amount)) for e in expenses if not e.is_income]
+    merchant_amounts = [
+        (e.description.strip(), abs(to_ars(e, fallback))) for e in expenses if not e.is_income
+    ]
     recurring_counter = Counter(merchant_amounts)
     recurring_list = [
         {"description": desc, "total": round(total, 2), "count": count}
@@ -467,7 +483,9 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
 
     # Weekend vs Weekday
     weekend_total = sum(
-        abs(e.amount) for e in expenses if not e.is_income and e.date and e.date.weekday() >= 5
+        abs(to_ars(e, fallback))
+        for e in expenses
+        if not e.is_income and e.date and e.date.weekday() >= 5
     )
     weekday_total = total_expenses - weekend_total
     weekend_data = {
@@ -546,56 +564,58 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             trend_lines = []
             for t in trend_history:
                 trend_lines.append(
-                    f"  {t['month']}: gastos=${t['expenses']:,.0f}, ingresos=${t['income']:,.0f}"
+                    f"  {t['month']}: gastos={format_money(t['expenses'], 'ARS')}, ingresos={format_money(t['income'], 'ARS')}"
                 )
 
             cat_lines = []
             for cat in all_categories[:8]:
                 cat_lines.append(
-                    f"  - {cat['name']}: ${cat['total']:,.0f} ({cat['count']} transacciones)"
+                    f"  - {cat['name']}: {format_money(cat['total'], 'ARS')} ({cat['count']} transacciones)"
                 )
 
             comp_lines = []
             for c in category_comparison:
                 comp_lines.append(
-                    f"  - {c['name']}: actual=${c['total']:,.0f}, anterior=${c['previous']:,.0f}, cambio={c['change_pct']:+.1f}%"
+                    f"  - {c['name']}: actual={format_money(c['total'], 'ARS')}, anterior={format_money(c['previous'], 'ARS')}, cambio={c['change_pct']:+.1f}%"
                 )
 
             expense_lines = []
             for e in top_expenses_data:
                 expense_lines.append(
-                    f"  - {e['date']} {e['description']}: ${e['amount']:,.2f} ({e['category']})"
+                    f"  - {e['date']} {e['description']}: {format_money(e['amount'], e['currency'])} ({e['category']})"
                 )
 
             account_lines = []
             for a in accounts_summary:
                 if a["total"] > 0:
                     account_lines.append(
-                        f"  - {a['name']} ({a['type']}): ${a['total']:,.2f} ({a['count']} transacciones)"
+                        f"  - {a['name']} ({a['type']}): {format_money(a['total'], 'ARS')} ({a['count']} transacciones)"
                     )
 
             card_lines = []
             for c in cards_summary:
                 if c["total"] > 0:
                     card_lines.append(
-                        f"  - {c['name']} {c['bank']}: ${c['total']:,.2f} ({c['count']} transacciones)"
+                        f"  - {c['name']} {c['bank']}: {format_money(c['total'], 'ARS')} ({c['count']} transacciones)"
                     )
 
             future_lines = []
             for fi in future_installments[:5]:
-                future_lines.append(f"  - {fi['date']}: {fi['description']} ${fi['amount']:,.2f}")
+                future_lines.append(
+                    f"  - {fi['date']}: {fi['description']} {format_money(fi['amount'], 'ARS')}"
+                )
 
             cuenta_summary = [t for t in tags_summary if t.get("group") in ("cuenta", "tarjeta")]
 
             llm_context = f"""RESUMEN MENSUAL - {MONTHS_ES[m]} {y}
 
 RESUMEN:
-- Gastos totales: ${total_expenses:,.0f}
-- Ingresos totales: ${total_income:,.0f}
+- Gastos totales: {format_money(total_expenses, "ARS")}
+- Ingresos totales: {format_money(total_income, "ARS")}
 - Tasa de ahorro: {savings_rate:.1f}%
 - Transacciones: {count}
 - Variacion vs mes anterior: {mom_change:+.1f}%
-- Gastos mismo mes ano anterior: ${last_year_total:,.0f}
+- Gastos mismo mes ano anterior: {format_money(last_year_total, "ARS")}
 
 TOP CATEGORIAS:
 {chr(10).join(cat_lines) or "  Sin datos"}
@@ -613,12 +633,12 @@ TARJETAS:
 {chr(10).join(card_lines) or "  Sin datos"}
 
 CUENTAS:
-{chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in cuenta_summary[:10]]) or "  Sin datos"}
+{chr(10).join([f"  {t['name']}: {format_money(t['total'], 'ARS')} ({t['count']} gastos)" for t in cuenta_summary[:10]]) or "  Sin datos"}
 
 OTROS TAGS:
-{chr(10).join([f"  {t['name']}: ${t['total']:,.0f} ({t['count']} gastos)" for t in [t for t in tags_summary if t.get("group") not in ("cuenta",)][:10]]) or "  Sin datos"}
+{chr(10).join([f"  {t['name']}: {format_money(t['total'], 'ARS')} ({t['count']} gastos)" for t in [t for t in tags_summary if t.get("group") not in ("cuenta",)][:10]]) or "  Sin datos"}
 
-CUOTAS FUTURAS ({len(future_installments)} cuotas, ${sum(fi["amount"] for fi in future_installments):,.2f} total):
+CUOTAS FUTURAS ({len(future_installments)} cuotas, {format_money(sum(fi["amount"] for fi in future_installments), "ARS")} total):
 {chr(10).join(future_lines) or "  Sin cuotas futuras"}
 
 BUDGET VS REAL (presupuesto contra media 3m):

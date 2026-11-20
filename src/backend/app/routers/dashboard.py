@@ -24,6 +24,7 @@ from app.services.aggregation import (
 from app.services.auth import get_current_user
 from app.services.date_utils import MONTHS_ES, add_months
 from app.services.llm import LLMMessage, get_client, is_configured
+from app.services.money import format_money
 from app.services.normalizers import normalize_bank
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -516,7 +517,7 @@ def _compute_summary(
         if gid in scheduled_gids:
             continue
         last_exp = exps_sorted[-1]
-        inst_amount = abs(last_exp.amount)
+        inst_amount = abs(to_ars(last_exp, fallback))
         last_date = last_exp.date
         for i in range(1, remaining + 1):
             future_date = add_months(last_date, i)
@@ -754,25 +755,25 @@ async def get_monthly_report(
             trend_lines = []
             for t in trend_history:
                 trend_lines.append(
-                    f"  {t['month']}: gastos=${t['expenses']:,.0f}, ingresos=${t['income']:,.0f}"
+                    f"  {t['month']}: gastos={format_money(t['expenses'], 'ARS')}, ingresos={format_money(t['income'], 'ARS')}"
                 )
 
             cat_lines = []
             for cat in current["top_categories"]:
                 cat_lines.append(
-                    f"  - {cat['name']}: ${cat['total']:,.0f} ({cat['count']} transacciones)"
+                    f"  - {cat['name']}: {format_money(cat['total'], 'ARS')} ({cat['count']} transacciones)"
                 )
 
             llm_context = f"""ANÁLISIS MENSUAL - {target_start.strftime("%B %Y").capitalize()}
 
 RESUMEN DEL MES:
-- Gastos totales: ${current["total_expenses"]:,.0f}
-- Ingresos totales: ${current["total_income"]:,.0f}
+- Gastos totales: {format_money(current["total_expenses"], "ARS")}
+- Ingresos totales: {format_money(current["total_income"], "ARS")}
 - Tasa de ahorro: {savings_rate:.1f}%
 - Cantidad de transacciones: {current["count"]}
 - Variación vs mes anterior: {mom_change:+.1f}%
 {"- Variación mismo día mes anterior (MTD): " + f"{mtd_change:+.1f}%" if is_current_month else ""}
-{"- Proyección fin de mes (ritmo actual): $" + f"{projected_total:,.0f}" if is_current_month and projected_total is not None else ""}
+{"- Proyección fin de mes (ritmo actual): " + format_money(projected_total, "ARS") if is_current_month and projected_total is not None else ""}
 
 TOP CATEGORÍAS:
 {chr(10).join(cat_lines) or "  Sin datos"}
@@ -841,7 +842,7 @@ def _build_report_html(data: dict, user_name: str) -> str:
                 <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:{cat["color"]};margin-right:8px;vertical-align:middle;"></span>
                 {cat["name"]}
             </td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${cat["total"]:,.2f}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">{format_money(cat["total"], "ARS")}</td>
             <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">{cat["count"]}</td>
             <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">{pct:.1f}%</td>
         </tr>"""
@@ -853,9 +854,9 @@ def _build_report_html(data: dict, user_name: str) -> str:
         trend_rows += f"""
         <tr>
             <td style="padding:6px;border-bottom:1px solid #eee;">{m_name} {y_t}</td>
-            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t["expenses"]:,.2f}</td>
-            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t["income"]:,.2f}</td>
-            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">${t["income"] - t["expenses"]:,.2f}</td>
+            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">{format_money(t["expenses"], "ARS")}</td>
+            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">{format_money(t["income"], "ARS")}</td>
+            <td style="padding:6px;border-bottom:1px solid #eee;text-align:right;">{format_money(t["income"] - t["expenses"], "ARS")}</td>
         </tr>"""
 
     analysis_html = ""
@@ -902,12 +903,12 @@ def _build_report_html(data: dict, user_name: str) -> str:
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px;">
         <div style="background: #fef2f2; padding: 15px; border-radius: 8px; text-align: center;">
             <p style="color: #6b7280; font-size: 11px; margin: 0;">GASTOS</p>
-            <p style="color: #dc2626; font-size: 20px; font-weight: bold; margin: 5px 0;">${data["total_expenses"]:,.2f}</p>
+            <p style="color: #dc2626; font-size: 20px; font-weight: bold; margin: 5px 0;">{format_money(data["total_expenses"], "ARS")}</p>
             <p style="color: #9ca3af; font-size: 11px; margin: 0;">{data["expense_count"]} transacciones</p>
         </div>
         <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; text-align: center;">
             <p style="color: #6b7280; font-size: 11px; margin: 0;">INGRESOS</p>
-            <p style="color: #059669; font-size: 20px; font-weight: bold; margin: 5px 0;">${data["total_income"]:,.2f}</p>
+            <p style="color: #059669; font-size: 20px; font-weight: bold; margin: 5px 0;">{format_money(data["total_income"], "ARS")}</p>
         </div>
         <div style="background: #f5f3ff; padding: 15px; border-radius: 8px; text-align: center;">
             <p style="color: #6b7280; font-size: 11px; margin: 0;">TASA DE AHORRO</p>
@@ -1384,6 +1385,7 @@ def get_installments_monthly_load(
         monthly[key] = {
             "month": key,
             "total": 0.0,
+            "by_currency": {},
             "count": 0,
             "is_past": key < current_month,
             "is_current": key == current_month,
@@ -1404,11 +1406,23 @@ def get_installments_monthly_load(
         .all()
     )
 
+    fallback = resolve_fallback_rate(db)
+
+    def _ars_amount(amount: float, currency: str | None) -> float:
+        if (currency or "ARS") == "ARS":
+            return abs(float(amount))
+        rate = (fallback or {}).get("rate")
+        return abs(float(amount)) * float(rate) if rate else 0.0
+
     # Sum ALL installment expenses by their real date
     for e in exps:
         key = e.date.strftime("%Y-%m") if isinstance(e.date, date) else str(e.date)[:7]
         if key in monthly:
-            monthly[key]["total"] += abs(e.amount)
+            currency = e.currency or "ARS"
+            monthly[key]["total"] += _ars_amount(e.amount, currency)
+            monthly[key]["by_currency"][currency] = monthly[key]["by_currency"].get(
+                currency, 0.0
+            ) + abs(e.amount)
             monthly[key]["count"] += 1
 
     # Future months: project remaining installments per group
@@ -1436,7 +1450,11 @@ def get_installments_monthly_load(
             else str(se.scheduled_date)[:7]
         )
         if smonth in monthly:
-            monthly[smonth]["total"] += abs(se.amount)
+            currency = se.currency or "ARS"
+            monthly[smonth]["total"] += _ars_amount(se.amount, currency)
+            monthly[smonth]["by_currency"][currency] = monthly[smonth]["by_currency"].get(
+                currency, 0.0
+            ) + abs(se.amount)
             monthly[smonth]["count"] += 1
         scheduled_gids.add(se.installment_group_id)
         scheduled_count_by_gid[se.installment_group_id] = (
@@ -1456,6 +1474,7 @@ def get_installments_monthly_load(
             groups[gid] = {
                 "installment_total": e.installment_total or 0,
                 "amount": abs(e.amount),
+                "currency": e.currency or "ARS",
                 "paid": [],
             }
         groups[gid]["paid"].append((e.installment_number or 0, e.date))
@@ -1481,7 +1500,11 @@ def get_installments_monthly_load(
             charge_date = add_months(next_date, i)
             key = charge_date.strftime("%Y-%m")
             if key >= current_month and key in monthly:
-                monthly[key]["total"] += g["amount"]
+                currency = g["currency"]
+                monthly[key]["total"] += _ars_amount(g["amount"], currency)
+                monthly[key]["by_currency"][currency] = (
+                    monthly[key]["by_currency"].get(currency, 0.0) + g["amount"]
+                )
                 monthly[key]["count"] += 1
 
     return sorted(monthly.values(), key=lambda x: x["month"])
@@ -1737,9 +1760,13 @@ def get_top_merchants(
     current_user: User = Depends(get_current_user),
 ):
     uid_list = get_group_user_ids(current_user.id, db)
-    q = db.query(Expense.description, Expense.amount, Expense.category_id).filter(
-        Expense.user_id.in_(uid_list), Expense.amount > 0, Expense.is_income == False
-    )
+    q = db.query(
+        Expense.description,
+        Expense.amount,
+        Expense.category_id,
+        Expense.currency,
+        Expense.fx_rate,
+    ).filter(Expense.user_id.in_(uid_list), Expense.amount > 0, Expense.is_income == False)
     if month:
         try:
             y, m = int(month[:4]), int(month[5:7])
@@ -1761,12 +1788,23 @@ def get_top_merchants(
 
     rows = q.all()
 
+    fallback = resolve_fallback_rate(db)
     groups: dict = {}
-    for description, amount, cat_id in rows:
-        key = description.lower().strip()
+    for description, amount, cat_id, currency, fx_rate in rows:
+        currency = currency or "ARS"
+        key = (description.lower().strip(), currency)
         if key not in groups:
-            groups[key] = {"description": description, "total": 0.0, "count": 0, "cats": []}
+            groups[key] = {
+                "description": description,
+                "currency": currency,
+                "total": 0.0,
+                "converted": 0.0,
+                "count": 0,
+                "cats": [],
+            }
         groups[key]["total"] += amount
+        rate = fx_rate or (fallback or {}).get("rate")
+        groups[key]["converted"] += amount if currency == "ARS" else amount * float(rate or 0)
         groups[key]["count"] += 1
         if cat_id:
             groups[key]["cats"].append(cat_id)
@@ -1782,21 +1820,21 @@ def get_top_merchants(
     )
 
     result = []
-    for g in groups.values():
+    for g in sorted(groups.values(), key=lambda g: g["converted"], reverse=True)[:limit]:
         top_cat_id = Counter(g["cats"]).most_common(1)[0][0] if g["cats"] else None
         cat = cat_map.get(top_cat_id) if top_cat_id else None
         result.append(
             {
                 "description": g["description"],
                 "total_amount": round(g["total"], 2),
+                "currency": g["currency"],
                 "count": g["count"],
                 "category_name": cat.name if cat else None,
                 "category_color": cat.color if cat else None,
             }
         )
 
-    result.sort(key=lambda x: x["total_amount"], reverse=True)
-    return result[:limit]
+    return result
 
 
 @router.get(
@@ -1837,6 +1875,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
     # Group by card_id (primary) or account_id (fallback)
     by_card: dict = {}
     by_card_monthly: dict = {}
+    fallback = resolve_fallback_rate(db)
 
     for e in exps:
         month_key = e.date.strftime("%Y-%m") if e.date else "1970-01"
@@ -1864,7 +1903,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                     "card_type": c.card_type,
                     "total_amount": 0.0,
                     "count": 0,
-                    "currency": e.currency or "ARS",
+                    "currency": "ARS",
                     "last_used": None,
                     "card_ids": {c.id: 1},
                     "account_ids": {},
@@ -1886,7 +1925,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
                     "card_type": "debito",
                     "total_amount": 0.0,
                     "count": 0,
-                    "currency": e.currency or "ARS",
+                    "currency": "ARS",
                     "last_used": None,
                     "card_ids": {},
                     "account_ids": {acct_id: 1},
@@ -1895,7 +1934,8 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
             by_card_monthly[key] = {}
 
         g = by_card[key]
-        g["total_amount"] += e.amount
+        amount_ars = to_ars(e, fallback)
+        g["total_amount"] += amount_ars
         g["count"] += 1
         if not g["last_used"] or e.date > g["last_used"]:
             g["last_used"] = e.date
@@ -1903,7 +1943,7 @@ def get_card_summary(db: Session = Depends(get_db), current_user: User = Depends
             g["card_ids"][e.card_id] = g["card_ids"].get(e.card_id, 0) + 1
         if e.account_id:
             g["account_ids"][e.account_id] = g["account_ids"].get(e.account_id, 0) + 1
-        by_card_monthly[key][month_key] = by_card_monthly[key].get(month_key, 0.0) + e.amount
+        by_card_monthly[key][month_key] = by_card_monthly[key].get(month_key, 0.0) + amount_ars
 
     result = []
     for key, g in by_card.items():
@@ -1972,6 +2012,7 @@ def get_tag_summary(
 
     by_tag: dict = {}
     by_tag_monthly: dict = {}
+    fallback = resolve_fallback_rate(db)
 
     for e in exps:
         month_key = e.date.strftime("%Y-%m") if e.date else "1970-01"
@@ -2006,17 +2047,18 @@ def get_tag_summary(
                     "group_name": t.group_name,
                     "total_amount": 0.0,
                     "count": 0,
-                    "currency": e.currency or "ARS",
+                    "currency": "ARS",
                     "last_used": None,
                 }
             by_tag_monthly[key] = {}
 
         g = by_tag[key]
-        g["total_amount"] += e.amount
+        amount_ars = to_ars(e, fallback)
+        g["total_amount"] += amount_ars
         g["count"] += 1
         if not g["last_used"] or e.date > g["last_used"]:
             g["last_used"] = e.date
-        by_tag_monthly[key][month_key] = by_tag_monthly[key].get(month_key, 0.0) + e.amount
+        by_tag_monthly[key][month_key] = by_tag_monthly[key].get(month_key, 0.0) + amount_ars
 
     if "tag:null" not in by_tag:
         null_label = "Sin cuenta" if allowed_groups and "cuenta" in allowed_groups else "Sin tag"
@@ -2246,17 +2288,19 @@ async def get_ai_trends(
 
     cat_map = _category_map(uid_list, db)
 
+    fallback = resolve_fallback_rate(db)
     by_month: dict = defaultdict(lambda: {"total": 0.0, "count": 0, "by_cat": defaultdict(float)})
     for e in expenses_hist:
         key = e.date.strftime("%Y-%m")
-        by_month[key]["total"] += e.amount
+        amount_ars = to_ars(e, fallback)
+        by_month[key]["total"] += amount_ars
         by_month[key]["count"] += 1
         cat_name = (
             cat_map[e.category_id].name
             if e.category_id and e.category_id in cat_map
             else "Sin categoría"
         )
-        by_month[key]["by_cat"][cat_name] += e.amount
+        by_month[key]["by_cat"][cat_name] += amount_ars
 
     installments_exp = (
         db.query(Expense)
@@ -2282,7 +2326,7 @@ async def get_ai_trends(
         if remaining == 0:
             continue
         last_exp = exps_sorted[-1]
-        inst_amount = abs(last_exp.amount)
+        inst_amount = abs(to_ars(last_exp, fallback))
         last_date = last_exp.date
         for i in range(1, remaining + 1):
             future_date = add_months(last_date, i)
@@ -2295,11 +2339,12 @@ async def get_ai_trends(
     for m_key in sorted_months:
         d = by_month[m_key]
         cat_breakdown = ", ".join(
-            f"{k}: ${v:,.0f}"
+            f"{k}: {format_money(v, 'ARS')}"
             for k, v in sorted(d["by_cat"].items(), key=lambda x: x[1], reverse=True)[:5]
         )
         monthly_lines.append(
-            f"  {m_key}: total=${d['total']:,.0f} ({d['count']} transacciones) | {cat_breakdown}"
+            f"  {m_key}: total={format_money(d['total'], 'ARS')} "
+            f"({d['count']} transacciones) | {cat_breakdown}"
         )
 
     future_lines = []
@@ -2307,7 +2352,7 @@ async def get_ai_trends(
         fm = add_months(today, i)
         fkey = fm.strftime("%Y-%m")
         inst_amt = future_installments.get(fkey, 0.0)
-        future_lines.append(f"  {fkey}: cuotas_pendientes=${inst_amt:,.0f}")
+        future_lines.append(f"  {fkey}: cuotas_pendientes={format_money(inst_amt, 'ARS')}")
 
     filter_ctx = (
         f"Mes en foco del usuario: {month}"

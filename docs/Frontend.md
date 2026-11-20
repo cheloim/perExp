@@ -106,8 +106,8 @@ Ver `Design-System.md` para estado y requisitos.
   ~600 líneas sin extraer subcomponentes.
 - **No `style={{}}`** en pantallas nuevas; usar tokens.
 - **Todo click en `<button>` o `<Link>`.**
-- **Un solo formato de moneda** (`formatMoney` a crear; hoy `formatCurrency` duplica el
-  símbolo en USD).
+- **Un solo formato de moneda**: `formatMoney`/`formatMoneyTotals` en `utils/money.ts`.
+  Pesos `$ 1.234,50`; dólares `U$S 1.234,50`. Nunca armes el prefijo a mano.
 - **Nombres de archivo:** `PascalCase.tsx` para componentes, `camelCase.ts` para utilidades.
 - **Tests junto al archivo** (`*.test.tsx`) y e2e en `e2e/`.
 

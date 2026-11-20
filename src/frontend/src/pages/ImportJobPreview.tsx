@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getImportJob, confirmImportJob, deleteImportJob, getCards } from "../api/client";
 import { useState, useEffect } from "react";
 import type { SmartImportRow, DetectedCard, CardsMapping, Card } from "../types";
-import { formatCurrency } from "../utils/format";
+import { formatMoney } from "../utils/format";
 import { useModalWithData } from "../hooks/useModal";
 import { TransactionDetailModal } from "../components/TransactionDetailModal";
 import { Select } from "../components/ui/Select";
@@ -367,7 +367,7 @@ export default function ImportJobPreview() {
                   {row.description}
                 </td>
                 <td className="py-2.5 px-4 text-right font-medium text-[var(--text-primary)]">
-                  {formatCurrency(row.amount, row.currency)}
+                  {formatMoney(row.amount, row.currency)}
                 </td>
                 <td className="py-2.5 px-4 text-[var(--text-secondary)]">
                   {row.suggested_category || <span className="text-[var(--text-tertiary)]">—</span>}
@@ -411,11 +411,11 @@ export default function ImportJobPreview() {
                   if (arsTotal > 0 && usdTotal > 0) {
                     return (
                       <span className="text-xs">
-                        {formatCurrency(arsTotal, "ARS")} + {formatCurrency(usdTotal, "USD")}
+                        {formatMoney(arsTotal, "ARS")} + {formatMoney(usdTotal, "USD")}
                       </span>
                     );
                   }
-                  return formatCurrency(arsTotal || usdTotal, arsTotal > 0 ? "ARS" : "USD");
+                  return formatMoney(arsTotal || usdTotal, arsTotal > 0 ? "ARS" : "USD");
                 })()}
               </td>
               <td colSpan={2}></td>

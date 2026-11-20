@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getInvestments } from "../../api/client";
 import type { Investment } from "../../types";
+import { formatMoney } from "../../utils/format";
 import { AssistantShell } from "./AssistantShell";
 import { ASSISTANT_CONFIGS } from "./configs";
 import { DOCKED_WIDTH_DEFAULT, type AssistantMode } from "./layoutMode";
@@ -24,13 +25,6 @@ export function persistDrawerOpen(open: boolean): void {
   }
 }
 
-function fmt(n: number): string {
-  return n.toLocaleString("es-AR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
 /** Portfolio snapshot handed to the investments endpoint as `context`. */
 export function buildPortfolioContext(investments: Investment[]): string {
   const header = "=== CARTERA ACTUAL ===";
@@ -43,29 +37,35 @@ export function buildPortfolioContext(investments: Investment[]): string {
   const usdV = usd.reduce((s, i) => s + (i.current_value ?? i.cost_basis), 0);
   const arsC = ars.reduce((s, i) => s + i.cost_basis, 0);
   const usdC = usd.reduce((s, i) => s + i.cost_basis, 0);
-  const sym = (c?: string) => (c === "USD" ? "u$s" : "$");
   const lines = [
     header,
-    `ARS: $${fmt(arsV)} (costo $${fmt(arsC)}, P&L $${fmt(arsV - arsC)})`,
-    `USD: u$s${fmt(usdV)} (costo u$s${fmt(usdC)}, P&L u$s${fmt(usdV - usdC)})`,
+    `ARS: ${formatMoney(arsV, "ARS")} (costo ${formatMoney(arsC, "ARS")}, P&L ${formatMoney(
+      arsV - arsC,
+      "ARS",
+    )})`,
+    `USD: ${formatMoney(usdV, "USD")} (costo ${formatMoney(usdC, "USD")}, P&L ${formatMoney(
+      usdV - usdC,
+      "USD",
+    )})`,
     "POSICIONES:",
     ...investments.map((inv) => {
       const v = inv.current_value ?? inv.cost_basis;
       const pnl =
         inv.pnl !== null
-          ? ` P&L ${sym(inv.currency)}${fmt(inv.pnl)}${
+          ? ` P&L ${formatMoney(inv.pnl, inv.currency)}${
               inv.pnl_pct !== null
                 ? ` (${inv.pnl_pct >= 0 ? "+" : ""}${inv.pnl_pct.toFixed(2)}%)`
                 : ""
             }`
           : "";
       const price =
-        inv.current_price !== null ? sym(inv.currency) + fmt(inv.current_price) : "sin precio";
+        inv.current_price !== null ? formatMoney(inv.current_price, inv.currency) : "sin precio";
       return `- [${inv.ticker || inv.name}] ${inv.type} ${inv.broker} ${
         inv.quantity
-      }u avg ${sym(inv.currency)}${fmt(inv.avg_cost)} actual ${price} valor ${sym(
+      }u avg ${formatMoney(inv.avg_cost, inv.currency)} actual ${price} valor ${formatMoney(
+        v,
         inv.currency,
-      )}${fmt(v)}${pnl}`;
+      )}${pnl}`;
     }),
     "=== FIN CARTERA ===",
   ];

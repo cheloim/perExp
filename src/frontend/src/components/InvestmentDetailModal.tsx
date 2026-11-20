@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { DetailModal } from "./DetailModal";
 import { getInvestmentHistory } from "../api/client";
 import type { Investment } from "../types";
+import { formatMoney } from "../utils/format";
 
 interface InvestmentDetailModalProps {
   isOpen: boolean;
@@ -14,20 +15,6 @@ interface InvestmentDetailModalProps {
 interface HistoryPoint {
   date: string;
   close: number;
-}
-
-function fmt(n: number, currency = "ARS"): string {
-  if (currency === "USD")
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-    }).format(n);
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 2,
-  }).format(n);
 }
 
 function fmtQty(n: number): string {
@@ -61,7 +48,7 @@ function EvolutionRow({
       <span className="text-xs text-[var(--text-tertiary)]">{label}</span>
       <div className="flex items-center gap-2">
         <span className="text-xs text-[var(--text-primary)] font-medium">
-          {fmt(price, currency)}
+          {formatMoney(price, currency)}
         </span>
         <span className={`text-xs font-medium ${isPositive ? "text-success" : "text-danger"}`}>
           {isPositive ? "+" : ""}
@@ -171,31 +158,35 @@ export function InvestmentDetailModal({
           </div>
           <div>
             <dt className="text-[var(--text-tertiary)] text-xs uppercase">Precio Promedio</dt>
-            <dd className="text-[var(--text-primary)] font-medium">{fmt(avgCost, currency)}</dd>
+            <dd className="text-[var(--text-primary)] font-medium">
+              {formatMoney(avgCost, currency)}
+            </dd>
           </div>
           <div>
             <dt className="text-[var(--text-tertiary)] text-xs uppercase">Precio Actual</dt>
             <dd className="text-[var(--text-primary)] font-medium">
-              {investment.current_price !== null ? fmt(investment.current_price, currency) : "—"}
+              {investment.current_price !== null
+                ? formatMoney(investment.current_price, currency)
+                : "—"}
             </dd>
           </div>
           <div>
             <dt className="text-[var(--text-tertiary)] text-xs uppercase">Valorización</dt>
             <dd className="text-[var(--text-primary)] font-medium">
-              {fmt(totalCurrentValue, currency)}
+              {formatMoney(totalCurrentValue, currency)}
             </dd>
           </div>
           <div>
             <dt className="text-[var(--text-tertiary)] text-xs uppercase">Costo Total</dt>
             <dd className="text-[var(--text-primary)] font-medium">
-              {fmt(totalCostBasis, currency)}
+              {formatMoney(totalCostBasis, currency)}
             </dd>
           </div>
           <div>
             <dt className="text-[var(--text-tertiary)] text-xs uppercase">P&L</dt>
             <dd className={`font-medium ${totalPnl >= 0 ? "text-success" : "text-danger"}`}>
               {totalPnl >= 0 ? "+" : ""}
-              {fmt(totalPnl, currency)}
+              {formatMoney(totalPnl, currency)}
               <span className="ml-1 text-xs">
                 ({totalPnlPct >= 0 ? "+" : ""}
                 {totalPnlPct.toFixed(2)}%)
@@ -246,7 +237,7 @@ export function InvestmentDetailModal({
                             {fmtQty(inv.quantity)}
                           </td>
                           <td className="px-3 py-2 text-right font-medium">
-                            {fmt(currentValue, inv.currency || "ARS")}
+                            {formatMoney(currentValue, inv.currency || "ARS")}
                           </td>
                           <td
                             className={`px-3 py-2 text-right font-medium ${
@@ -268,7 +259,10 @@ export function InvestmentDetailModal({
             <div className="mt-4">
               <p className="text-[var(--text-tertiary)] text-xs uppercase mb-2">
                 Evolución (vs precio actual{" "}
-                {investment.current_price !== null ? fmt(investment.current_price, currency) : "—"})
+                {investment.current_price !== null
+                  ? formatMoney(investment.current_price, currency)
+                  : "—"}
+                )
               </p>
               {loading ? (
                 <p className="text-xs text-[var(--text-tertiary)] py-2">Cargando...</p>
@@ -302,7 +296,10 @@ export function InvestmentDetailModal({
           <div className="border-t border-[var(--border-color)] pt-3">
             <p className="text-[var(--text-tertiary)] text-xs uppercase mb-2">
               Evolución (vs precio actual{" "}
-              {investment.current_price !== null ? fmt(investment.current_price, currency) : "—"})
+              {investment.current_price !== null
+                ? formatMoney(investment.current_price, currency)
+                : "—"}
+              )
             </p>
             {loading ? (
               <p className="text-xs text-[var(--text-tertiary)] py-2">Cargando...</p>

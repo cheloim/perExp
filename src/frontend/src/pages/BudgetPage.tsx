@@ -20,7 +20,7 @@ import { CurrencyInput } from "../components/ui/CurrencyInput";
 import { getCategoryIcon } from "../utils/categoryIcon";
 import type { BudgetGroup, BudgetEvent, BudgetSuggestion, BudgetSummaryItem } from "../types";
 import { useFocusTrap } from "../hooks/useFocusTrap";
-import { formatCurrency } from "../utils/format";
+import { formatMoney, formatMoneyTotals } from "../utils/format";
 
 // ─── Trend Spark (6-month spending bars, mock parity, no chart lib) ──
 
@@ -187,17 +187,17 @@ function CategoryBar({
           <>
             {remaining >= 0 ? (
               <>
-                {formatCurrency(remaining)} restantes de {formatCurrency(budget)}
+                {formatMoney(remaining, "ARS")} restantes de {formatMoney(budget, "ARS")}
               </>
             ) : (
               <span className="text-[var(--color-danger-text)]">
-                {formatCurrency(Math.abs(remaining))} sobre {formatCurrency(budget)}
+                {formatMoney(Math.abs(remaining), "ARS")} sobre {formatMoney(budget, "ARS")}
               </span>
             )}
           </>
         ) : (
           <>
-            {formatCurrency(spent)} gastados
+            {formatMoney(spent, "ARS")} gastados
             {limitedEvidence && " · poco historial, punto de partida"}
           </>
         )}
@@ -211,12 +211,12 @@ function CategoryBar({
         </div>
         <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap">
           <b className="text-[var(--text-primary)] font-semibold">
-            {budget > 0 ? `${Math.round(pct)}%` : formatCurrency(spent)}
+            {budget > 0 ? `${Math.round(pct)}%` : formatMoney(spent, "ARS")}
           </b>
           {avgMonthly > 0 && (
             <span className="text-[var(--text-tertiary)]">
               {" "}
-              · prom {formatCurrency(avgMonthly)}
+              · prom {formatMoney(avgMonthly, "ARS")}
             </span>
           )}
         </span>
@@ -290,8 +290,8 @@ function CategoryGroupSection({
               }`}
             >
               {totalRemaining >= 0
-                ? `${formatCurrency(totalRemaining)} rest.`
-                : `-${formatCurrency(Math.abs(totalRemaining))}`}
+                ? `${formatMoney(totalRemaining, "ARS")} rest.`
+                : `-${formatMoney(Math.abs(totalRemaining), "ARS")}`}
             </span>
           )}
           <span
@@ -413,11 +413,11 @@ function EventCard({
       <div className="grid grid-cols-3 gap-3 mb-3">
         <div className="text-center">
           <p className="adw-caption adw-dim-label">PRESUPUESTO</p>
-          <p className="text-sm font-bold text-primary">{formatCurrency(event.total_amount)}</p>
+          <p className="text-sm font-bold text-primary">{formatMoney(event.total_amount, "ARS")}</p>
         </div>
         <div className="text-center">
           <p className="adw-caption adw-dim-label">GASTADO</p>
-          <p className="text-sm font-bold text-primary">{formatCurrency(event.spent)}</p>
+          <p className="text-sm font-bold text-primary">{formatMoney(event.spent, "ARS")}</p>
         </div>
         <div className="text-center">
           <p className="adw-caption adw-dim-label">RESTANTE</p>
@@ -426,7 +426,7 @@ function EventCard({
               remaining < 0 ? "text-[var(--color-danger-text)]" : "text-[var(--color-success-text)]"
             }`}
           >
-            {formatCurrency(remaining)}
+            {formatMoney(remaining, "ARS")}
           </p>
         </div>
       </div>
@@ -439,7 +439,7 @@ function EventCard({
         />
       </div>
       <p className="text-xs text-[var(--text-secondary)]">
-        {formatCurrency(event.spent)} / {formatCurrency(event.total_amount)}
+        {formatMoney(event.spent, "ARS")} / {formatMoney(event.total_amount, "ARS")}
       </p>
 
       {/* Actions */}
@@ -527,7 +527,7 @@ function UnbudgetedSection() {
                 </div>
               </div>
               <p className="text-xs text-[var(--text-secondary)] mb-2 ml-9">
-                prom {formatCurrency(s.avg_monthly)}/mes
+                prom {formatMoney(s.avg_monthly, "ARS")}/mes
                 {s.months_with_data < 3 && " · poco historial"}
               </p>
               <div
@@ -538,7 +538,7 @@ function UnbudgetedSection() {
                 }}
               >
                 <span className="text-xs text-[var(--text-secondary)]">
-                  Sugerido <strong>{formatCurrency(s.suggested)}</strong>
+                  Sugerido <strong>{formatMoney(s.suggested, "ARS")}</strong>
                 </span>
                 <button
                   onClick={() => applyMutation.mutate(s)}
@@ -663,8 +663,11 @@ function EditBudgetModal({
               {category.category_name}
             </h3>
             <p className="adw-caption adw-dim-label">
-              {existing ? `Actual: ${formatCurrency(existing.amount)}` : "Sin presupuesto asignado"}
-              {category.avg_monthly > 0 && ` · prom ${formatCurrency(category.avg_monthly)}/mes`}
+              {existing
+                ? `Actual: ${formatMoney(existing.amount, "ARS")}`
+                : "Sin presupuesto asignado"}
+              {category.avg_monthly > 0 &&
+                ` · prom ${formatMoney(category.avg_monthly, "ARS")}/mes`}
             </p>
           </div>
         </div>
@@ -687,7 +690,7 @@ function EditBudgetModal({
                 onClick={() => setAmount(Math.round(category.avg_monthly))}
                 className="text-xs text-[var(--color-primary)] hover:underline font-medium mt-2"
               >
-                Usar prom {formatCurrency(category.avg_monthly)}
+                Usar prom {formatMoney(category.avg_monthly, "ARS")}
               </button>
             )}
           </div>
@@ -908,13 +911,13 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
                         createMany.mutate(items);
                       }}
                       disabled={createMany.isPending}
-                      title={`Ej: ${first.category_name} ${formatCurrency(first.suggested)}`}
+                      title={`Ej: ${first.category_name} ${formatMoney(first.suggested, "ARS")}`}
                       className="px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] border border-[var(--color-primary)]/30 rounded-lg hover:bg-[var(--color-primary)]/10 transition-colors disabled:opacity-50"
                     >
                       Completar {g.display_name} ({items.length})
                     </button>
                     <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
-                      Ej: {first.category_name} {formatCurrency(first.suggested)}
+                      Ej: {first.category_name} {formatMoney(first.suggested, "ARS")}
                     </p>
                   </div>
                 );
@@ -940,7 +943,7 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
                       />
                       {s.category_name}
                     </span>
-                    <strong>{formatCurrency(s.suggested)}</strong>
+                    <strong>{formatMoney(s.suggested, "ARS")}</strong>
                   </div>
                 ))}
                 {pending.length > 3 && (
@@ -1164,14 +1167,14 @@ function QuickConfigModal({
               <p className="text-[11px] text-[var(--text-tertiary)]">
                 {r.hasBudget ? (
                   <>
-                    {formatCurrency(r.budget)} presup. · gastado {formatCurrency(r.spent)}
-                    {r.avg > 0 && <> · prom {formatCurrency(r.avg)}</>}
+                    {formatMoney(r.budget, "ARS")} presup. · gastado {formatMoney(r.spent, "ARS")}
+                    {r.avg > 0 && <> · prom {formatMoney(r.avg, "ARS")}</>}
                     {r.months < 3 && " · poco historial"}
                   </>
                 ) : (
                   <>
-                    gastado {formatCurrency(r.spent)}
-                    {r.avg > 0 && <> · prom {formatCurrency(r.avg)}</>}
+                    gastado {formatMoney(r.spent, "ARS")}
+                    {r.avg > 0 && <> · prom {formatMoney(r.avg, "ARS")}</>}
                     {r.months < 3 && " · poco historial"}
                   </>
                 )}
@@ -1187,8 +1190,8 @@ function QuickConfigModal({
                 }}
               >
                 {remaining >= 0
-                  ? `${formatCurrency(remaining)} rest.`
-                  : `-${formatCurrency(Math.abs(remaining))}`}
+                  ? `${formatMoney(remaining, "ARS")} rest.`
+                  : `-${formatMoney(Math.abs(remaining), "ARS")}`}
               </span>
             )}
             <span
@@ -1222,7 +1225,7 @@ function QuickConfigModal({
         <h3 className="text-base font-semibold text-primary mb-1">Todo lo presupuestado</h3>
         <p className="adw-caption adw-dim-label mb-4">
           {budgeted.length} con presupuesto · {unassigned.length} con gasto sin asignar · total{" "}
-          {formatCurrency(totalAssigned)}
+          {formatMoney(totalAssigned, "ARS")}
         </p>
         <div className="mb-4">
           <input
@@ -1362,7 +1365,7 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
             </div>
           ))}
           <p className="text-xs text-[var(--text-secondary)] text-center">
-            Total asignado: <strong>{formatCurrency(total)}</strong>
+            Total asignado: <strong>{formatMoney(total, "ARS")}</strong>
           </p>
         </div>
         <div className="flex gap-2 mt-6">
@@ -1562,8 +1565,8 @@ function CategorySidePanel({
               <div>
                 <h2 className="text-base font-semibold text-primary">{category.category_name}</h2>
                 <p className="text-xs text-[var(--text-secondary)]">
-                  {formatCurrency(category.budget_amount - category.spent_amount)} restantes de{" "}
-                  {formatCurrency(category.budget_amount)}
+                  {formatMoney(category.budget_amount - category.spent_amount, "ARS")} restantes de{" "}
+                  {formatMoney(category.budget_amount, "ARS")}
                 </p>
               </div>
             </div>
@@ -1609,15 +1612,13 @@ function CategorySidePanel({
                     <p className="text-xs text-[var(--text-tertiary)]">{expense.date}</p>
                   </div>
                   <p className="text-sm font-semibold text-[var(--text-primary)]">
-                    {formatCurrency(expense.amount)}
+                    {formatMoney(expense.amount, expense.currency)}
                   </p>
                 </div>
               ))}
               <div className="flex justify-between pt-2 font-semibold">
                 <span className="text-sm text-[var(--text-secondary)]">Total</span>
-                <span className="text-sm text-primary">
-                  {formatCurrency(expenses.reduce((s: number, e: any) => s + e.amount, 0))}
-                </span>
+                <span className="text-sm text-primary">{formatMoneyTotals(expenses)}</span>
               </div>
             </div>
           )}
@@ -1659,7 +1660,6 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
 
   const linkedExpenses = expenses.filter((e: any) => e.linked);
   const availableExpenses = expenses.filter((e: any) => !e.linked);
-  const totalLinked = linkedExpenses.reduce((s: number, e: any) => s + e.amount, 0);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -1692,11 +1692,13 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
           <div className="grid grid-cols-3 gap-3 mt-3">
             <div className="text-center">
               <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Presupuesto</p>
-              <p className="text-sm font-bold text-primary">{formatCurrency(event.total_amount)}</p>
+              <p className="text-sm font-bold text-primary">
+                {formatMoney(event.total_amount, "ARS")}
+              </p>
             </div>
             <div className="text-center">
               <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Gastado</p>
-              <p className="text-sm font-bold text-primary">{formatCurrency(event.spent)}</p>
+              <p className="text-sm font-bold text-primary">{formatMoney(event.spent, "ARS")}</p>
             </div>
             <div className="text-center">
               <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Restante</p>
@@ -1707,7 +1709,7 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
                     : "text-[var(--color-success-text)]"
                 }`}
               >
-                {formatCurrency(event.total_amount - event.spent)}
+                {formatMoney(event.total_amount - event.spent, "ARS")}
               </p>
             </div>
           </div>
@@ -1735,13 +1737,15 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
                         </p>
                       </div>
                       <span className="text-sm font-semibold text-primary">
-                        {formatCurrency(exp.amount)}
+                        {formatMoney(exp.amount, exp.currency)}
                       </span>
                     </div>
                   ))}
                   <div className="flex justify-between pt-2 font-semibold">
                     <span className="text-sm text-[var(--text-secondary)]">Total</span>
-                    <span className="text-sm text-primary">{formatCurrency(totalLinked)}</span>
+                    <span className="text-sm text-primary">
+                      {formatMoneyTotals(linkedExpenses)}
+                    </span>
                   </div>
                 </div>
               )}
@@ -1762,7 +1766,7 @@ function EventSidePanel({ event, onClose }: { event: BudgetEvent; onClose: () =>
                         </p>
                       </div>
                       <span className="text-sm text-[var(--text-secondary)]">
-                        {formatCurrency(exp.amount)}
+                        {formatMoney(exp.amount, exp.currency)}
                       </span>
                     </div>
                   ))}
@@ -1810,10 +1814,6 @@ function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: ()
     });
   };
 
-  const totalSelected = expenses
-    .filter((e: any) => selectedIds.has(e.id))
-    .reduce((s: number, e: any) => s + e.amount, 0);
-
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="card w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto">
@@ -1850,7 +1850,7 @@ function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: ()
                   </p>
                 </div>
                 <span className="text-xs font-semibold text-primary">
-                  {formatCurrency(expense.amount)}
+                  {formatMoney(expense.amount, expense.currency)}
                 </span>
               </label>
             ))}
@@ -1859,7 +1859,7 @@ function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: ()
 
         {selectedIds.size > 0 && (
           <p className="text-xs text-[var(--text-secondary)] mt-3 text-center">
-            Seleccionados: {formatCurrency(totalSelected)}
+            Seleccionados: {formatMoneyTotals(expenses.filter((e: any) => selectedIds.has(e.id)))}
           </p>
         )}
 
@@ -2065,27 +2065,28 @@ export default function BudgetPage() {
                     : "text-[var(--color-success-text)]"
                 }`}
               >
-                {formatCurrency(totalAvailable)}
+                {formatMoney(totalAvailable, "ARS")}
               </p>
               <p className="adw-caption adw-dim-label mt-1">
-                de {formatCurrency(totalBudget)} presupuestados
+                de {formatMoney(totalBudget, "ARS")} presupuestados
               </p>
               <TrendSpark values={trendValues} />
             </div>
             <div className="card p-4">
               <p className="adw-caption adw-dim-label mb-1">GASTADO VS PRESUPUESTO</p>
-              <p className="text-lg font-bold text-primary">{formatCurrency(totalSpent)}</p>
+              <p className="text-lg font-bold text-primary">{formatMoney(totalSpent, "ARS")}</p>
               <p className="adw-caption adw-dim-label mt-1">{spentPct}% del presupuesto</p>
               <TrendSpark values={trendValues} />
             </div>
             <div className="card p-4">
               <p className="adw-caption adw-dim-label mb-1">RITMO DIARIO</p>
               <p className="text-lg font-bold text-primary">
-                {formatCurrency(dailyAvg)}
+                {formatMoney(dailyAvg, "ARS")}
                 <span className="adw-caption adw-dim-label font-normal">/día</span>
               </p>
               <p className="adw-caption adw-dim-label mt-1">
-                esperado a hoy {formatCurrency(expectedToday)} · real {formatCurrency(totalSpent)}
+                esperado a hoy {formatMoney(expectedToday, "ARS")} · real{" "}
+                {formatMoney(totalSpent, "ARS")}
               </p>
               <div className="h-2 bg-[var(--color-base-alt)] rounded-full overflow-hidden mt-2">
                 <div

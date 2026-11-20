@@ -36,7 +36,8 @@ import {
 } from "../api/client";
 import type { Expense, ExpenseCreate } from "../types";
 import {
-  formatCurrency,
+  formatMoney,
+  formatMoneyTotals,
   percentCurrencyTooltipFormatter,
   toUpperCase,
   formatDateDMYSlash,
@@ -121,7 +122,7 @@ export const CardRow = memo(function CardRow({
           )}
         </div>
       </div>
-      <span className="text-sm font-semibold text-primary">{formatCurrency(total)}</span>
+      <span className="text-sm font-semibold text-primary">{formatMoney(total, "ARS")}</span>
     </div>
   );
 });
@@ -491,9 +492,9 @@ export default function Dashboard() {
   const spendingUsd = byCurrency.find((c) => c.currency === "USD");
   const displaySpending = spendingArs?.total ?? spendingUsd?.total ?? 0;
   const displayCurrency = spendingArs ? "ARS" : spendingUsd ? "USD" : "ARS";
-  const totalPasivos = pasivosData?.total_pasivos ?? 0;
   const currentMonthLoad = monthlyLoad.find((m) => m.is_current);
   const cuotasComprometidas = currentMonthLoad?.total ?? 0;
+  const cuotasUsd = currentMonthLoad?.by_currency?.USD ?? 0;
 
   // MoM comparison stays inside one currency. If the user only has USD,
   // compare USD; otherwise compare ARS.
@@ -597,11 +598,11 @@ export default function Dashboard() {
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
           <p className="text-lg font-bold text-primary">
-            {formatCurrency(displaySpending, displayCurrency)}
+            {formatMoney(displaySpending, displayCurrency)}
           </p>
           {spendingArs && spendingUsd ? (
             <p className="text-xs text-secondary mt-0.5">
-              + {formatCurrency(spendingUsd.total, "USD")}
+              + {formatMoney(spendingUsd.total, "USD")}
             </p>
           ) : null}
           <p className="text-xs text-tertiary mt-1">
@@ -613,7 +614,9 @@ export default function Dashboard() {
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
-          <p className="text-lg font-bold text-danger">{formatCurrency(totalPasivos)}</p>
+          <p className="text-lg font-bold text-danger">
+            {formatMoneyTotals(pasivosData?.pasivos ?? [])}
+          </p>
           <p className="text-xs text-tertiary mt-1">{pasivosData?.count ?? 0} cuotas pendientes</p>
         </Link>
         <Link
@@ -621,7 +624,12 @@ export default function Dashboard() {
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Cuotas este mes</p>
-          <p className="text-lg font-bold text-primary">{formatCurrency(cuotasComprometidas)}</p>
+          <p className="text-lg font-bold text-primary">
+            {formatMoney(cuotasComprometidas, "ARS")}
+          </p>
+          {cuotasUsd > 0 && (
+            <p className="text-xs text-secondary mt-0.5">incl. {formatMoney(cuotasUsd, "USD")}</p>
+          )}
           <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>
         </Link>
         <div className="card p-5">
@@ -651,16 +659,10 @@ export default function Dashboard() {
             <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
             <div className="space-y-0.5">
               <p className="text-lg font-bold text-primary">
-                {savingsArs > 0 ? formatCurrency(savingsArs) : totalUsd > 0 ? "—" : "—"}
+                {savingsArs > 0 ? formatMoney(savingsArs, "ARS") : totalUsd > 0 ? "—" : "—"}
               </p>
               {totalUsd > 0 && (
-                <p className="text-xs text-secondary">
-                  ≈ USD{" "}
-                  {totalUsd.toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </p>
+                <p className="text-xs text-secondary">≈ {formatMoney(totalUsd, "USD")}</p>
               )}
             </div>
           </Link>
@@ -759,7 +761,7 @@ export default function Dashboard() {
                   {categories.map((cat) => (
                     <tr key={cat.category_name}>
                       <td>{cat.category_name}</td>
-                      <td>{formatCurrency(cat.total)}</td>
+                      <td>{formatMoney(cat.total, "ARS")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -800,7 +802,7 @@ export default function Dashboard() {
                         </span>
                       )}
                       <span className="text-xs text-tertiary whitespace-nowrap">
-                        {formatCurrency(cat.total)}
+                        {formatMoney(cat.total, "ARS")}
                       </span>
                     </button>
                   );
@@ -955,12 +957,7 @@ export default function Dashboard() {
                       exp.amount < 0 ? "text-success" : "text-primary"
                     }`}
                   >
-                    {exp.currency === "USD" && (
-                      <span className="text-xs font-normal badge-success px-1.5 py-0.5 rounded mr-1">
-                        USD
-                      </span>
-                    )}
-                    {formatCurrency(exp.amount, exp.currency)}
+                    {formatMoney(exp.amount, exp.currency)}
                   </span>
                 </div>
               ))}
@@ -1109,7 +1106,7 @@ export default function Dashboard() {
                               {t.tag_name}
                             </span>
                             <span className="text-xs text-tertiary whitespace-nowrap">
-                              {t.current_amount > 0 ? formatCurrency(t.current_amount) : "—"}
+                              {t.current_amount > 0 ? formatMoney(t.current_amount, "ARS") : "—"}
                             </span>
                             {t.monthly && t.monthly.length > 1 && (
                               <Sparkline
@@ -1117,9 +1114,9 @@ export default function Dashboard() {
                                 width={50}
                                 height={12}
                                 color={t.tag_color}
-                                label={`Tendencia de ${t.tag_name}: de ${formatCurrency(
+                                label={`Tendencia de ${t.tag_name}: de ${formatMoney(
                                   t.monthly[0].total,
-                                )} a ${formatCurrency(t.monthly[t.monthly.length - 1].total)}`}
+                                )} a ${formatMoney(t.monthly[t.monthly.length - 1].total, "ARS")}`}
                               />
                             )}
                           </button>
@@ -1131,7 +1128,7 @@ export default function Dashboard() {
                         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-[var(--text-tertiary)]" />
                         <span className="text-xs font-semibold text-primary flex-1">Total</span>
                         <span className="text-xs font-bold text-primary whitespace-nowrap">
-                          {formatCurrency(total)}
+                          {formatMoney(total, "ARS")}
                         </span>
                       </div>
                     </div>
@@ -1172,7 +1169,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <span className="text-sm font-semibold text-primary">
-                    {formatCurrency(inst.amount, inst.currency)}
+                    {formatMoney(inst.amount, inst.currency)}
                   </span>
                 </div>
               ))}
@@ -1193,7 +1190,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <span className="text-sm font-semibold text-primary">
-                    {formatCurrency(man.amount, man.currency)}
+                    {formatMoney(man.amount, man.currency)}
                   </span>
                 </div>
               ))}
@@ -1212,7 +1209,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <span className="text-sm font-bold text-primary">
-                    {formatCurrency(currentMonthLoad.total)}
+                    {formatMoney(currentMonthLoad.total, "ARS")}
                   </span>
                   <span className="text-[10px] text-tertiary ml-1.5">
                     {currentMonthLoad.count} cuota{currentMonthLoad.count !== 1 ? "s" : ""}
@@ -1273,7 +1270,7 @@ export default function Dashboard() {
                     padding: "8px 12px",
                     boxShadow: "var(--shadow-md)",
                   }}
-                  formatter={(v) => [formatCurrency(Number(v ?? 0)), "Cuotas"]}
+                  formatter={(v) => [formatMoney(Number(v ?? 0), "ARS"), "Total (ARS)"]}
                   labelFormatter={(v) => {
                     const [y, m] = String(v).split("-");
                     return `${MONTHS_ES_SHORT[parseInt(m) - 1]} ${y}`;
@@ -1312,7 +1309,7 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                     <span className="text-[10px] text-tertiary">{m.count}x</span>
                     <span className="text-xs font-semibold text-primary">
-                      {formatCurrency(m.total_amount)}
+                      {formatMoney(m.total_amount, m.currency)}
                     </span>
                   </div>
                 </div>

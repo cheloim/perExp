@@ -8,7 +8,7 @@ import {
   dismissAutoDetectedBanner,
 } from "../api/client";
 import type { RecurringExpense } from "../api/client";
-import { formatCurrency } from "../utils/format";
+import { formatMoney } from "../utils/format";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DetailModal } from "./DetailModal";
 
@@ -202,7 +202,7 @@ export default function AutoDetectedBanner() {
                         {r.merchant_key}
                       </p>
                       <p className="text-xs text-[var(--text-secondary)]">
-                        {formatCurrency(r.amount)}/
+                        {formatMoney(r.amount, r.currency)}/
                         {r.frequency === "monthly"
                           ? "mes"
                           : r.frequency === "weekly"

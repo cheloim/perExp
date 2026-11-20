@@ -1,24 +1,8 @@
 import { useState } from "react";
 import { Popover } from "../components/ui/Popover";
 
-export function formatCurrency(amount: number, currency: string = "ARS") {
-  if (currency === "USD")
-    return (
-      "USD " +
-      new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(amount)
-    );
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
+export { formatMoney, formatMoneyTotals } from "./money";
+import { formatMoney } from "./money";
 
 export function formatDate(dateStr: string, format: "short" | "long" | "iso" = "short"): string {
   if (!dateStr) return "";
@@ -265,7 +249,7 @@ export function categoryGroupOptions(
  */
 export function currencyTooltipFormatter(value: unknown, name: unknown): [string, string] {
   const amount = typeof value === "number" ? value : Number(value ?? 0);
-  return [formatCurrency(amount), String(name ?? "")];
+  return [formatMoney(amount, "ARS"), String(name ?? "")];
 }
 
 /** Same as `currencyTooltipFormatter`, for pie slices that also show their share. */
@@ -273,6 +257,6 @@ export function percentCurrencyTooltipFormatter(total: number) {
   return (value: unknown, name: unknown): [string, string] => {
     const amount = typeof value === "number" ? value : Number(value ?? 0);
     const pct = total > 0 ? ((amount / total) * 100).toFixed(1) : "0";
-    return [`${formatCurrency(amount)} (${pct}%)`, String(name ?? "")];
+    return [`${formatMoney(amount, "ARS")} (${pct}%)`, String(name ?? "")];
   };
 }

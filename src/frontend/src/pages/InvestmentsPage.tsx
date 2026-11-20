@@ -19,6 +19,7 @@ import {
 } from "../api/client";
 import type { Investment, InvestmentCreate } from "../types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { formatMoney } from "../utils/format";
 import { InvestmentDetailModal } from "../components/InvestmentDetailModal";
 
 // Parses "1.234,56" or "1234,56" or "1234.56" → 1234.56
@@ -50,20 +51,6 @@ const TYPE_COLORS: Record<string, string> = {
   Otro: "#94a3b8",
 };
 
-function fmt(amount: number, currency = "ARS") {
-  if (currency === "USD")
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-    }).format(amount);
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 0,
-  }).format(amount);
-}
-
 function fmtPct(pct: number) {
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
 }
@@ -89,7 +76,7 @@ function PnlChip({
     <div className={`flex flex-col items-end gap-0.5`}>
       <span className={`text-sm font-semibold ${pos ? "text-success" : "text-danger"}`}>
         {pos ? "+" : ""}
-        {fmt(displayPnl, displayCurrency)}
+        {formatMoney(displayPnl, displayCurrency)}
       </span>
       {pnl_pct !== null && (
         <span className={`text-xs ${pos ? "text-success" : "text-danger"}`}>{fmtPct(pnl_pct)}</span>
@@ -652,10 +639,7 @@ export default function InvestmentsPage() {
       setUsdRate(r);
       lastUsdRateFetchRef.current = Date.now();
       setShowInUsd(true);
-      showSync(
-        `USD: $${r.rate.toLocaleString("es-AR", { minimumFractionDigits: 2 })} · ${r.date}`,
-        true,
-      );
+      showSync(`1 USD = ${formatMoney(r.rate, "ARS")} · ${r.date}`, true);
     } catch {
       showSync("No se pudo obtener el tipo de cambio USD", false);
     } finally {
@@ -903,8 +887,8 @@ export default function InvestmentsPage() {
   // ── USD conversion helper ────────────────────────────────────────────────────
   const toDisplay = useCallback(
     (amount: number, currency: string) => {
-      if (!showInUsd || !usdRate || currency === "USD") return fmt(amount, currency);
-      return fmt(amount / usdRate.rate, "USD");
+      if (!showInUsd || !usdRate || currency === "USD") return formatMoney(amount, currency);
+      return formatMoney(amount / usdRate.rate, "USD");
     },
     [showInUsd, usdRate],
   );
@@ -1048,7 +1032,7 @@ export default function InvestmentsPage() {
                 {toDisplay(totalArsValue + totalUsdValue, showInUsd ? "USD" : "ARS")}
               </p>
               <p className="text-xs text-[var(--text-secondary)] mt-1">
-                {toDisplay(totalArsValue, "ARS")} + {fmt(totalUsdValue, "USD")}
+                {toDisplay(totalArsValue, "ARS")} + {formatMoney(totalUsdValue, "USD")}
               </p>
             </div>
             <div className="text-right">
@@ -1078,10 +1062,7 @@ export default function InvestmentsPage() {
             </p>
             {usdRate && (
               <p className="text-xs text-[var(--text-tertiary)]">
-                USD:{" "}
-                {usdRate.rate.toLocaleString("es-AR", {
-                  minimumFractionDigits: 2,
-                })}
+                1 USD = {formatMoney(usdRate.rate, "ARS")}
               </p>
             )}
           </div>
@@ -1169,16 +1150,26 @@ export default function InvestmentsPage() {
                           </p>
                           {cashBalances?.iol.configured && b.broker === "InvertirOnline" && (
                             <p>
-                              ARS: {cashBalances.iol.ars !== null ? fmt(cashBalances.iol.ars) : "—"}{" "}
+                              ARS:{" "}
+                              {cashBalances.iol.ars !== null
+                                ? formatMoney(cashBalances.iol.ars, "ARS")
+                                : "—"}{" "}
                               | USD:{" "}
-                              {cashBalances.iol.usd !== null ? fmt(cashBalances.iol.usd) : "—"}
+                              {cashBalances.iol.usd !== null
+                                ? formatMoney(cashBalances.iol.usd, "USD")
+                                : "—"}
                             </p>
                           )}
                           {cashBalances?.ppi.configured && b.broker === "Portfolio Personal" && (
                             <p>
-                              ARS: {cashBalances.ppi.ars !== null ? fmt(cashBalances.ppi.ars) : "—"}{" "}
+                              ARS:{" "}
+                              {cashBalances.ppi.ars !== null
+                                ? formatMoney(cashBalances.ppi.ars, "ARS")
+                                : "—"}{" "}
                               | USD:{" "}
-                              {cashBalances.ppi.usd !== null ? fmt(cashBalances.ppi.usd) : "—"}
+                              {cashBalances.ppi.usd !== null
+                                ? formatMoney(cashBalances.ppi.usd, "USD")
+                                : "—"}
                             </p>
                           )}
                           {b.broker !== "InvertirOnline" && b.broker !== "Portfolio Personal" && (
@@ -1224,7 +1215,7 @@ export default function InvestmentsPage() {
                       : "text-[var(--text-secondary)]"
                   }`}
                 >
-                  {toDisplay(totalArsPnl, "ARS")} + {fmt(totalUsdPnl, "USD")} P&L
+                  {toDisplay(totalArsPnl, "ARS")} + {formatMoney(totalUsdPnl, "USD")} P&L
                 </div>
               </button>
             </div>
@@ -1249,7 +1240,7 @@ export default function InvestmentsPage() {
                     <div>
                       <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Valor USD</p>
                       <p className="text-sm font-semibold text-[var(--text-primary)]">
-                        {fmt(b.usdValue, "USD")}
+                        {formatMoney(b.usdValue, "USD")}
                       </p>
                     </div>
                   )}

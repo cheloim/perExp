@@ -12,7 +12,7 @@ import {
   deleteRecurringExpense,
   updateRecurringExpense,
 } from "../api/client";
-import { formatCurrency, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
+import { formatMoney, formatMoneyTotals, formatDateDMY, MONTHS_ES_SHORT } from "../utils/format";
 import AutoDetectedBanner from "../components/AutoDetectedBanner";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DetailModal } from "../components/DetailModal";
@@ -22,6 +22,7 @@ type PaymentItem = {
   type: "installment" | "recurring";
   description: string;
   amount: number;
+  currency: string;
   category_name: string | null;
   category_color: string | null;
   next_date: string | null;
@@ -70,13 +71,13 @@ export default function InstallmentsPage() {
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const currentMonthData = monthlyLoad.find((e) => e.month === currentMonth);
   const currentMonthTotal = currentMonthData?.total ?? 0;
+  const currentMonthUsd = currentMonthData?.by_currency?.USD ?? 0;
   const currentMonthCount = currentMonthData?.count ?? 0;
 
-  const totalPending = activeGroups.reduce(
-    (s, g) => s + g.installment_amount * g.remaining_installments,
-    0,
-  );
-  const recurringTotal = activeRecurring.reduce((s, r) => s + r.amount, 0);
+  const pendingRows = activeGroups.map((g) => ({
+    amount: g.installment_amount * g.remaining_installments,
+    currency: g.currency,
+  }));
   const recurringCount = activeRecurring.length;
 
   // Build unified payment list
@@ -89,6 +90,7 @@ export default function InstallmentsPage() {
         type: "installment",
         description: g.description,
         amount: g.installment_amount,
+        currency: g.currency,
         category_name: g.category_name,
         category_color: g.category_color,
         next_date: g.next_date,
@@ -103,6 +105,7 @@ export default function InstallmentsPage() {
         type: "recurring",
         description: r.merchant_key || r.description,
         amount: r.amount,
+        currency: r.currency,
         category_name: "Suscripciones",
         category_color: "var(--gnome-purple-3)",
         next_date: r.next_charge_date || null,
@@ -128,18 +131,28 @@ export default function InstallmentsPage() {
 
   // Category breakdown for horizontal bar chart
   const categoryData = useMemo(() => {
-    const catMap: Record<string, { value: number; color: string }> = {};
+    const catMap: Record<string, { name: string; currency: string; value: number; color: string }> =
+      {};
     for (const item of allPayments) {
       const name = item.category_name || "Sin categoría";
-      if (!catMap[name]) {
-        catMap[name] = { value: 0, color: item.category_color || "var(--gnome-purple-3)" };
+      const currency = item.currency || "ARS";
+      const key = `${name}|${currency}`;
+      if (!catMap[key]) {
+        catMap[key] = {
+          name,
+          currency,
+          value: 0,
+          color: item.category_color || "var(--gnome-purple-3)",
+        };
       }
-      catMap[name].value += item.amount * 12;
+      catMap[key].value += item.amount * 12;
     }
     const total = Object.values(catMap).reduce((s, c) => s + c.value, 0);
     return Object.entries(catMap)
-      .map(([name, data]) => ({
-        name,
+      .map(([key, data]) => ({
+        key,
+        name: data.name,
+        currency: data.currency,
         value: data.value,
         color: data.color,
         percentage: total > 0 ? Math.round((data.value / total) * 100) : 0,
@@ -245,19 +258,22 @@ export default function InstallmentsPage() {
         <div className="card p-4">
           <p className="text-[10px] text-tertiary uppercase mb-1">Este mes</p>
           <p className="text-lg font-bold text-[var(--color-success)]">{currentMonthCount}</p>
-          <p className="text-xs text-tertiary mt-1">{formatCurrency(currentMonthTotal)}</p>
+          <p className="text-xs text-tertiary mt-1">{formatMoney(currentMonthTotal, "ARS")}</p>
+          {currentMonthUsd > 0 && (
+            <p className="text-xs text-tertiary">incl. {formatMoney(currentMonthUsd, "USD")}</p>
+          )}
         </div>
         <div className="card p-4">
           <p className="text-[10px] text-tertiary uppercase mb-1">Pendiente</p>
           <p className="text-lg font-bold text-[var(--color-primary)]">
-            {formatCurrency(totalPending)}
+            {formatMoneyTotals(pendingRows)}
           </p>
           <p className="text-xs text-tertiary mt-1">{activeGroups.length} grupos</p>
         </div>
         <div className="card p-4">
           <p className="text-[10px] text-tertiary uppercase mb-1">Recurrentes</p>
           <p className="text-lg font-bold text-[var(--gnome-purple-3)]">
-            {formatCurrency(recurringTotal)}
+            {formatMoneyTotals(activeRecurring)}
           </p>
           <p className="text-xs text-tertiary mt-1">{recurringCount} gastos/mes</p>
         </div>
@@ -284,7 +300,7 @@ export default function InstallmentsPage() {
                   borderColor: "var(--chart-tooltip-border)",
                   color: "var(--chart-tooltip-text)",
                 }}
-                formatter={(v) => [formatCurrency(Number(v ?? 0)), "Total"]}
+                formatter={(v) => [formatMoney(Number(v ?? 0), "ARS"), "Total (ARS)"]}
               />
               <Bar dataKey="total" radius={[4, 4, 0, 0]}>
                 {monthlyLoad.map((entry, index) => (
@@ -317,7 +333,7 @@ export default function InstallmentsPage() {
             <h2 className="text-sm font-semibold text-primary mb-3">Por categoría</h2>
             <div className="space-y-2">
               {categoryData.map((cat) => (
-                <div key={cat.name} className="flex items-center gap-3 overflow-hidden">
+                <div key={cat.key} className="flex items-center gap-3 overflow-hidden">
                   <span className="text-xs text-primary w-24 truncate flex-shrink-0">
                     {cat.name}
                   </span>
@@ -331,7 +347,7 @@ export default function InstallmentsPage() {
                     />
                   </div>
                   <span className="text-xs text-tertiary flex-shrink-0 text-right">
-                    {formatCurrency(cat.value / 12)}
+                    {formatMoney(cat.value / 12, cat.currency)}
                   </span>
                 </div>
               ))}
@@ -445,7 +461,7 @@ export default function InstallmentsPage() {
                     </div>
                   </div>
                   <span className="text-sm font-medium text-primary flex-shrink-0">
-                    {formatCurrency(item.amount)}
+                    {formatMoney(item.amount, item.currency)}
                   </span>
                 </button>
               );
@@ -515,7 +531,7 @@ export default function InstallmentsPage() {
             <div>
               <p className="text-[var(--text-tertiary)] text-xs uppercase">Monto</p>
               <p className="font-medium text-[var(--text-primary)]">
-                {formatCurrency(selectedItem.amount)}
+                {formatMoney(selectedItem.amount, selectedItem.currency)}
               </p>
             </div>
             {selectedItem.category_name && (
@@ -557,7 +573,7 @@ export default function InstallmentsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-[var(--text-primary)]">
-                        {formatCurrency(payment.amount)}
+                        {formatMoney(payment.amount, payment.currency)}
                       </span>
                       <button
                         onClick={() => executeMut.mutate(payment.id)}

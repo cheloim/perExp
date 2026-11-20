@@ -25,6 +25,7 @@ from app.services.aggregation import (
 from app.services.auth import get_current_user
 from app.services.chat_context import to_llm_messages
 from app.services.llm import LLMMessage, get_client, is_configured
+from app.services.money import format_money
 from app.services.rate_limit import check_rate_limit
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
@@ -276,7 +277,7 @@ async def stream_analysis(
     breakdown = spending_breakdown_from_expenses(expenses, fallback=fallback)
     total = breakdown.converted_total
     totals_text = " · ".join(
-        f"{currency} {amount:,.2f}" for currency, amount in sorted(breakdown.totals.items())
+        format_money(amount, currency) for currency, amount in sorted(breakdown.totals.items())
     )
 
     by_cat: dict = {}
@@ -313,8 +314,8 @@ async def stream_analysis(
         sign = "+" if delta >= 0 else "-"
         in_course = " (mes en curso)" if curr_key == current_key else ""
         month_deltas.append(
-            f"- {curr_key}: ${by_month[curr_key]:,.2f} "
-            f"(vs {prev_key}: {pct}, {sign}${abs(delta):,.2f}){in_course}"
+            f"- {curr_key}: {format_money(by_month[curr_key], 'ARS')} "
+            f"(vs {prev_key}: {pct}, {sign}{format_money(abs(delta), 'ARS')}){in_course}"
         )
 
     # The same comparison for the categories of the newest month against the
@@ -337,7 +338,10 @@ async def stream_analysis(
         for name in sorted(curr_cat, key=lambda k: curr_cat[k], reverse=True):
             curr_val, prev_val = curr_cat[name], prev_cat.get(name, 0.0)
             pct = f"{(curr_val - prev_val) / prev_val * 100:+.1f}%" if prev_val else "sin base"
-            cat_deltas.append(f"- {name}: ${curr_val:,.2f} (vs ${prev_val:,.2f}, {pct})")
+            cat_deltas.append(
+                f"- {name}: {format_money(curr_val, 'ARS')} "
+                f"(vs {format_money(prev_val, 'ARS')}, {pct})"
+            )
 
     # Every month of the window and every category of each, at full length. The
     # window block above is aggregated across months and the comparison only
@@ -363,10 +367,12 @@ async def stream_analysis(
         rows = []
         for name, val in sorted(month_cats.items(), key=lambda x: x[1], reverse=True):
             share = f" ({val / month_total * 100:.1f}%)" if month_total else ""
-            rows.append(f"- {name}: ${val:,.2f}{share}")
+            rows.append(f"- {name}: {format_money(val, 'ARS')}{share}")
         if not rows:
             rows.append("- (sin gastos registrados)")
-        detail_blocks.append(f"{key} (total ${month_total:,.2f}{in_course}):\n" + "\n".join(rows))
+        detail_blocks.append(
+            f"{key} (total {format_money(month_total, 'ARS')}{in_course}):\n" + "\n".join(rows)
+        )
 
     # The spends a question is about, found from the words in the question. The
     # window arrives aggregated, so "¿cuánto gasté en YENNY TORTUGAS?" would
@@ -387,7 +393,8 @@ async def stream_analysis(
         (
             f"GASTOS QUE COINCIDEN CON LA PREGUNTA ({', '.join(terms)}):\n"
             + "\n".join(
-                f"- {e.date} | {e.description} | ${e.amount:,.2f} | {_cat_name(e, cat_map)}"
+                f"- {e.date} | {e.description} | {format_money(e.amount, e.currency)} | "
+                f"{_cat_name(e, cat_map)}"
                 for e in matches
             )
         )
@@ -399,17 +406,17 @@ async def stream_analysis(
 {period}
 
 RESUMEN:
-- Total gastado (ARS convertido): ${total:,.2f}
+- Total gastado (ARS convertido): {format_money(total, "ARS")}
 - Totales por moneda: {totals_text or "sin gastos"}{f" (tasa {breakdown.rate:,.2f} {breakdown.rate_source} del {breakdown.rate_date})" if breakdown.rate else ""}
 - Transacciones: {len(expenses)}
-- Promedio por transacción: ${total / len(expenses):,.2f}
-{f"- Meses: {len(by_month)}, promedio mensual: ${total / len(by_month):,.2f}" if len(by_month) > 1 else ""}
+- Promedio por transacción: {format_money(total / len(expenses), "ARS")}
+{f"- Meses: {len(by_month)}, promedio mensual: {format_money(total / len(by_month), 'ARS')}" if len(by_month) > 1 else ""}
 
 GASTOS POR CATEGORÍA:
-{chr(10).join(f"- {k}: ${v:,.2f} ({v / total * 100:.1f}%)" for k, v in sorted(by_cat.items(), key=lambda x: x[1], reverse=True))}
+{chr(10).join(f"- {k}: {format_money(v, 'ARS')} ({v / total * 100:.1f}%)" for k, v in sorted(by_cat.items(), key=lambda x: x[1], reverse=True))}
 
 GASTOS POR MES:
-{chr(10).join(f"- {k}: ${v:,.2f}" for k, v in sorted(by_month.items()))}
+{chr(10).join(f"- {k}: {format_money(v, 'ARS')}" for k, v in sorted(by_month.items()))}
 
 DETALLE POR MES Y CATEGORÍA:
 {chr(10).join(detail_blocks)}

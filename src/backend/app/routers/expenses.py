@@ -23,6 +23,7 @@ from app.services.encryption import compute_hmac
 from app.services.expense_filters import apply_expense_filters
 from app.services.import_utils import _is_duplicate, _normalize_text
 from app.services.installments import create_future_installments, split_installments
+from app.services.money import format_money
 from app.services.notify import notification_excerpt
 from app.services.tag_sync import assign_tags_validated, sync_category_tag
 
@@ -542,7 +543,7 @@ def create_expense(
             user_id=current_user.id,
             type="uncategorized_expense",
             title=f"⚠ Gasto sin categoría: {notification_excerpt(db_exp.description, limit=50)}",
-            body=f"Monto: ${db_exp.amount:,.2f} — Asigná una categoría para un mejor análisis.",
+            body=f"Monto: {format_money(db_exp.amount, db_exp.currency)} — Asigná una categoría para un mejor análisis.",
             data=json.dumps({"expense_id": db_exp.id, "description": db_exp.description}),
             read=False,
         )

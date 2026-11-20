@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getDashboard, getExpenses, getTagSummary } from "../../api/client";
 import SymbolicIcon from "../../components/SymbolicIcon";
 import { getCategoryIcon } from "../../utils/categoryIcon";
-import { formatCurrency, toUpperCase } from "../../utils/format";
+import { formatMoney, toUpperCase } from "../../utils/format";
 
 const now = new Date();
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -136,10 +136,10 @@ export default function QuickSummary() {
           <div className="min-w-0">
             <div className="text-[10px] text-[var(--text-tertiary)]">Gasto mes</div>
             <div className="text-base font-bold truncate text-[var(--text-primary)]">
-              {formatCurrency(arsTotal)}
+              {formatMoney(arsTotal, "ARS")}
             </div>
             {usdTotal > 0 && (
-              <div className="text-[10px] opacity-60">+ {formatCurrency(usdTotal, "USD")}</div>
+              <div className="text-[10px] opacity-60">+ {formatMoney(usdTotal, "USD")}</div>
             )}
           </div>
         </button>
@@ -190,10 +190,10 @@ export default function QuickSummary() {
                       {toUpperCase(cat.name)}
                     </span>
                     <span className="text-[11px] text-[var(--text-secondary)] text-right w-16">
-                      {formatCurrency(cat.current)}
+                      {formatMoney(cat.current, "ARS")}
                     </span>
                     <span className="text-[10px] text-[var(--text-tertiary)] text-right w-14">
-                      {cat.previous > 0 ? formatCurrency(cat.previous) : "—"}
+                      {cat.previous > 0 ? formatMoney(cat.previous, "ARS") : "—"}
                     </span>
                     <span
                       className="text-[11px] font-semibold text-right w-12"
@@ -243,7 +243,7 @@ export default function QuickSummary() {
                       />
                     </div>
                     <span className="text-xs text-[var(--text-secondary)] font-semibold whitespace-nowrap">
-                      {formatCurrency(cat.total)}
+                      {formatMoney(cat.total, "ARS")}
                     </span>
                   </div>
                 ))}
@@ -277,7 +277,7 @@ export default function QuickSummary() {
                         {t.tag_name}
                       </span>
                       <span className="text-xs text-[var(--text-secondary)] font-semibold whitespace-nowrap">
-                        {formatCurrency(t.current_amount)}
+                        {formatMoney(t.current_amount, "ARS")}
                       </span>
                     </div>
                   ))}
@@ -322,7 +322,7 @@ export default function QuickSummary() {
                     </div>
                   </div>
                   <span className="text-xs font-semibold text-[var(--text-primary)] whitespace-nowrap">
-                    {formatCurrency(exp.amount, exp.currency)}
+                    {formatMoney(exp.amount, exp.currency)}
                   </span>
                 </div>
               ))}

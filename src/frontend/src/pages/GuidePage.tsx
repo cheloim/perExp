@@ -993,7 +993,7 @@ export default function GuidePage() {
               />
               <CodeBlock label="Efectivo" code="efectivo almuerzo 2500" />
               <CodeBlock label="Con fecha" code="nafta shell viernes 15000" />
-              <CodeBlock label="USD" code="Netflix USD 5" />
+              <CodeBlock label="USD" code="Netflix U$S 5" />
             </div>
 
             <h4 className="font-semibold text-[var(--text-primary)] mt-6 mb-2">

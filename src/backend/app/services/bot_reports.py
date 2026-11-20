@@ -110,6 +110,7 @@ class PeriodSummaryReport:
 class ScheduledItem:
     description: str
     amount: float
+    currency: str
     day: str
     card: str
     is_installment: bool
@@ -121,12 +122,14 @@ class ScheduledWeek:
     label: str
     items: list[ScheduledItem]
     total: float
+    total_by_currency: dict[str, float]
 
 
 @dataclass
 class UpcomingScheduledReport:
     weeks: list[ScheduledWeek]
     total: float
+    total_by_currency: dict[str, float]
     count: int
 
 
@@ -134,6 +137,7 @@ class UpcomingScheduledReport:
 class RecurringItem:
     description: str
     amount: float
+    currency: str
     next_date: str
     days_until: int
     frequency: str
@@ -143,6 +147,7 @@ class RecurringItem:
 class UpcomingRecurringReport:
     items: list[RecurringItem]
     total: float
+    total_by_currency: dict[str, float]
     count: int
 
 
@@ -473,6 +478,7 @@ def build_upcoming_scheduled(
             ScheduledItem(
                 description=(s.description or "")[:40],
                 amount=abs(s.amount),
+                currency=s.currency or "ARS",
                 day=f"{day_name} {day_label}",
                 card=card_name,
                 is_installment=is_inst,
@@ -481,9 +487,14 @@ def build_upcoming_scheduled(
         )
 
     total_all = 0.0
+    total_by_currency: dict[str, float] = defaultdict(float)
     week_rows: list[ScheduledWeek] = []
     for week_key in sorted(weeks_map.keys()):
         week_items = weeks_map[week_key]
+        week_by_currency: dict[str, float] = defaultdict(float)
+        for item in week_items:
+            week_by_currency[item.currency] += item.amount
+            total_by_currency[item.currency] += item.amount
         week_total = sum(i.amount for i in week_items)
         total_all += week_total
 
@@ -496,10 +507,20 @@ def build_upcoming_scheduled(
 
         week_label = f"Semana del {first_date.strftime('%d/%m')}"
         week_rows.append(
-            ScheduledWeek(label=week_label, items=week_items, total=round(week_total, 2))
+            ScheduledWeek(
+                label=week_label,
+                items=week_items,
+                total=round(week_total, 2),
+                total_by_currency=dict(week_by_currency),
+            )
         )
 
-    return UpcomingScheduledReport(weeks=week_rows, total=round(total_all, 2), count=len(items))
+    return UpcomingScheduledReport(
+        weeks=week_rows,
+        total=round(total_all, 2),
+        total_by_currency=dict(total_by_currency),
+        count=len(items),
+    )
 
 
 # ── 4. Upcoming recurring expenses ──────────────────────────────────
@@ -526,21 +547,30 @@ def build_upcoming_recurring(
     )
 
     total = 0.0
+    total_by_currency: dict[str, float] = defaultdict(float)
     recurring_items: list[RecurringItem] = []
     for r in items:
         days_until = (r.next_charge_date - today).days
+        currency = r.currency or "ARS"
         total += abs(r.amount)
+        total_by_currency[currency] += abs(r.amount)
         recurring_items.append(
             RecurringItem(
                 description=(r.description or "")[:40],
                 amount=abs(r.amount),
+                currency=currency,
                 next_date=r.next_charge_date.strftime("%d/%m"),
                 days_until=days_until,
                 frequency=r.frequency or "monthly",
             )
         )
 
-    return UpcomingRecurringReport(items=recurring_items, total=round(total, 2), count=len(items))
+    return UpcomingRecurringReport(
+        items=recurring_items,
+        total=round(total, 2),
+        total_by_currency=dict(total_by_currency),
+        count=len(items),
+    )
 
 
 # ── Refactored: weekly report data builder ──────────────────────────

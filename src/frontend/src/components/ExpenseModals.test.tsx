@@ -136,7 +136,7 @@ describe("ExpenseModal comprobante scan", () => {
       target: { files: [new File(["image"], "ticket.png", { type: "image/png" })] },
     });
 
-    expect(await screen.findByText("USD $")).toBeInTheDocument();
+    expect(await screen.findByText("USD (U$S)")).toBeInTheDocument();
     const preview = await screen.findByAltText("Vista previa del comprobante");
     const objectUrl = preview.getAttribute("src");
     fireEvent.click(screen.getByRole("button", { name: "Quitar" }));

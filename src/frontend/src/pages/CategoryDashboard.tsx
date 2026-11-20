@@ -12,12 +12,7 @@ import {
   Legend,
 } from "recharts";
 import { getDashboard, getCategoryTrend, getTopMerchants, getMyGroup } from "../api/client";
-import {
-  currencyTooltipFormatter,
-  formatCurrency,
-  MonthSelector,
-  toUpperCase,
-} from "../utils/format";
+import { currencyTooltipFormatter, formatMoney, MonthSelector, toUpperCase } from "../utils/format";
 import CategoryTreemap from "../components/CategoryTreemap";
 
 const MONTH_NAMES = [
@@ -313,7 +308,7 @@ export default function CategoryDashboard() {
           </p>
           <div className="flex items-baseline gap-2">
             <p className="text-2xl font-bold text-[var(--text-primary)]">
-              {formatCurrency(displayTotal)}
+              {formatMoney(displayTotal, "ARS")}
             </p>
             {pctChange !== null && (
               <span
@@ -345,7 +340,7 @@ export default function CategoryDashboard() {
         >
           <p className="text-xs font-medium text-[var(--text-primary)] mb-1">Promedio</p>
           <p className="text-2xl font-bold text-[var(--text-primary)]">
-            {formatCurrency(displayAvg)}
+            {formatMoney(displayAvg, "ARS")}
           </p>
         </div>
       </div>
@@ -421,7 +416,7 @@ export default function CategoryDashboard() {
                 .map((cat) => (
                   <tr key={`${cat.parent_name ?? ""}-${cat.category_name}`}>
                     <td>{cat.category_name}</td>
-                    <td>{formatCurrency(cat.total)}</td>
+                    <td>{formatMoney(cat.total, "ARS")}</td>
                   </tr>
                 ))}
             </tbody>
@@ -450,7 +445,7 @@ export default function CategoryDashboard() {
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                 <div className="text-[var(--text-primary)] font-semibold text-base">
-                  {formatCurrency(activeSelection.total)}
+                  {formatMoney(activeSelection.total, "ARS")}
                 </div>
                 <div className="text-[var(--text-secondary)]">
                   {activeSelection.count} transacciones
@@ -714,7 +709,9 @@ export default function CategoryDashboard() {
                         />
                       </div>
                       <span className="text-xs text-[var(--text-tertiary)] flex-shrink-0 w-24 text-right">
-                        {merchantTab === "amount" ? formatCurrency(m.total_amount) : `${m.count}×`}
+                        {merchantTab === "amount"
+                          ? formatMoney(m.total_amount, m.currency)
+                          : `${m.count}×`}
                       </span>
                     </div>
                   );

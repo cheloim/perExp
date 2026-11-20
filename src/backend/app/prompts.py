@@ -45,7 +45,7 @@ Reglas:
 - Si no hay un total legible: no lo incluyas; si no queda ninguno, reason="no_total".
 - No inventes montos ni comercios. Si no estás seguro, confidence="low".
 - Máximo 20 gastos. Si hay más, priorizá los 20 más claros y usá reason="too_many_expenses" solo si no podés cubrirlos todos.
-- Formato argentino: "$15.200,50" = 15200.50; "USD 5" = 5.00. Devolvé amount como número positivo, sin separadores.
+- Formato argentino: "$15.200,50" = 15200.50; "U$S 5" o "USD 5" = 5.00. Devolvé amount como número positivo, sin separadores.
 - CUOTAS:
   - amount_kind="total" si amount es el total de la compra.
   - amount_kind="installment" si amount es el valor de la cuota actual.
@@ -94,7 +94,7 @@ Cada transacción devuelve:
 - "date": "DD-MM-YYYY"
 - "description": descripción limpia del comercio
 - "amount": decimal. NEGATIVO= reintegros, POSITIVO= consumos
-- "currency": "USD" o "ARS" (determínalo por contexto)
+- "currency": "USD" o "ARS" (determínalo por contexto; "U$S" es USD)
 - "card_header": encabezado de sección de tarjeta (ej: "Visa Galicia"). Si no hay, ""
 - "transaction_id": código de comprobante/operación. Si no hay, null
 - "installment_number": cuota actual (ej: 3 de C.03/12), sino null
@@ -139,7 +139,7 @@ Para cada gasto extraé:
 - "amount": monto numérico (float, siempre positivo). Si no hay monto claro, null.
 - "description": descripción del gasto (texto limpio, sin monto, fecha ni cuotas).
 - "date": fecha en formato "YYYY-MM-DD". Si dice "ayer" restá 1 día a hoy. Si no se menciona fecha, usá hoy.
-- "currency": "ARS" si es pesos o no se menciona, "USD" si es dólares.
+- "currency": "ARS" si es pesos o no se menciona, "USD" si es dólares ("U$S" también es USD).
 - "installment_number": número de cuota actual si se menciona (ej: 3 si dice "3 de 12" o "cuota 3"), sino null.
 - "installment_total": cantidad total de cuotas si se menciona (ej: 12 si dice "3 de 12" o "12 cuotas"), sino null.
 - "amount_kind": "total" si amount es el total de la compra, "installment" si amount es el valor de la cuota actual, "none" si no hay cuotas.
@@ -176,7 +176,9 @@ Para una pregunta concreta respondé solo lo que pregunta, con los números que 
 Los bloques de datos que te pasan traen el detalle completo por categoría y por mes de los períodos con gastos: si te piden un desglose, respondé con esos números en vez de decir que falta el detalle. Un período que no aparece en los bloques no tiene gastos registrados: aclaralo y no estimés.
 
 Respondé siempre en español rioplatense, de forma clara, amigable y directa. Usá markdown con negritas y emojis.
-Sé específico con los números del usuario. No des consejos genéricos."""
+Sé específico con los números del usuario. No des consejos genéricos.
+
+Escribí los montos con una sola notación: pesos como "$ 1.234,50" y dólares como "U$S 1.234,50". Nunca uses "USD", "u$s" ni "US$" para mostrar un monto."""
 
 
 INVESTMENTS_SYSTEM_PROMPT = """Sos un asistente financiero especializado en inversiones, tanto del mercado argentino como de la bolsa de Estados Unidos.
@@ -192,7 +194,9 @@ Si no se incluye un resumen de la cartera, aclaralo y pedilo en lugar de estimar
 
 Límites que no se negocian:
 - Nunca des asesoramiento financiero formal ni garantizás rendimientos — aclaralo cuando corresponda.
-- Respondé en español rioplatense, de forma clara, concisa y profesional."""
+- Respondé en español rioplatense, de forma clara, concisa y profesional.
+
+Escribí los montos con una sola notación: pesos como "$ 1.234,50" y dólares como "U$S 1.234,50". Nunca uses "USD", "u$s" ni "US$" para mostrar un monto."""
 
 
 AI_TRENDS_PROMPT = """Sos un analista financiero personal. Analizá los datos de gastos con tarjeta de crédito argentinos que te paso y devolvé un JSON estructurado.
@@ -288,7 +292,7 @@ Extraé del siguiente mensaje de notificación bancaria:
 - "amount": monto numérico (float, siempre positivo). Si no hay monto claro, null.
 - "description": descripción del comercio o merchant (texto limpio, sin incluir nombre del banco ni tarjeta).
 - "date": fecha en formato "YYYY-MM-DD". Si no se menciona fecha, usá hoy.
-- "currency": "ARS" si es pesos o no se menciona, "USD" si es dólares.
+- "currency": "ARS" si es pesos o no se menciona, "USD" si es dólares ("U$S" también es USD).
 - "card_type": "credito" si es compra con tarjeta de crédito, "debito" si es débito directo o transferencia.
 - "card_name": nombre completo de la tarjeta si se menciona (ej: "Visa Débito", "Mastercard Crédito", "Visa", "Mastercard"), sin números de tarjeta. Si no se menciona, null.
 - "bank": nombre del banco emisor si se menciona, sino null.

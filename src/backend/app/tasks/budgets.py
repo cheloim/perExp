@@ -26,6 +26,7 @@ from app.services.budget_helpers import (
 from app.services.budget_helpers import (
     get_spending_for_group as _get_spending_for_group,
 )
+from app.services.money import format_money
 from app.services.notify import notify_user
 from app.services.task_tracker import record_task_run
 
@@ -94,7 +95,7 @@ def check_budget_alerts():
                     user.id,
                     "budget_warning",
                     f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {label}",
-                    f"Presupuesto ${group.amount:,.0f} | Gastado ${spent:,.0f} ({pct:.0%})",
+                    f"Presupuesto {format_money(group.amount, 'ARS')} | Gastado {format_money(spent, 'ARS')} ({pct:.0%})",
                     {
                         "group_name": group.name,
                         "month": month_key,
@@ -136,7 +137,7 @@ def check_budget_alerts():
                     user.id,
                     "budget_warning",
                     f"{'🔴 Excedido' if is_exceeded else '🟡 Alerta'}: {cat.name}",
-                    f"Presupuesto ${budget.amount:,.0f} | Gastado ${spent:,.0f} ({pct:.0%})",
+                    f"Presupuesto {format_money(budget.amount, 'ARS')} | Gastado {format_money(spent, 'ARS')} ({pct:.0%})",
                     {
                         "category_id": budget.category_id,
                         "category_name": cat.name,

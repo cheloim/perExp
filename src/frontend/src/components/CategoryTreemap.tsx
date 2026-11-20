@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { hierarchy, treemap, treemapSquarify } from "d3-hierarchy";
-import { formatCurrency, getContrastTextColor } from "../utils/format";
+import { formatMoney, getContrastTextColor } from "../utils/format";
 import type { CategorySummary } from "../types";
 
 interface TreemapDatum {
@@ -290,14 +290,14 @@ export default function CategoryTreemap({
           const showLabel = w >= 24 && h >= 12;
           const clipId = `clip-${r.data.category_id ?? r.data.name.replace(/[^a-zA-Z0-9]/g, "-")}`;
           const maxChars = Math.floor(w / 6);
-          const amountStr = formatCurrency(r.data.total);
+          const amountStr = formatMoney(r.data.total, "ARS");
 
           return (
             <g
               key={`leaf-${r.data.name}`}
               role="button"
               tabIndex={0}
-              aria-label={`${r.data.name}: ${formatCurrency(r.data.total)}`}
+              aria-label={`${r.data.name}: ${formatMoney(r.data.total, "ARS")}`}
               onClick={() => handleClick(r.data.name)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -371,7 +371,7 @@ export default function CategoryTreemap({
         >
           <p className="text-xs font-semibold text-[var(--text-primary)]">{tooltip.name}</p>
           <p className="text-xs text-[var(--text-secondary)]">
-            {formatCurrency(tooltip.total)} · {tooltip.count}× · {tooltip.pct.toFixed(1)}%
+            {formatMoney(tooltip.total, "ARS")} · {tooltip.count}× · {tooltip.pct.toFixed(1)}%
           </p>
         </div>
       )}
