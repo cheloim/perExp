@@ -32,10 +32,12 @@
  *
  * OpenAPI spec version: 1.0.0
  */
+import type { BudgetCreateCurrency } from "./budgetCreateCurrency.ts";
 
 export interface BudgetCreate {
   category_id: number;
   amount: number;
+  currency?: BudgetCreateCurrency;
   alert_threshold?: number;
   rollover?: boolean;
 }

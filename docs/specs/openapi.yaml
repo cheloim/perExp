@@ -5467,6 +5467,10 @@ components:
           type: integer
         amount:
           type: number
+        currency:
+          type: string
+          enum: [ARS, USD]
+          default: ARS
         alert_threshold:
           type: number
           default: 0.80
@@ -5485,6 +5489,9 @@ components:
           type: integer
         amount:
           type: number
+        currency:
+          type: string
+          enum: [ARS, USD]
         alert_threshold:
           type: number
         rollover:
@@ -5506,6 +5513,18 @@ components:
     BudgetSummaryResponse:
       type: object
       properties:
+        currency:
+          type: string
+          enum: [ARS, USD]
+        fx_rate:
+          type: number
+          nullable: true
+        fx_rate_date:
+          type: string
+          nullable: true
+        fx_rate_source:
+          type: string
+          nullable: true
         total_budgeted:
           type: number
         total_spent:
@@ -5526,6 +5545,12 @@ components:
           type: string
         percentage:
           type: number
+        amount:
+          type: number
+        currency:
+          type: string
+          enum: [ARS, USD]
+          default: ARS
 
     BudgetGroupResponse:
       type: object
@@ -5534,6 +5559,9 @@ components:
           type: integer
         user_id:
           type: integer
+        currency:
+          type: string
+          enum: [ARS, USD]
         name:
           type: string
         display_name:
