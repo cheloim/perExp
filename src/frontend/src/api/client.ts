@@ -147,6 +147,15 @@ export async function logoutSession(): Promise<void> {
   clearToken();
 }
 
+/** Invalidate every device session, then forget the local access token. */
+export async function logoutAllDevices(): Promise<void> {
+  try {
+    await api.post("/auth/logout-all");
+  } finally {
+    clearToken();
+  }
+}
+
 type RetryableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
 
 /** Login is a 401 too: never try to refresh it, or the loop is endless. */

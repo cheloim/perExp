@@ -6,6 +6,7 @@ import {
   deleteMyAccount,
   clearToken,
   logoutSession,
+  logoutAllDevices,
   getMyGroup,
   inviteToGroup,
   leaveGroup,
@@ -546,6 +547,11 @@ export default function UserPanel({ open, onClose, adminSlug }: Props) {
 
   const handleLogout = async () => {
     await logoutSession();
+    navigate("/login");
+  };
+
+  const handleLogoutAll = async () => {
+    await logoutAllDevices();
     navigate("/login");
   };
 
@@ -1482,6 +1488,12 @@ export default function UserPanel({ open, onClose, adminSlug }: Props) {
               Admin Panel
             </button>
           )}
+          <button
+            onClick={handleLogoutAll}
+            className="mb-2 w-full py-2.5 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] text-sm font-medium transition-colors"
+          >
+            Cerrar sesión en todos los dispositivos
+          </button>
           <button
             onClick={() => setShowLogoutConfirm(true)}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md border border-[var(--red-3,#e01b24)]/30 text-[var(--red-3,#e01b24)] hover:bg-[var(--red-3,#e01b24)]/10 text-sm font-medium transition-colors"

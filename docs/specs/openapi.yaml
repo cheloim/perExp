@@ -2342,6 +2342,18 @@ paths:
       responses:
         '200':
           description: Logout
+  /auth/logout-all:
+    post:
+      tags:
+        - auth
+      summary: Logout all devices
+      description: Invalidates every access and refresh token issued for this user.
+      operationId: logoutAllAuthLogoutAllPost
+      responses:
+        '200':
+          description: All sessions revoked
+        '401':
+          description: Not authenticated
   /auth/me/whats-new-dismiss:
     put:
       tags:
