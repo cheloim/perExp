@@ -438,7 +438,9 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             method = "Efectivo/Transferencia"
         else:
             method = "Otro"
-        payment_methods[method]["total"] += abs(to_ars(e, fallback))
+        payment_methods[method]["total"] = float(payment_methods[method]["total"]) + abs(
+            to_ars(e, fallback)
+        )
         payment_methods[method]["count"] = int(payment_methods[method]["count"]) + 1
         payment_methods[method]["name"] = method
     payment_list = sorted(payment_methods.values(), key=lambda x: x["total"], reverse=True)
