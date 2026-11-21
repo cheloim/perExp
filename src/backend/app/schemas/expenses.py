@@ -91,12 +91,12 @@ class ExpenseResponse(BaseModel):
     def serialize_date(self, d: date) -> str:
         return f"{d.day:02d}-{d.month:02d}-{d.year}"
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def category_name(self) -> str | None:
         return self.category.name if self.category else None
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def category_color(self) -> str | None:
         return self.category.color if self.category else None
@@ -112,7 +112,7 @@ class ExpenseResponse(BaseModel):
                 return card_rel
         return None
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def card(self) -> str:
         if self.card_rel:
@@ -120,7 +120,7 @@ class ExpenseResponse(BaseModel):
         fallback = self._tag_card_fallback()
         return fallback.card_name if fallback else ""
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def bank(self) -> str:
         if self.card_rel:
@@ -128,7 +128,7 @@ class ExpenseResponse(BaseModel):
         fallback = self._tag_card_fallback()
         return fallback.bank if fallback else ""
 
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def person(self) -> str:
         if self.card_rel:

@@ -175,7 +175,7 @@ def _clear_session(phone_hash: str) -> None:
 
 from app.services.bot_reports import _cat_emoji
 from app.services.bot_reports import build_cat_levels as _build_cat_levels
-from app.telegram_bot import (  # noqa: E402
+from app.telegram_bot import (
     _extract_card_from_text,
     _format_amount,
     _format_date_es,

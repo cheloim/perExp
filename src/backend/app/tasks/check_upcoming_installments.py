@@ -65,7 +65,7 @@ def check_upcoming_installments():
                 .filter(
                     Notification.user_id == se.user_id,
                     Notification.type == "upcoming_installment",
-                    Notification.read == False,  # noqa: E712
+                    Notification.read == False,
                 )
                 .all()
             )

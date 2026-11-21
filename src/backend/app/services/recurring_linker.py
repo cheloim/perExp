@@ -35,7 +35,7 @@ def link_to_recurring(expense_id: int, description: str, user_id: int, db: Sessi
         .filter(
             RecurringExpense.user_id == user_id,
             RecurringExpense.merchant_key == merchant_key,
-            RecurringExpense.is_active == True,  # noqa: E712
+            RecurringExpense.is_active == True,
         )
         .first()
     )

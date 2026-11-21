@@ -38,6 +38,10 @@ last_check
 # Generated API contract (raw FastAPI export — see docs/specs/README.md)
 docs/specs/openapi.generated.yaml
 
+# Orval client: generated locally/CI from the curated spec and has no importers.
+# The hand-written src/api/client.ts is the API layer actually in use (#534).
+src/frontend/src/api/client-generated.ts
+
 # Secrets
 config/secrets/
 secrets/

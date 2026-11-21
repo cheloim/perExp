@@ -56,7 +56,7 @@ def check_budget_alerts():
         year, month = today.year, today.month
         month_key = f"{year}-{month:02d}"
 
-        users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
+        users = db.query(User).filter(User.is_active == True).all()
 
         alerts_sent = 0
         for user in users:

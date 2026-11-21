@@ -24,7 +24,7 @@ def suggest_uncategorized_categories():
     """
     db = SessionLocal()
     try:
-        users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
+        users = db.query(User).filter(User.is_active == True).all()
         total_users_notified = 0
 
         for user in users:
@@ -41,7 +41,7 @@ def suggest_uncategorized_categories():
                 .filter(
                     Notification.user_id == user.id,
                     Notification.type == "category_suggestions",
-                    Notification.read == False,  # noqa: E712
+                    Notification.read == False,
                 )
                 .first()
             )

@@ -99,12 +99,14 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           cache: "pip"
-          cache-dependency-path: src/backend/requirements*.txt
+          cache-dependency-path: |
+            src/backend/requirements*.txt
+            src/backend/requirements*.lock
 
       - name: Install dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install -r requirements-dev.lock
 
       - name: Run all tests
         env:
