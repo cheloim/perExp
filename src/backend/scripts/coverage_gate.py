@@ -23,7 +23,7 @@ AREAS: tuple[tuple[str, tuple[str, ...], float, float], ...] = (
             "app/services/oidc_state.py",
             "app/routers/auth.py",
         ),
-        53.0,
+        95.0,
         90.0,
     ),
     (
@@ -34,7 +34,7 @@ AREAS: tuple[tuple[str, tuple[str, ...], float, float], ...] = (
             "app/routers/import_jobs.py",
             "app/tasks/import_processor.py",
         ),
-        29.5,
+        85.0,
         80.0,
     ),
     (
@@ -43,7 +43,7 @@ AREAS: tuple[tuple[str, tuple[str, ...], float, float], ...] = (
             "app/whatsapp_bot.py",
             "app/routers/whatsapp_webhook.py",
         ),
-        11.0,
+        89.0,
         60.0,
     ),
     ("total", ("app/",), 48.8, 60.0),
