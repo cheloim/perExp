@@ -67,7 +67,7 @@ export function formatDateDMYSlash(dateStr: string, fallback: string = ""): stri
   return dateStr;
 }
 
-type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
+type SortField = "date" | "category" | "amount";
 type SortDir = "asc" | "desc";
 
 export function SortIcon({

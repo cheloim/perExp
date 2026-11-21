@@ -22,7 +22,7 @@ import { getCategoryIcon } from "../utils/categoryIcon";
 import type { BudgetGroup, BudgetEvent, BudgetSuggestion, BudgetSummaryItem } from "../types";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { usePeriod } from "../hooks/usePeriod";
-import { formatMonth } from "../utils/period";
+import { currentMonth, formatMonth } from "../utils/period";
 import { formatMoney, formatMoneyTotals } from "../utils/format";
 
 // ─── Trend Spark (6-month spending bars, mock parity, no chart lib) ──
@@ -1912,7 +1912,12 @@ function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: ()
 
 export default function BudgetPage() {
   const qc = useQueryClient();
-  const { month: periodMonth, setMonth: setPeriodMonth, isCurrentMonth } = usePeriod();
+  const { period, month: periodMonth, setPeriod, isAllHistory, anchorMonth } = usePeriod();
+  // A budget is a monthly envelope, so there is no single all-history number.
+  // On all-history the page keeps comparing against the current month (what
+  // the backend returns when `month` is omitted) and says so in the header.
+  const effectiveMonth = periodMonth ?? currentMonth();
+  const isCurrentMonth = effectiveMonth === currentMonth();
   const [showNewEvent, setShowNewEvent] = useState(false);
   const [showQuickConfig, setShowQuickConfig] = useState(false);
   const [editingGroup, setEditingGroup] = useState<BudgetGroup | null>(null);
@@ -1928,7 +1933,7 @@ export default function BudgetPage() {
     isError: summaryError,
     refetch: refetchSummary,
   } = useQuery({
-    queryKey: ["budget-summary", periodMonth],
+    queryKey: ["budget-summary", period],
     queryFn: () => getBudgetSummary(periodMonth),
   });
 
@@ -1994,7 +1999,7 @@ export default function BudgetPage() {
   const totalAvailable = totalBudget - totalSpent;
 
   // Daily pace vs budget pace, for the selected month
-  const [periodYear, periodMonthNumber] = periodMonth.split("-").map(Number);
+  const [periodYear, periodMonthNumber] = effectiveMonth.split("-").map(Number);
   const daysInMonth = new Date(periodYear, periodMonthNumber, 0).getDate();
   const dayOfMonth = isCurrentMonth ? new Date().getDate() : daysInMonth;
   const dailyAvg = dayOfMonth > 0 ? totalSpent / dayOfMonth : 0;
@@ -2009,7 +2014,7 @@ export default function BudgetPage() {
         ? "var(--color-warning)"
         : "var(--color-danger)";
   const spentPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
-  const monthLabel = formatMonth(periodMonth);
+  const monthLabel = formatMonth(effectiveMonth);
   const trendValues = (summary?.trend_6m ?? []).map((t) => t.total);
 
   // Group categories by macro group
@@ -2059,11 +2064,17 @@ export default function BudgetPage() {
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="adw-title-2 text-primary">Presupuesto</h1>
-            <PeriodNavigator month={periodMonth} onChange={setPeriodMonth} />
+            <PeriodNavigator period={period} anchorMonth={anchorMonth} onChange={setPeriod} />
           </div>
           <p className="adw-caption adw-dim-label">
             {monthLabel} · montos en {budgetCurrency}
           </p>
+          {isAllHistory && (
+            <p role="status" className="text-xs text-[var(--text-tertiary)] mt-0.5">
+              El presupuesto se compara mes a mes; no hay un límite único para todo el historial.
+              Mostrando {monthLabel}.
+            </p>
+          )}
           {summary?.fx_rate && (
             <p className="adw-caption adw-dim-label">
               Tasa usada: {summary.fx_rate.toLocaleString("es-AR")} {summary.fx_rate_source}
@@ -2315,7 +2326,7 @@ export default function BudgetPage() {
       {selectedCategory && (
         <CategorySidePanel
           category={selectedCategory}
-          month={periodMonth}
+          month={effectiveMonth}
           onClose={() => setSelectedCategory(null)}
         />
       )}

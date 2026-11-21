@@ -23,6 +23,15 @@ def _make_expense(db, user_id, description, when, amount):
     return expense
 
 
+def _make_category(db, user_id, name):
+    from app.models import Category
+
+    category = Category(name=name, user_id=user_id)
+    db.add(category)
+    db.flush()
+    return category
+
+
 def _descriptions(results):
     return [expense.description for expense in results]
 
@@ -110,6 +119,78 @@ class TestExpenseOrdering:
         )
 
         assert _descriptions(results) == ["Octubre grande", "Octubre chico"]
+
+    def test_category_sort_orders_the_whole_filtered_dataset(self, db, test_user):
+        from app.models import Expense
+        from app.routers.expenses import get_expenses
+
+        salud = _make_category(db, test_user.id, "Salud")
+        transporte = _make_category(db, test_user.id, "Transporte")
+        comida = _make_category(db, test_user.id, "Comida")
+        rows = [
+            (comida, "Octubre comida", date(2026, 10, 1)),
+            (transporte, "Octubre transporte", date(2026, 10, 2)),
+            (salud, "Octubre salud", date(2026, 10, 3)),
+            (comida, "Noviembre comida", date(2026, 11, 1)),
+        ]
+        for category, description, when in rows:
+            db.add(
+                Expense(
+                    amount=100.0,
+                    description=description,
+                    date=when,
+                    user_id=test_user.id,
+                    category_id=category.id,
+                )
+            )
+        db.flush()
+
+        results = get_expenses(
+            month="2026-10",
+            sort="category",
+            direction="asc",
+            db=db,
+            current_user=test_user,
+        )
+
+        # The other months are filtered out before ordering, and the order is
+        # the category name, not the date or the insertion order.
+        assert _descriptions(results) == [
+            "Octubre comida",
+            "Octubre salud",
+            "Octubre transporte",
+        ]
+
+    def test_category_sort_keeps_uncategorized_last_and_paginates_in_order(self, db, test_user):
+        from app.models import Expense
+        from app.routers.expenses import get_expenses
+
+        zeta = _make_category(db, test_user.id, "Zeta")
+        alfa = _make_category(db, test_user.id, "Alfa")
+        for category, description in [
+            (zeta, "Zeta"),
+            (None, "Sin categoría"),
+            (alfa, "Alfa"),
+        ]:
+            db.add(
+                Expense(
+                    amount=100.0,
+                    description=description,
+                    date=date(2026, 10, 1),
+                    user_id=test_user.id,
+                    category_id=category.id if category else None,
+                )
+            )
+        db.flush()
+
+        full = get_expenses(sort="category", direction="asc", db=db, current_user=test_user)
+        assert _descriptions(full) == ["Alfa", "Zeta", "Sin categoría"]
+
+        # "Ver más" appends the next slice of the same order.
+        page = get_expenses(
+            sort="category", direction="asc", skip=1, limit=2, db=db, current_user=test_user
+        )
+        assert _descriptions(page) == ["Zeta", "Sin categoría"]
 
 
 def test_unsupported_sort_field_is_rejected(db, test_user):

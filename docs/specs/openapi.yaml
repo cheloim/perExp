@@ -843,9 +843,9 @@ paths:
           in: query
           schema:
             type: string
-            enum: [date, amount]
+            enum: [date, amount, category]
             default: date
-          description: Field to order by. Applied to the whole filtered dataset before pagination.
+          description: Field to order by. Applied to the whole filtered dataset before pagination. Description is encrypted at rest and is not an orderable field.
         - name: direction
           in: query
           schema:

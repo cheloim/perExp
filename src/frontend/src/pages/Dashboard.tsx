@@ -50,6 +50,7 @@ import EmptyState from "../components/ui/EmptyState";
 import QuickEditPopover from "../components/QuickEditPopover";
 import PeriodNavigator from "../components/PeriodNavigator";
 import { usePeriod } from "../hooks/usePeriod";
+import { currentMonth } from "../utils/period";
 
 const FALLBACK_COLORS = [
   "#3b82f6", // blue
@@ -144,8 +145,18 @@ function DashboardSkeleton() {
 }
 
 export default function Dashboard() {
-  const { month, setMonth } = usePeriod();
+  const { period, month, isAllHistory, anchorMonth, setPeriod } = usePeriod();
   const navigate = useNavigate();
+  // Links to Gastos must keep the period the user is looking at. All-history
+  // is explicit so the target page does not fall back to its stored month.
+  const periodQuery = isAllHistory ? "period=all" : `month=${month}`;
+  const periodExpensesLink = `/expenses?${periodQuery}`;
+  // The category dashboard is monthly by definition; all-history links there
+  // without a month instead of inventing one.
+  const catDashboardLink = isAllHistory ? "/cat-dashboard" : `/cat-dashboard?month=${month}`;
+  // Installments are a monthly card even on all-history: the amount shown is
+  // the current month's load, so the link must point at that same month.
+  const installmentsMonth = month ?? currentMonth();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -188,7 +199,9 @@ export default function Dashboard() {
     isError: dashError,
     refetch: refetchDash,
   } = useQuery({
-    queryKey: ["dashboard", month],
+    // No month means the backend's documented 24-month window, which is what
+    // all-history shows on the Dashboard.
+    queryKey: ["dashboard", period],
     queryFn: () => getDashboard({ month }),
     placeholderData: (prev) => prev,
   });
@@ -201,7 +214,7 @@ export default function Dashboard() {
 
   // Expenses for current month (reduced limit — category breakdown comes from dashData.by_category)
   const { data: monthExpenses = [] } = useQuery({
-    queryKey: ["expenses-month", month],
+    queryKey: ["expenses-month", period],
     queryFn: () =>
       getExpenses({
         month,
@@ -256,8 +269,8 @@ export default function Dashboard() {
       return updateExpense(id, { tag_ids: newTagIds });
     },
     onMutate: async ({ id, field, value }) => {
-      await queryClient.cancelQueries({ queryKey: ["expenses-month", month] });
-      const queryKey = ["expenses-month", month];
+      await queryClient.cancelQueries({ queryKey: ["expenses-month", period] });
+      const queryKey = ["expenses-month", period];
       const previous = queryClient.getQueryData<Expense[]>(queryKey);
       queryClient.setQueryData<Expense[]>(queryKey, (old) =>
         (old ?? []).map((e) => {
@@ -337,7 +350,7 @@ export default function Dashboard() {
 
   // Top merchants for current month (Tier 3: deferred)
   const { data: topMerchants = [] } = useQuery({
-    queryKey: ["top-merchants", month],
+    queryKey: ["top-merchants", period],
     queryFn: () => getTopMerchants({ month, limit: 5 }),
     staleTime: 60_000,
     enabled: deferred,
@@ -541,7 +554,10 @@ export default function Dashboard() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <PeriodNavigator month={month} onChange={setMonth} />
+          <PeriodNavigator period={period} anchorMonth={anchorMonth} onChange={setPeriod} />
+          {isAllHistory && (
+            <span className="text-xs text-[var(--text-tertiary)]">Últimos 24 meses</span>
+          )}
           <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
             <span className="text-base leading-none">+</span>
             <span>Nuevo gasto</span>
@@ -552,7 +568,7 @@ export default function Dashboard() {
       {/* Uncategorized expenses banner */}
       {uncategorizedCount > 0 && (
         <button
-          onClick={() => navigate(`/expenses?uncategorized=1&month=${month}`)}
+          onClick={() => navigate(`/expenses?uncategorized=1&${periodQuery}`)}
           className="w-full flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors cursor-pointer"
         >
           <span className="text-lg">⚠</span>
@@ -597,7 +613,7 @@ export default function Dashboard() {
         } gap-4`}
       >
         <Link
-          to={`/expenses?month=${month}`}
+          to={periodExpensesLink}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
@@ -614,7 +630,7 @@ export default function Dashboard() {
           </p>
         </Link>
         <Link
-          to={`/expenses?card_type=credito&month=${month}`}
+          to={`/expenses?card_type=credito&${periodQuery}`}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
@@ -624,7 +640,7 @@ export default function Dashboard() {
           <p className="text-xs text-tertiary mt-1">{pasivosData?.count ?? 0} cuotas pendientes</p>
         </Link>
         <Link
-          to={`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`}
+          to={`/expenses?installment=1&date_from=${installmentsMonth}-01&date_to=${installmentsMonth}-31`}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
           <p className="text-[10px] text-tertiary uppercase mb-1">Cuotas este mes</p>
@@ -638,22 +654,40 @@ export default function Dashboard() {
         </Link>
         <div className="card p-5">
           <p className="text-[10px] text-tertiary uppercase mb-1">
-            {useMtd ? "vs mismo día mes ant." : "vs Mes anterior"}
+            {isAllHistory ? "Comparación" : useMtd ? "vs mismo día mes ant." : "vs Mes anterior"}
           </p>
-          <p
-            className={`text-lg font-bold ${
-              momVariation > 0 ? "text-danger" : momVariation < 0 ? "text-success" : "text-tertiary"
-            }`}
-          >
-            {momVariation > 0 ? "↑" : momVariation < 0 ? "↓" : "→"}{" "}
-            {Math.abs(momVariation).toFixed(1)}%
-          </p>
-          <p className="text-xs text-tertiary mt-1">
-            {momVariation > 0 ? "Gastaste más" : momVariation < 0 ? "Gastaste menos" : "Sin cambio"}
-            {useMtd && dashData?.mtd_cutoff_day != null
-              ? ` · al día ${dashData.mtd_cutoff_day}`
-              : ""}
-          </p>
+          {isAllHistory ? (
+            <>
+              {/* The backend has no previous 24-month window to compare against. */}
+              <p className="text-lg font-bold text-tertiary">—</p>
+              <p className="text-xs text-tertiary mt-1">Sin mes anterior que comparar</p>
+            </>
+          ) : (
+            <>
+              <p
+                className={`text-lg font-bold ${
+                  momVariation > 0
+                    ? "text-danger"
+                    : momVariation < 0
+                      ? "text-success"
+                      : "text-tertiary"
+                }`}
+              >
+                {momVariation > 0 ? "↑" : momVariation < 0 ? "↓" : "→"}{" "}
+                {Math.abs(momVariation).toFixed(1)}%
+              </p>
+              <p className="text-xs text-tertiary mt-1">
+                {momVariation > 0
+                  ? "Gastaste más"
+                  : momVariation < 0
+                    ? "Gastaste menos"
+                    : "Sin cambio"}
+                {useMtd && dashData?.mtd_cutoff_day != null
+                  ? ` · al día ${dashData.mtd_cutoff_day}`
+                  : ""}
+              </p>
+            </>
+          )}
         </div>
         {(savingsArs > 0 || totalUsd > 0) && (
           <Link
@@ -692,7 +726,7 @@ export default function Dashboard() {
               )}
             </div>
             <button
-              onClick={() => navigate(`/cat-dashboard?month=${month}`)}
+              onClick={() => navigate(catDashboardLink)}
               className="text-xs text-secondary hover:text-primary transition-colors"
             >
               Ver detalle →
@@ -845,7 +879,7 @@ export default function Dashboard() {
               </div>
             </div>
             <button
-              onClick={() => navigate(`/expenses?month=${month}`)}
+              onClick={() => navigate(periodExpensesLink)}
               className="text-xs text-secondary hover:text-primary transition-colors"
             >
               Ver todos →
@@ -866,7 +900,7 @@ export default function Dashboard() {
               }
               action={{
                 label: "Ver todos los gastos",
-                onClick: () => navigate(`/expenses?month=${month}`),
+                onClick: () => navigate(periodExpensesLink),
               }}
             />
           ) : (
@@ -990,7 +1024,7 @@ export default function Dashboard() {
                 Vacías
               </label>
               <button
-                onClick={() => navigate(`/expenses?month=${month}`)}
+                onClick={() => navigate(periodExpensesLink)}
                 className="text-xs text-secondary hover:text-primary transition-colors"
               >
                 Ver detalle →
@@ -1006,8 +1040,15 @@ export default function Dashboard() {
           ) : (
             <>
               {(() => {
-                // Use current month amounts from monthly breakdown
+                // Use the month bucket, or the whole monthly window on
+                // all-history (the tag summary only exposes that window).
                 const withCurrent = tagData.map((t) => {
+                  if (isAllHistory) {
+                    return {
+                      ...t,
+                      current_amount: (t.monthly ?? []).reduce((sum, m) => sum + m.total, 0),
+                    };
+                  }
                   const monthEntry = t.monthly?.find((m) => m.month === month);
                   return { ...t, current_amount: monthEntry?.total ?? 0 };
                 });
@@ -1059,9 +1100,9 @@ export default function Dashboard() {
                             const tagId = (entry.payload as { tag_id?: number | null } | undefined)
                               ?.tag_id;
                             if (tagId != null) {
-                              navigate(`/expenses?cuenta_id=${tagId}&month=${month}`);
+                              navigate(`/expenses?cuenta_id=${tagId}&${periodQuery}`);
                             } else {
-                              navigate(`/expenses?sin_cuenta=1&month=${month}`);
+                              navigate(`/expenses?sin_cuenta=1&${periodQuery}`);
                             }
                           }}
                           style={{ cursor: "pointer" }}
@@ -1093,9 +1134,9 @@ export default function Dashboard() {
                             key={i}
                             onClick={() => {
                               if (t.tag_id != null) {
-                                navigate(`/expenses?cuenta_id=${t.tag_id}&month=${month}`);
+                                navigate(`/expenses?cuenta_id=${t.tag_id}&${periodQuery}`);
                               } else {
-                                navigate(`/expenses?sin_cuenta=1&month=${month}`);
+                                navigate(`/expenses?sin_cuenta=1&${periodQuery}`);
                               }
                             }}
                             className={`flex items-center gap-2.5 w-full text-left hover:bg-[var(--color-base-alt)] rounded-lg px-2.5 py-1.5 transition-colors ${

@@ -83,6 +83,15 @@ async function mockExpensesList(page: Page) {
         (categoryIds.length === 0 || categoryIds.includes(String(r.category_id)))
       );
     });
+    // The real endpoint orders the whole dataset in SQL. Mirror amount and
+    // category here so the UI can be checked against a known order.
+    const sort = url.searchParams.get("sort");
+    const direction = url.searchParams.get("direction") ?? "desc";
+    const factor = direction === "asc" ? 1 : -1;
+    if (sort === "amount") rows.sort((a, b) => (a.amount - b.amount) * factor);
+    if (sort === "category") {
+      rows.sort((a, b) => (a.category_name ?? "").localeCompare(b.category_name ?? "") * factor);
+    }
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -92,9 +101,9 @@ async function mockExpensesList(page: Page) {
   return requests;
 }
 
-async function openExpenses(page: Page) {
+async function openExpenses(page: Page, extraOverrides: Record<string, unknown> = {}) {
   await seedAuth(page);
-  await mockBackend(page, OVERRIDES);
+  await mockBackend(page, { ...OVERRIDES, ...extraOverrides });
   const requests = await mockExpensesList(page);
   await page.goto("/expenses");
   return requests;
@@ -274,17 +283,91 @@ test("the collapsed filter bar is pinned and the expanded one is not", async ({ 
   await expect(filterCard).toHaveCSS("position", "static");
 });
 
-test("sort headers are keyboard operable and expose aria-sort", async ({ page }) => {
-  await openExpenses(page);
+test("sortable headers order through the API and expose aria-sort", async ({ page }) => {
+  const requests = await openExpenses(page);
 
-  // The date column is hidden on mobile; describe is visible everywhere.
-  const header = page.getByRole("columnheader", { name: /Descripción/ });
-  await expect(header).toHaveAttribute("aria-sort", "none");
+  // Description is encrypted at rest: it is a static column, not a sort that
+  // would only reorder the rows already loaded. It must not announce a sort.
+  const description = page.getByRole("columnheader", { name: "Descripción" });
+  await expect(description).not.toHaveAttribute("aria-sort", /ascending|descending/);
+  await expect(page.getByRole("button", { name: /Descripción/ })).toHaveCount(0);
 
-  await page.getByRole("button", { name: /Descripción/ }).focus();
+  // Amount is visible on mobile too, so the keyboard check runs everywhere.
+  const amount = page.getByRole("columnheader", { name: /Monto/ });
+  await expect(amount).toHaveAttribute("aria-sort", "none");
+
+  await page.getByRole("button", { name: /Monto/ }).focus();
   await page.keyboard.press("Enter");
 
-  await expect(header).toHaveAttribute("aria-sort", "ascending");
+  await expect(amount).toHaveAttribute("aria-sort", "ascending");
+  await expect.poll(() => requests[requests.length - 1]?.searchParams.get("sort")).toBe("amount");
+  expect(requests[requests.length - 1]?.searchParams.get("direction")).toBe("asc");
+
+  await page.getByRole("button", { name: /Monto/ }).click();
+  await expect(amount).toHaveAttribute("aria-sort", "descending");
+  await expect
+    .poll(() => requests[requests.length - 1]?.searchParams.get("direction"))
+    .toBe("desc");
+});
+
+test("category sort asks the API for the whole dataset", async ({ page }) => {
+  const size = page.viewportSize();
+  test.skip(!size || size.width < 640, "the category column is hidden on mobile");
+
+  const requests = await openExpenses(page);
+  const category = page.getByRole("columnheader", { name: /Categoría/ });
+
+  await page.getByRole("button", { name: /Categoría/ }).click();
+
+  await expect(category).toHaveAttribute("aria-sort", "ascending");
+  await expect.poll(() => requests[requests.length - 1]?.searchParams.get("sort")).toBe("category");
+  expect(requests[requests.length - 1]?.searchParams.get("direction")).toBe("asc");
+});
+
+test("Todo el historial is an explicit period that survives a reload", async ({ page }) => {
+  const requests = await openExpenses(page);
+
+  const before = requests.length;
+  await page.getByRole("button", { name: "Todo el historial" }).click();
+
+  await expect(page).toHaveURL(/[?&]period=all/);
+  await expect(page).not.toHaveURL(/[?&]month=/);
+  await expect(page.getByText("Todo el historial")).toBeVisible();
+
+  await expect.poll(() => requests.length).toBeGreaterThan(before);
+  // The period is state, not a filter: proving it means the API gets no month.
+  expect(requests[requests.length - 1]?.searchParams.get("month")).toBeNull();
+  expect(requests[requests.length - 1]?.searchParams.get("date_from")).toBeNull();
+
+  await page.reload();
+  await expect(page).toHaveURL(/[?&]period=all/);
+  await expect(page.getByText("Todo el historial")).toBeVisible();
+});
+
+test("all-history follows the user to the Dashboard", async ({ page }) => {
+  await openExpenses(page, {
+    "/dashboard/scheduled-summary": { installments: [], manual: [] },
+    "/dashboard/summary": {
+      total_expenses: 0,
+      total_amount: 0,
+      total_by_account: 0,
+      by_category: [],
+      by_income: [],
+      by_period: [],
+      by_currency: [],
+      by_card: [],
+      recent_expenses: [],
+      trend_data: { history: [], future_installments: {} },
+    },
+  });
+  await page.getByRole("button", { name: "Todo el historial" }).click();
+  await expect(page).toHaveURL(/[?&]period=all/);
+
+  await page.goto("/dashboard");
+
+  await expect(page.getByRole("navigation", { name: "Período" })).toContainText(
+    "Todo el historial",
+  );
 });
 
 test("row actions become visible when focused from the keyboard", async ({ page }) => {

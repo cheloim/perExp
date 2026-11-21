@@ -73,7 +73,7 @@ export type ListExpensesParams = {
    */
   search?: string;
   /**
-   * Field to order by. Applied to the whole filtered dataset before pagination.
+   * Field to order by. Applied to the whole filtered dataset before pagination. Description is encrypted at rest and is not an orderable field.
    */
   sort?: ListExpensesSort;
   /**

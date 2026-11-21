@@ -47,7 +47,12 @@ import { hasMorePages, paginationLabel } from "../utils/pagination";
 import { ExpensesFilterBar } from "../components/expenses/ExpensesFilterBar";
 import PeriodNavigator from "../components/PeriodNavigator";
 
-type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
+/**
+ * Only fields the API can order over the whole filtered dataset. Description
+ * is encrypted at rest, and ordering it would mean decrypting every row, so it
+ * is presented as a plain column instead of a fake sort.
+ */
+type SortField = "date" | "category" | "amount";
 type SortDir = "asc" | "desc";
 
 function hasMissingData(exp: Expense): boolean {
@@ -143,7 +148,7 @@ export default function ExpensesPage() {
     unknownParams,
   } = useExpenseFilters();
 
-  const { month: periodMonth, setMonth: setPeriodMonth } = usePeriod();
+  const { period, month: periodMonth, setPeriod, anchorMonth } = usePeriod();
 
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({
     field: "date",
@@ -155,14 +160,23 @@ export default function ExpensesPage() {
       dir: current.field === field && current.dir === "asc" ? "desc" : "asc",
     }));
   };
-  // Description is encrypted and category is a joined label, so only these
-  // columns can be ordered by the database. The rest keep the client order.
-  const serverSortKey =
-    sort.field === "date" || sort.field === "amount" ? `${sort.field}:${sort.dir}` : "date:desc";
-  const orderParams =
-    sort.field === "date" || sort.field === "amount"
-      ? { sort: sort.field, direction: sort.dir }
-      : {};
+  // Every offered sort runs in SQL over the whole filtered dataset, before
+  // offset/limit, so the order does not depend on which page is loaded.
+  const serverSortKey = `${sort.field}:${sort.dir}`;
+  const orderParams = { sort: sort.field, direction: sort.dir };
+
+  /** Keep optimistic rows in the same order the API would return. */
+  const compareExpenses = (a: Expense, b: Expense) => {
+    const direction = sort.dir === "asc" ? 1 : -1;
+    if (sort.field === "amount") return (a.amount - b.amount) * direction;
+    if (sort.field === "category") {
+      // "Sin categoría" stays last in both directions.
+      if (!a.category_name) return 1;
+      if (!b.category_name) return -1;
+      return a.category_name.localeCompare(b.category_name) * direction;
+    }
+    return a.date.localeCompare(b.date) * direction;
+  };
 
   const filterCategoryIds = filters.categoryIds;
   const filterUncategorized = filters.uncategorized;
@@ -427,18 +441,7 @@ export default function ExpensesPage() {
       if (saved?.expense) {
         queryClient.setQueryData<Expense[]>(
           expenseQueryKeys.list(filterKey, visibleCount, serverSortKey),
-          (old) =>
-            old
-              ? [...old, saved.expense].sort((a, b) =>
-                  sort.field === "amount"
-                    ? sort.dir === "asc"
-                      ? a.amount - b.amount
-                      : b.amount - a.amount
-                    : sort.dir === "asc"
-                      ? a.date.localeCompare(b.date)
-                      : b.date.localeCompare(a.date),
-                )
-              : [saved.expense],
+          (old) => (old ? [...old, saved.expense].sort(compareExpenses) : [saved.expense]),
         );
       }
       pendingDeletes.current.delete(id);
@@ -479,15 +482,7 @@ export default function ExpensesPage() {
           const existing = queryClient.getQueryData<Expense[]>(queryKey) ?? [];
           queryClient.setQueryData<Expense[]>(
             queryKey,
-            [...existing, entry.expense].sort((a, b) =>
-              sort.field === "amount"
-                ? sort.dir === "asc"
-                  ? a.amount - b.amount
-                  : b.amount - a.amount
-                : sort.dir === "asc"
-                  ? a.date.localeCompare(b.date)
-                  : b.date.localeCompare(a.date),
-            ),
+            [...existing, entry.expense].sort(compareExpenses),
           );
         }
       },
@@ -508,27 +503,9 @@ export default function ExpensesPage() {
       sort.field === field ? "text-[var(--color-primary)]" : ""
     }`;
 
-  const sortedExpenses = useMemo(() => {
-    // Date and amount are ordered by the API over the whole filtered dataset.
-    if (sort.field === "date" || sort.field === "amount") return expenses;
-
-    const field = sort.field === "category" ? "category_name" : sort.field;
-    return [...expenses].sort((a, b) => {
-      const aVal = a[field as keyof Expense];
-      const bVal = b[field as keyof Expense];
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
-      let aStr = String(aVal);
-      let bStr = String(bVal);
-      if (sort.field === "description") {
-        const pad = (n: number | null | undefined) => String(n ?? 0).padStart(4, "0");
-        aStr += `\x00${pad(a.installment_number)}`;
-        bStr += `\x00${pad(b.installment_number)}`;
-      }
-      const cmp = aStr.localeCompare(bStr);
-      return sort.dir === "asc" ? cmp : -cmp;
-    });
-  }, [expenses, sort.field, sort.dir]);
+  // The API already ordered the whole dataset; the page must not re-sort just
+  // the rows it happens to have fetched.
+  const sortedExpenses = expenses;
 
   const selectedExpenses = useMemo(
     () => sortedExpenses.filter((expense) => selectedIds.has(expense.id)),
@@ -831,7 +808,7 @@ export default function ExpensesPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Gastos</h1>
-          <PeriodNavigator month={filters.month ?? periodMonth} onChange={setPeriodMonth} />
+          <PeriodNavigator period={period} anchorMonth={anchorMonth} onChange={setPeriod} />
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -1032,13 +1009,18 @@ export default function ExpensesPage() {
                   sort={sort}
                   onSort={handleSort}
                 />
-                <SortableHeader
-                  field="description"
-                  label="Descripción"
-                  className={thClass("description")}
-                  sort={sort}
-                  onSort={handleSort}
-                />
+                {/*
+                 * Description is encrypted at rest: the API cannot order it
+                 * without decrypting the whole dataset. Presenting it as a
+                 * sortable header would announce an order the list does not
+                 * have, so it stays a static column.
+                 */}
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left whitespace-nowrap text-xs font-medium text-[var(--text-secondary)] uppercase"
+                >
+                  Descripción
+                </th>
                 <SortableHeader
                   field="category"
                   label="Categoría"

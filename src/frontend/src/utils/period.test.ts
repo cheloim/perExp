@@ -1,12 +1,18 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
+  PERIOD_ALL,
   PERIOD_MONTH_STORAGE_KEY,
   currentMonth,
   formatMonth,
+  formatPeriod,
+  isAllHistory,
   isMonth,
   parseMonth,
+  parsePeriod,
   persistMonth,
+  persistPeriod,
   readStoredMonth,
+  readStoredPeriod,
   shiftMonth,
 } from "./period";
 
@@ -39,6 +45,31 @@ describe("period helpers", () => {
   it("renders a human label in Spanish", () => {
     expect(formatMonth("2026-11")).toBe("Noviembre 2026");
     expect(formatMonth("2026-01")).toBe("Enero 2026");
+  });
+
+  it("treats all-history as an explicit period, not an empty month", () => {
+    expect(parsePeriod("all")).toBe(PERIOD_ALL);
+    expect(parsePeriod("2026-05")).toBe("2026-05");
+    expect(parsePeriod("")).toBeUndefined();
+    expect(parsePeriod("todos")).toBeUndefined();
+    expect(isAllHistory("all")).toBe(true);
+    expect(isAllHistory("2026-05")).toBe(false);
+  });
+
+  it("labels all-history instead of rendering it as a month", () => {
+    expect(formatPeriod(PERIOD_ALL)).toBe("Todo el historial");
+    expect(formatPeriod("2026-11")).toBe("Noviembre 2026");
+  });
+
+  it("stores all-history as the active period and still reads concrete months", () => {
+    persistPeriod(PERIOD_ALL);
+    expect(readStoredPeriod()).toBe(PERIOD_ALL);
+    // Month-only helpers must not turn "all" into a month.
+    expect(readStoredMonth()).toBeUndefined();
+
+    persistMonth("2026-07");
+    expect(readStoredPeriod()).toBe("2026-07");
+    expect(readStoredMonth()).toBe("2026-07");
   });
 
   it("restores the stored month and ignores junk", () => {
