@@ -128,13 +128,13 @@ frontend:
       path: "frontend/src/pages/Dashboard.tsx"
       description: "Main dashboard page with KPI cards, charts, and recent transactions"
     - name: "KPICards"
-      path: "frontend/src/components/KPICards.tsx"
+      path: "frontend/src/pages/Dashboard.tsx"
       description: "Displays total spent, budget remaining, expense count"
     - name: "CategoryChart"
-      path: "frontend/src/components/CategoryChart.tsx"
+      path: "frontend/src/components/CategoryTreemap.tsx"
       description: "Pie/bar chart showing spending by category"
     - name: "RecentTransactions"
-      path: "frontend/src/components/RecentTransactions.tsx"
+      path: "frontend/src/pages/Dashboard.tsx"
       description: "Table of last N expenses"
 
 integrations: []

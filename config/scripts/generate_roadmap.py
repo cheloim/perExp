@@ -18,6 +18,8 @@ STATUS_MAP = {
     ("in-progress", "full"): "🔶 In Progress",
     ("in-progress", "lite"): "🔶 In Progress",
     ("in-progress", "bugfix"): "🔶 In Progress",
+    ("partial", "full"): "🔶 Parcial",
+    ("partial", "lite"): "🔶 Parcial",
     ("planned", "full"): "⏳ Backlog",
     ("planned", "lite"): "⏳ Backlog",
     ("open", "bugfix"): "🐛 Open",
@@ -106,7 +108,7 @@ def build_table(specs: list[dict]) -> str:
 
 
 def main() -> None:
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     specs_dir = os.path.join(root, "docs", "specs", "features")
     roadmap_path = os.path.join(root, "docs", "Roadmap.md")
 

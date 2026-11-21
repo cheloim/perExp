@@ -1,24 +1,6 @@
 # Paths cited by feature specs that do not resolve yet.
 #
 # This is a ratchet: the docs gate fails when a new path is missing, and when
-# a path listed here is fixed but not removed. #532 refreshes these specs; the
-# goal is to empty this file, not to add to it.
-missing_paths:
-  - frontend/src/components/assistant/SessionCard.tsx
-  - frontend/src/components/CategoryChart.tsx
-  - frontend/src/components/FrequencyBadge.tsx
-  - frontend/src/components/GroupCreateForm.tsx
-  - frontend/src/components/GroupJoinForm.tsx
-  - frontend/src/components/InvestmentForm.tsx
-  - frontend/src/components/KPICards.tsx
-  - frontend/src/components/MembersList.tsx
-  - frontend/src/components/NotificationBell.tsx
-  - frontend/src/components/NotificationsPanel.tsx
-  - frontend/src/components/PortfolioSummary.tsx
-  - frontend/src/components/RecentTransactions.tsx
-  - frontend/src/components/ScheduledExpenseForm.tsx
-  - frontend/src/components/SuggestionCard.tsx
-  - frontend/src/components/SuggestionsPanel.tsx
-  - frontend/src/pages/Group.tsx
-  - frontend/src/pages/Investments.tsx
-  - frontend/src/pages/ScheduledExpenses.tsx
+# a path listed here is fixed but not removed. #532 refreshed these specs; the
+# list is empty.
+missing_paths: []

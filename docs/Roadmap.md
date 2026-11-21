@@ -12,8 +12,9 @@
 | card-closings | full | ✅ Done | Card billing period management allowing users to define closing and due dates | - | - |
 | cards | full | ✅ Done | CRUD management for credit and debit cards. Cards are the primary payment method | - | - |
 | categories | full | ✅ Done | Hierarchical category system for organizing expenses. Categories support up to | - | - |
-| categorization-review | full | 🚧 In Progress | Internal detection of expenses that look miscategorized (admin-only review, | - | #414 |
+| categorization-review | full | ✅ Done | Internal, admin-only detection of expenses that already have a category but look... | - | 414, 466 |
 | dashboard | full | ✅ Done | Provides aggregated spending summaries and KPIs on the main dashboard. Displays ... | - | - |
+| expense-image-capture | full | ✅ Done | Extracts a single completed expense from a receipt, bank notification, transacti... | - | 499 |
 | expenses | full | ✅ Done | Core expense and income tracking. Expenses are the central entity of the system, | - | - |
 | groups | full | ✅ Done | Enables users to create and join family groups for shared expense tracking. Grou... | - | - |
 | import | full | ✅ Done | Smart file import system supporting PDF bank statements, CSV, and Excel files. | - | - |
@@ -23,8 +24,9 @@
 | scheduled-expenses | full | ✅ Done | Allows users to define recurring expenses that are automatically created on a sc... | - | - |
 | suggestions | full | ✅ Done | Provides AI-powered category suggestions based on expense descriptions. When an ... | - | - |
 | telegram-bot | full | ✅ Done | Telegram bot integration for quick expense logging, reporting, and financial | - | - |
-| income-tracking | full | ⏳ Backlog | Income tracking feature allowing users to record and categorize income sources | - | - |
-| whatsapp-bot | full | ⏳ Backlog | WhatsApp bot integration providing the same core features as the Telegram bot: | - | - |
+| voice-input | full | ✅ Done | Lets users speak an expense instead of typing it. Web audio is transcribed into ... | - | 498 |
+| whatsapp-bot | full | ✅ Done | WhatsApp bot integration providing the same core features as the Telegram bot: | - | - |
+| income-tracking | full | 🔶 Parcial | Income tracking feature allowing users to record and categorize income sources | - | - |
 
 <!-- AUTO-GENERATED END -->
 
