@@ -843,7 +843,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [date, amount]
+            enum: [date, amount, category]
             default: date
           description: Field to order by. Applied to the whole filtered dataset before pagination.
         - name: direction

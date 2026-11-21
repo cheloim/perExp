@@ -38,4 +38,5 @@ export type ListExpensesSort = (typeof ListExpensesSort)[keyof typeof ListExpens
 export const ListExpensesSort = {
   date: "date",
   amount: "amount",
+  category: "category",
 } as const;

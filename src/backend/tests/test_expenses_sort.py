@@ -72,6 +72,62 @@ class TestExpenseOrdering:
 
         assert _descriptions(results) == ["Chico", "Medio", "Grande"]
 
+    def test_category_asc_puts_uncategorized_last(self, db, test_user):
+        from app.models import Category, Expense
+        from app.routers.expenses import get_expenses
+
+        first = Category(name="Alimentos", user_id=test_user.id)
+        second = Category(name="Verduras", user_id=test_user.id)
+        db.add_all([first, second])
+        db.flush()
+        for description, category_id in (
+            ("Verduras", second.id),
+            ("Sin categoria", None),
+            ("Alimentos", first.id),
+        ):
+            db.add(
+                Expense(
+                    amount=100.0,
+                    description=description,
+                    date=date(2026, 10, 1),
+                    user_id=test_user.id,
+                    category_id=category_id,
+                )
+            )
+        db.flush()
+
+        results = get_expenses(sort="category", direction="asc", db=db, current_user=test_user)
+
+        assert _descriptions(results) == ["Alimentos", "Verduras", "Sin categoria"]
+
+    def test_category_desc_puts_uncategorized_last(self, db, test_user):
+        from app.models import Category, Expense
+        from app.routers.expenses import get_expenses
+
+        first = Category(name="Alimentos", user_id=test_user.id)
+        second = Category(name="Verduras", user_id=test_user.id)
+        db.add_all([first, second])
+        db.flush()
+        for description, category_id in (
+            ("Verduras", second.id),
+            ("Sin categoria", None),
+            ("Alimentos", first.id),
+        ):
+            db.add(
+                Expense(
+                    amount=100.0,
+                    description=description,
+                    date=date(2026, 10, 1),
+                    user_id=test_user.id,
+                    category_id=category_id,
+                )
+            )
+        db.flush()
+
+        results = get_expenses(sort="category", direction="desc", db=db, current_user=test_user)
+
+        assert _descriptions(results) == ["Verduras", "Alimentos", "Sin categoria"]
+
     def test_pagination_slices_the_ordered_dataset(self, db, test_user):
         from app.routers.expenses import get_expenses
 
