@@ -1,0 +1,83 @@
+{
+  "files": {
+    "src/frontend/src/components/BulkTagPicker.tsx": {
+      "small_text": 1
+    },
+    "src/frontend/src/components/ExpenseModals.tsx": {
+      "small_text": 2
+    },
+    "src/frontend/src/components/ImpersonationBanner.tsx": {
+      "undefined_vars": 4
+    },
+    "src/frontend/src/components/MobileHeader.tsx": {
+      "small_text": 2
+    },
+    "src/frontend/src/components/MobileNav.tsx": {
+      "small_text": 2
+    },
+    "src/frontend/src/components/Sidebar.tsx": {
+      "small_text": 3
+    },
+    "src/frontend/src/components/UserPanel.tsx": {
+      "small_text": 11
+    },
+    "src/frontend/src/components/assistant/AssistantShell.tsx": {
+      "small_text": 3
+    },
+    "src/frontend/src/components/expenses/ExpensesFilterBar.tsx": {
+      "small_text": 1
+    },
+    "src/frontend/src/components/expenses/SavedViewsMenu.tsx": {
+      "small_text": 4
+    },
+    "src/frontend/src/components/ui/MultiSelect.tsx": {
+      "small_text": 1
+    },
+    "src/frontend/src/pages/CategoryDashboard.tsx": {
+      "small_text": 1
+    },
+    "src/frontend/src/pages/ChangesPage.tsx": {
+      "undefined_vars": 5
+    },
+    "src/frontend/src/pages/ClasificacionPage.tsx": {
+      "small_text": 1
+    },
+    "src/frontend/src/pages/GuideAIAnalysisPage.tsx": {
+      "small_text": 6
+    },
+    "src/frontend/src/pages/GuidePage.tsx": {
+      "small_text": 3
+    },
+    "src/frontend/src/pages/InstallmentsPage.tsx": {
+      "small_text": 6
+    },
+    "src/frontend/src/pages/InvestmentsPage.tsx": {
+      "small_text": 6
+    },
+    "src/frontend/src/pages/LandingPage.tsx": {
+      "undefined_vars": 1,
+      "small_text": 55
+    },
+    "src/frontend/src/pages/NovedadesPage.tsx": {
+      "undefined_vars": 3
+    },
+    "src/frontend/src/pages/admin/CategorizationReviewTab.tsx": {
+      "undefined_vars": 1,
+      "small_text": 7
+    },
+    "src/frontend/src/pages/changes/FeatureMockups.tsx": {
+      "undefined_vars": 54,
+      "small_text": 143
+    },
+    "src/frontend/src/pages/quick/QuickBudget.tsx": {
+      "small_text": 9,
+      "dim_label_small": 3
+    },
+    "src/frontend/src/pages/quick/QuickSummary.tsx": {
+      "small_text": 12
+    },
+    "src/frontend/src/pages/quick/QuickUpcoming.tsx": {
+      "small_text": 7
+    }
+  }
+}
