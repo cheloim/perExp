@@ -535,7 +535,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold text-primary">{APP_NAME}</h1>
           {myGroup && myGroup.members.length > 1 && (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
               Grupo familiar
             </span>
           )}
@@ -600,12 +600,12 @@ export default function Dashboard() {
           to={`/expenses?month=${month}`}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
-          <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
+          <p className="text-xs text-tertiary uppercase mb-1">Total gastado</p>
           <p className="text-lg font-bold text-primary">
             {formatMoney(displaySpending, displayCurrency)}
           </p>
           {spendingArs && spendingUsd ? (
-            <p className="text-xs text-secondary mt-0.5">
+            <p className="text-sm text-secondary mt-0.5">
               + {formatMoney(spendingUsd.total, "USD")}
             </p>
           ) : null}
@@ -617,7 +617,7 @@ export default function Dashboard() {
           to={`/expenses?card_type=credito&month=${month}`}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
-          <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
+          <p className="text-xs text-tertiary uppercase mb-1">Deuda tarjetas</p>
           <p className="text-lg font-bold text-danger">
             {formatMoneyTotals(pasivosData?.pasivos ?? [])}
           </p>
@@ -627,17 +627,17 @@ export default function Dashboard() {
           to={`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
-          <p className="text-[10px] text-tertiary uppercase mb-1">Cuotas este mes</p>
+          <p className="text-xs text-tertiary uppercase mb-1">Cuotas este mes</p>
           <p className="text-lg font-bold text-primary">
             {formatMoney(cuotasComprometidas, "ARS")}
           </p>
           {cuotasUsd > 0 && (
-            <p className="text-xs text-secondary mt-0.5">incl. {formatMoney(cuotasUsd, "USD")}</p>
+            <p className="text-sm text-secondary mt-0.5">incl. {formatMoney(cuotasUsd, "USD")}</p>
           )}
           <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>
         </Link>
         <div className="card p-5">
-          <p className="text-[10px] text-tertiary uppercase mb-1">
+          <p className="text-xs text-tertiary uppercase mb-1">
             {useMtd ? "vs mismo día mes ant." : "vs Mes anterior"}
           </p>
           <p
@@ -660,13 +660,13 @@ export default function Dashboard() {
             to="/investments"
             className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
           >
-            <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
+            <p className="text-xs text-tertiary uppercase mb-1">Inversiones</p>
             <div className="space-y-0.5">
               <p className="text-lg font-bold text-primary">
                 {savingsArs > 0 ? formatMoney(savingsArs, "ARS") : totalUsd > 0 ? "—" : "—"}
               </p>
               {totalUsd > 0 && (
-                <p className="text-xs text-secondary">≈ {formatMoney(totalUsd, "USD")}</p>
+                <p className="text-sm text-secondary">≈ {formatMoney(totalUsd, "USD")}</p>
               )}
             </div>
           </Link>
@@ -800,12 +800,12 @@ export default function Dashboard() {
                         {cat.category_name}
                       </span>
                       {prevTotal > 0 && (
-                        <span className="text-[10px] text-tertiary whitespace-nowrap">
+                        <span className="text-xs text-tertiary whitespace-nowrap">
                           {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"}
                           {Math.abs(variation).toFixed(0)}%
                         </span>
                       )}
-                      <span className="text-xs text-tertiary whitespace-nowrap">
+                      <span className="text-sm text-tertiary whitespace-nowrap">
                         {formatMoney(cat.total, "ARS")}
                       </span>
                     </button>
@@ -833,7 +833,7 @@ export default function Dashboard() {
                   <button
                     key={d}
                     onClick={() => setDaysFilter(d)}
-                    className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                    className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
                       daysFilter === d
                         ? "bg-primary/15 text-primary font-medium"
                         : "text-tertiary hover:text-secondary"
@@ -1109,7 +1109,7 @@ export default function Dashboard() {
                             <span className="text-xs font-medium text-primary truncate flex-1">
                               {t.tag_name}
                             </span>
-                            <span className="text-xs text-tertiary whitespace-nowrap">
+                            <span className="text-sm text-tertiary whitespace-nowrap">
                               {t.current_amount > 0 ? formatMoney(t.current_amount, "ARS") : "—"}
                             </span>
                             {t.monthly && t.monthly.length > 1 && (
@@ -1131,7 +1131,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2.5 px-2.5 pt-2 mt-1 border-t border-[var(--border-color)]">
                         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-[var(--text-tertiary)]" />
                         <span className="text-xs font-semibold text-primary flex-1">Total</span>
-                        <span className="text-xs font-bold text-primary whitespace-nowrap">
+                        <span className="text-sm font-bold text-primary whitespace-nowrap">
                           {formatMoney(total, "ARS")}
                         </span>
                       </div>
@@ -1215,7 +1215,7 @@ export default function Dashboard() {
                   <span className="text-sm font-bold text-primary">
                     {formatMoney(currentMonthLoad.total, "ARS")}
                   </span>
-                  <span className="text-[10px] text-tertiary ml-1.5">
+                  <span className="text-xs text-tertiary ml-1.5">
                     {currentMonthLoad.count} cuota{currentMonthLoad.count !== 1 ? "s" : ""}
                   </span>
                 </div>
@@ -1256,7 +1256,7 @@ export default function Dashboard() {
                 />
                 <XAxis
                   dataKey="month"
-                  tick={{ fontSize: 10, fill: "var(--chart-text)" }}
+                  tick={{ fontSize: 12, fill: "var(--chart-text)" }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(v) => {
@@ -1311,8 +1311,8 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                    <span className="text-[10px] text-tertiary">{m.count}x</span>
-                    <span className="text-xs font-semibold text-primary">
+                    <span className="text-xs text-tertiary">{m.count}x</span>
+                    <span className="text-sm font-semibold text-primary">
                       {formatMoney(m.total_amount, m.currency)}
                     </span>
                   </div>

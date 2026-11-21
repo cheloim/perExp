@@ -955,7 +955,7 @@ export default function ExpensesPage() {
                 }`}
               >
                 <div className="card p-3">
-                  <p className="text-[10px] text-tertiary uppercase">Total ARS</p>
+                  <p className="text-xs text-tertiary uppercase">Total ARS</p>
                   <p className="text-lg font-bold text-primary">
                     {expenseStats === undefined ? (
                       <span className="inline-block h-5 w-20 animate-pulse rounded bg-[var(--color-base-alt)]" />
@@ -965,7 +965,7 @@ export default function ExpensesPage() {
                   </p>
                 </div>
                 <div className="card p-3">
-                  <p className="text-[10px] text-tertiary uppercase">Gastos</p>
+                  <p className="text-xs text-tertiary uppercase">Gastos</p>
                   <p className="text-lg font-bold text-primary">
                     {expenseStats === undefined ? (
                       <span className="inline-block h-5 w-10 animate-pulse rounded bg-[var(--color-base-alt)]" />
@@ -975,7 +975,7 @@ export default function ExpensesPage() {
                   </p>
                 </div>
                 <div className="card p-3">
-                  <p className="text-[10px] text-tertiary uppercase">Promedio ARS</p>
+                  <p className="text-xs text-tertiary uppercase">Promedio ARS</p>
                   <p className="text-lg font-bold text-primary">
                     {expenseStats === undefined ? (
                       <span className="inline-block h-5 w-20 animate-pulse rounded bg-[var(--color-base-alt)]" />
@@ -985,7 +985,7 @@ export default function ExpensesPage() {
                   </p>
                 </div>
                 <div className="card p-3">
-                  <p className="text-[10px] text-tertiary uppercase">Mayor ARS</p>
+                  <p className="text-xs text-tertiary uppercase">Mayor ARS</p>
                   <p className="text-lg font-bold text-primary">
                     {expenseStats === undefined ? (
                       <span className="inline-block h-5 w-20 animate-pulse rounded bg-[var(--color-base-alt)]" />
@@ -1202,7 +1202,7 @@ export default function ExpensesPage() {
                                     {titleCase(exp.description)}
                                   </span>
                                   {exp.installment_number && exp.installment_total && (
-                                    <span className="inline-flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-full border border-[var(--color-primary)] text-[var(--color-primary)] shrink-0 font-medium">
+                                    <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full border border-[var(--color-primary)] text-[var(--color-primary)] shrink-0 font-medium">
                                       <SymbolicIcon name="installments" size={10} />
                                       {exp.installment_number}/{exp.installment_total}
                                     </span>
@@ -1262,7 +1262,7 @@ export default function ExpensesPage() {
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     setQuickEdit({ expenseId: exp.id, type: "category", rect });
                                   }}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium hover:ring-1 hover:ring-[var(--color-primary)]/40 transition"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium hover:ring-1 hover:ring-[var(--color-primary)]/40 transition"
                                   style={{
                                     backgroundColor: (exp.category_color || "#9a9996") + "1F",
                                     color: "var(--text-primary)",
@@ -1285,7 +1285,7 @@ export default function ExpensesPage() {
                                       const rect = e.currentTarget.getBoundingClientRect();
                                       setQuickEdit({ expenseId: exp.id, type: "cuenta", rect });
                                     }}
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] hover:ring-1 hover:ring-[var(--color-primary)]/40 transition"
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs hover:ring-1 hover:ring-[var(--color-primary)]/40 transition"
                                     style={{
                                       backgroundColor: cuentaTag.color + "1F",
                                       color: "var(--text-primary)",
@@ -1307,7 +1307,7 @@ export default function ExpensesPage() {
                                 .map((tag: { id: number; name: string; color: string }) => (
                                   <span
                                     key={tag.id}
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]"
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs"
                                     style={{
                                       backgroundColor: tag.color + "1F",
                                       color: "var(--text-primary)",
@@ -1331,7 +1331,7 @@ export default function ExpensesPage() {
                                 .map((tag: { id: number; name: string; color: string }) => (
                                   <span
                                     key={tag.id}
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]"
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs"
                                     style={{
                                       backgroundColor: tag.color + "1F",
                                       color: "var(--text-primary)",
@@ -1436,7 +1436,7 @@ export default function ExpensesPage() {
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     setQuickEdit({ expenseId: exp.id, type: "cuenta", rect });
                                   }}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] hover:ring-1 hover:ring-[var(--color-primary)]/40 transition"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs hover:ring-1 hover:ring-[var(--color-primary)]/40 transition"
                                   style={{
                                     backgroundColor: cuentaTag.color + "1F",
                                     color: "var(--text-primary)",

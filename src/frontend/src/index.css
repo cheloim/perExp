@@ -127,7 +127,8 @@
 
   --text-primary: #1c1b1f !important;
   --text-secondary: #5e5c64 !important;
-  --text-tertiary: #71717a !important;
+  /* #6b6b74 clears 4.5:1 on --color-base (#f6f5f4), not just on white. */
+  --text-tertiary: #6b6b74 !important;
   --border-color: rgba(0, 0, 0, 0.1) !important;
 
   --shadow-sm: 0 1px 2px rgb(0 0 6 / 6%), 0 1px 3px rgb(0 0 6 / 4%);
