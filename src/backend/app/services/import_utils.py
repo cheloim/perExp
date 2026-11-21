@@ -92,7 +92,7 @@ def _is_duplicate(
                     Expense.transaction_id == transaction_id,
                     Expense.installment_number == installment_number,
                     Expense.installment_total == installment_total,
-                    Expense.is_recurring_projection == False,  # noqa: E712
+                    Expense.is_recurring_projection == False,
                 )
                 .first()
             )
@@ -112,7 +112,7 @@ def _is_duplicate(
                 .filter(
                     Expense.user_id == user_id,
                     Expense.transaction_id == transaction_id,
-                    Expense.is_recurring_projection == False,  # noqa: E712
+                    Expense.is_recurring_projection == False,
                 )
                 .first()
             )
@@ -159,7 +159,7 @@ def _is_duplicate(
                 Expense.installment_total == installment_total,
                 Expense.date >= month_start,
                 Expense.date <= month_end,
-                Expense.is_recurring_projection == False,  # noqa: E712
+                Expense.is_recurring_projection == False,
             )
             .first()
         )
@@ -180,7 +180,7 @@ def _is_duplicate(
         Expense.date == exp_date,
         func.abs(Expense.amount - amount) < AMOUNT_TOLERANCE,
         Expense.description_hmac == compute_hmac(description),
-        Expense.is_recurring_projection == False,  # noqa: E712
+        Expense.is_recurring_projection == False,
     )
     if installment_number is not None:
         q = q.filter(Expense.installment_number == installment_number)

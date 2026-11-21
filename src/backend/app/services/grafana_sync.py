@@ -121,7 +121,7 @@ def sync_user_to_grafana(email: str, name: str, is_admin: bool = False) -> bool:
             logger.info("Grafana: created %s as Admin", email)
             return True
 
-    except Exception as e:  # noqa: BLE001 — Grafana caído no debe romper el login
+    except Exception as e:  # Grafana caído no debe romper el login
         logger.warning("Grafana sync failed for %s: %s", email, e)
         return False
 

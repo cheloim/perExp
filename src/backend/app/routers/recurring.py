@@ -71,9 +71,9 @@ def list_recurring(
         RecurringExpense.user_id == current_user.id,
     )
     if status == "active":
-        q = q.filter(RecurringExpense.is_active == True)  # noqa: E712
+        q = q.filter(RecurringExpense.is_active == True)
     elif status == "paused":
-        q = q.filter(RecurringExpense.is_active == False)  # noqa: E712
+        q = q.filter(RecurringExpense.is_active == False)
 
     return q.order_by(RecurringExpense.next_charge_date.asc().nullslast()).all()
 
@@ -94,7 +94,7 @@ def list_auto_detected(
         .filter(
             RecurringExpense.user_id == current_user.id,
             RecurringExpense.source == "auto",
-            RecurringExpense.is_active == True,  # noqa: E712
+            RecurringExpense.is_active == True,
         )
         .order_by(RecurringExpense.created_at.desc())
         .all()
@@ -274,7 +274,7 @@ def dismiss_auto_detected_banner(
         .filter(
             RecurringExpense.user_id == current_user.id,
             RecurringExpense.source == "auto",
-            RecurringExpense.is_active == True,  # noqa: E712
+            RecurringExpense.is_active == True,
         )
         .all()
     )

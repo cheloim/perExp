@@ -28,7 +28,7 @@ def detect_recurring_expenses():
     """Analyze last 90 days of expenses and create RecurringExpense entries for patterns."""
     db = SessionLocal()
     try:
-        users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
+        users = db.query(User).filter(User.is_active == True).all()
         total_created = 0
         total_updated = 0
         total_notified = 0
@@ -73,9 +73,9 @@ def _detect_for_user(user_id: int, db) -> tuple[int, int, int]:
         .filter(
             Expense.user_id == user_id,
             Expense.date >= cutoff,
-            Expense.is_income == False,  # noqa: E712
+            Expense.is_income == False,
             Expense.installment_group_id.is_(None),  # Exclude installment purchases
-            Expense.is_recurring_projection == False,  # noqa: E712
+            Expense.is_recurring_projection == False,
         )
         .all()
     )
@@ -213,7 +213,7 @@ def _send_notification(user_id: int, count: int, db):
         .filter(
             RecurringExpense.user_id == user_id,
             RecurringExpense.source == "auto",
-            RecurringExpense.is_active == True,  # noqa: E712
+            RecurringExpense.is_active == True,
         )
         .all()
     )

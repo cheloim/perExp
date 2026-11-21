@@ -694,7 +694,7 @@ def scan_users(
     persist: bool = True,
 ) -> dict:
     """Review new expenses of the given users (all active users by default)."""
-    query = db.query(User).filter(User.is_active == True)  # noqa: E712
+    query = db.query(User).filter(User.is_active == True)
     if user_ids:
         query = query.filter(User.id.in_(user_ids))
     users = query.all()

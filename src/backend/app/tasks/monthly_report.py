@@ -39,18 +39,16 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     fallback = resolve_fallback_rate(db)
     total_expenses = (
         db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
-        .filter(*month_filter, Expense.is_income == False)  # noqa: E712
+        .filter(*month_filter, Expense.is_income == False)
         .scalar()
     )
     total_income = (
         db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
-        .filter(*month_filter, Expense.is_income == True)  # noqa: E712
+        .filter(*month_filter, Expense.is_income == True)
         .scalar()
     )
     count = (
-        db.query(func.count(Expense.id))
-        .filter(*month_filter, Expense.is_income == False)  # noqa: E712
-        .scalar()
+        db.query(func.count(Expense.id)).filter(*month_filter, Expense.is_income == False).scalar()
     )
 
     # Single preload of categories involved (no per-row .first())
@@ -92,7 +90,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             func.coalesce(func.sum(func.abs(converted)), 0.0),
             func.count(Expense.id),
         )
-        .filter(*month_filter, Expense.is_income == False)  # noqa: E712
+        .filter(*month_filter, Expense.is_income == False)
         .group_by(Expense.category_id)
         .all()
     )
@@ -119,12 +117,12 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     ]
     previous_total = (
         db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
-        .filter(*prev_filter, Expense.is_income == False)  # noqa: E712
+        .filter(*prev_filter, Expense.is_income == False)
         .scalar()
     )
     previous_income = (
         db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
-        .filter(*prev_filter, Expense.is_income == True)  # noqa: E712
+        .filter(*prev_filter, Expense.is_income == True)
         .scalar()
     )
 
@@ -138,12 +136,12 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     ]
     last_year_total = (
         db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
-        .filter(*ly_filter, Expense.is_income == False)  # noqa: E712
+        .filter(*ly_filter, Expense.is_income == False)
         .scalar()
     )
     last_year_income = (
         db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
-        .filter(*ly_filter, Expense.is_income == True)  # noqa: E712
+        .filter(*ly_filter, Expense.is_income == True)
         .scalar()
     )
 
@@ -153,7 +151,7 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
             Expense.category_id,
             func.coalesce(func.sum(func.abs(converted)), 0.0),
         )
-        .filter(*prev_filter, Expense.is_income == False)  # noqa: E712
+        .filter(*prev_filter, Expense.is_income == False)
         .group_by(Expense.category_id)
         .all()
     )
@@ -230,13 +228,13 @@ def _generate_report_data(user_id: int, month_str: str, db) -> dict:
     expenses = (
         db.query(Expense)
         .options(selectinload(Expense.tags))
-        .filter(*month_filter, Expense.is_income == False)  # noqa: E712
+        .filter(*month_filter, Expense.is_income == False)
         .all()
     )
     prev_expenses = (
         db.query(Expense)
         .options(selectinload(Expense.tags))
-        .filter(*prev_filter, Expense.is_income == False)  # noqa: E712
+        .filter(*prev_filter, Expense.is_income == False)
         .all()
     )
 

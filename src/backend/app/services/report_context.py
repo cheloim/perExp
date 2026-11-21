@@ -186,7 +186,7 @@ def get_report_context(uid_list: list[int], db, end_month: date) -> dict:
             Expense.user_id.in_(uid_list),
             Expense.date >= start6,
             Expense.date <= end_date,
-            Expense.is_income == False,  # noqa: E712
+            Expense.is_income == False,
         )
         .all()
     )
@@ -252,7 +252,7 @@ def get_monthly_budget_lines(user_id: int, uid_list: list[int], db, ref_date: da
     from app.models import Budget, Category
     from app.services.budget_helpers import get_avg_monthly_spending, get_spending_for_category
 
-    budgets = db.query(Budget).filter(Budget.user_id == user_id, Budget.is_active == True).all()  # noqa: E712
+    budgets = db.query(Budget).filter(Budget.user_id == user_id, Budget.is_active == True).all()
     items = []
     for b in budgets:
         spent = get_spending_for_category(

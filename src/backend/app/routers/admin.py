@@ -423,7 +423,7 @@ def toggle_admin(
 def sync_grafana_users(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     from app.services.grafana_sync import reconcile_admins
 
-    users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
+    users = db.query(User).filter(User.is_active == True).all()
     # Todos los usuarios activos, no sólo los admins: así se borran los que
     # perdieron el flag.
     result = reconcile_admins(
@@ -619,12 +619,7 @@ def get_login_errors(
     )
 
     # Blocked accounts
-    blocked = (
-        db.query(User)
-        .filter(User.is_blocked == True)  # noqa: E712
-        .order_by(User.blocked_at.desc())
-        .all()
-    )
+    blocked = db.query(User).filter(User.is_blocked == True).order_by(User.blocked_at.desc()).all()
 
     # Redis lockouts
     r = _get_redis()
@@ -814,7 +809,7 @@ def generate_all_reports(
     """Generate monthly reports for ALL active users for a given month."""
     from app.tasks.monthly_report import generate_single_report
 
-    users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
+    users = db.query(User).filter(User.is_active == True).all()
     created = 0
 
     for user in users:

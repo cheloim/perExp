@@ -605,17 +605,17 @@ async def get_monthly_report(
         ]
         total_expenses = (
             db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
-            .filter(*base_filter, Expense.is_income == False)  # noqa: E712
+            .filter(*base_filter, Expense.is_income == False)
             .scalar()
         )
         total_income = (
             db.query(func.coalesce(func.sum(func.abs(converted)), 0.0))
-            .filter(*base_filter, Expense.is_income == True)  # noqa: E712
+            .filter(*base_filter, Expense.is_income == True)
             .scalar()
         )
         count = (
             db.query(func.count(Expense.id))
-            .filter(*base_filter, Expense.is_income == False)  # noqa: E712
+            .filter(*base_filter, Expense.is_income == False)
             .scalar()
         )
 
@@ -638,7 +638,7 @@ async def get_monthly_report(
                 func.coalesce(func.sum(func.abs(converted)), 0.0),
                 func.count(Expense.id),
             )
-            .filter(*base_filter, Expense.is_income == False)  # noqa: E712
+            .filter(*base_filter, Expense.is_income == False)
             .group_by(Expense.category_id)
             .all()
         )

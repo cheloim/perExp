@@ -105,7 +105,7 @@ def get_notifications(
 def unread_count(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     count = (
         db.query(Notification)
-        .filter(Notification.user_id == current_user.id, Notification.read == False)  # noqa: E712
+        .filter(Notification.user_id == current_user.id, Notification.read == False)
         .count()
     )
     return {"count": count}
@@ -141,7 +141,7 @@ def mark_read(
 def mark_all_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     db.query(Notification).filter(
         Notification.user_id == current_user.id,
-        Notification.read == False,  # noqa: E712
+        Notification.read == False,
     ).update({Notification.read: True})
     db.commit()
     return {"ok": True}
@@ -156,7 +156,7 @@ def mark_all_read(current_user: User = Depends(get_current_user), db: Session = 
 def delete_all_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     db.query(Notification).filter(
         Notification.user_id == current_user.id,
-        Notification.read == True,  # noqa: E712
+        Notification.read == True,
     ).delete()
     db.commit()
     return {"ok": True}
@@ -418,7 +418,7 @@ def _load_initial_notifications(
         )
         unread_count = (
             db.query(Notification)
-            .filter(Notification.user_id == user_id, Notification.read == False)  # noqa: E712
+            .filter(Notification.user_id == user_id, Notification.read == False)
             .count()
         )
         pending_count = (
@@ -426,7 +426,7 @@ def _load_initial_notifications(
             .filter(
                 Notification.user_id == user_id,
                 Notification.type == "group_invitation",
-                Notification.read == False,  # noqa: E712
+                Notification.read == False,
             )
             .count()
         )
@@ -460,7 +460,7 @@ def _load_notification_updates(
         rows = [_to_response(n).model_dump() for n in new_notifs]
         unread_count = (
             db.query(Notification)
-            .filter(Notification.user_id == user_id, Notification.read == False)  # noqa: E712
+            .filter(Notification.user_id == user_id, Notification.read == False)
             .count()
         )
         pending_count = (
@@ -468,7 +468,7 @@ def _load_notification_updates(
             .filter(
                 Notification.user_id == user_id,
                 Notification.type == "group_invitation",
-                Notification.read == False,  # noqa: E712
+                Notification.read == False,
             )
             .count()
         )

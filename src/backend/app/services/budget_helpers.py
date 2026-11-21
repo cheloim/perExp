@@ -278,7 +278,7 @@ def _check_budget_threshold(db: Session, user_id: int, category_id: int) -> None
         db.query(Budget)
         .filter(
             Budget.user_id == user_id, Budget.category_id == category_id, Budget.is_active == True
-        )  # noqa: E712
+        )
         .first()
     )
 
@@ -318,7 +318,7 @@ def _check_budget_threshold(db: Session, user_id: int, category_id: int) -> None
         .filter(
             BudgetGroup.user_id == user_id,
             BudgetGroup.name == cat.budget_group,
-            BudgetGroup.is_active == True,  # noqa: E712
+            BudgetGroup.is_active == True,
         )
         .first()
     )

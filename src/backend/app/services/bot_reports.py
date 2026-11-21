@@ -537,7 +537,7 @@ def build_upcoming_recurring(
         db.query(RecurringExpense)
         .filter(
             RecurringExpense.user_id.in_(uid_list),
-            RecurringExpense.is_active == True,  # noqa: E712
+            RecurringExpense.is_active == True,
             RecurringExpense.next_charge_date.isnot(None),
             RecurringExpense.next_charge_date >= today,
             RecurringExpense.next_charge_date <= end,
@@ -693,7 +693,7 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
         db.query(BudgetEvent)
         .filter(
             BudgetEvent.user_id == user_id,
-            BudgetEvent.is_active == True,  # noqa: E712
+            BudgetEvent.is_active == True,
             BudgetEvent.end_date >= today_bue,
         )
         .all()
@@ -717,7 +717,7 @@ def build_weekly_report_data(user_id: int, start: date, end: date, db) -> dict:
         db.query(RecurringExpense)
         .filter(
             RecurringExpense.user_id == user_id,
-            RecurringExpense.is_active == True,  # noqa: E712
+            RecurringExpense.is_active == True,
             RecurringExpense.next_charge_date.isnot(None),
             RecurringExpense.next_charge_date >= today_bue,
             RecurringExpense.next_charge_date <= today_bue + timedelta(days=7),
