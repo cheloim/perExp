@@ -31,6 +31,13 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
+      // Same transitional alias as nginx: `/v1` is canonical, `/api` stays
+      // for clients that have not migrated (#527).
+      "/v1": {
+        target: "http://backend_dev:8000",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/v1/, ""),
+      },
       "/notifications": {
         target: "http://backend_dev:8000",
         changeOrigin: true,

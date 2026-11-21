@@ -44,7 +44,7 @@ nginx :443  ──►  landing (oikonomia.ar)
   │         ──►  platform-frontend (platform.<dominio>)
   │         ──►  grafana.<dominio>
   │
-  └── /api/ ──►  backend FastAPI :8000
+  └── /api/ · /v1/ ──►  backend FastAPI :8000
                     │
                     ├──► Postgres (red interna, sin TLS)
                     ├──► Redis DB 0 (broker) / DB 2 (cache)
@@ -64,7 +64,7 @@ Límites de confianza relevantes:
 | Límite | Qué cruza | Control |
 |---|---|---|
 | Internet → nginx | HTTP/TLS, webhooks | TLS, CSP, headers, rate limit en app |
-| nginx → backend | `/api/` | Proxy interno; no hay mTLS |
+| nginx → backend | `/api/`, `/v1/` | Proxy interno; no hay mTLS |
 | backend → DB/Redis | Datos y colas | Red Podman compartida; sin TLS |
 | backend/bots → LLM | Extractos, nombres, descripciones | Clave por feature, presupuesto, sin redacción |
 | Meta/Telegram → backend | Mensajes y eventos | HMAC de WhatsApp; initData/HMAC de Telegram |
