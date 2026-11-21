@@ -57,6 +57,7 @@ fi
 
 run_linter "MyPy" "mypy app/" "$PROJECT_ROOT/src/backend"
 run_linter "Silent Excepts" "python config/scripts/validate_excepts.py" "$PROJECT_ROOT"
+run_linter "CSS Classes" "python config/scripts/validate_css_classes.py" "$PROJECT_ROOT"
 
 if [ "$failed" -eq 0 ]; then
     echo -e "${GREEN}All linters passed${NC}"
