@@ -1,3 +1,5 @@
+# Source of truth for version ranges. requirements.lock pins the resolved graph;
+# regenerate it with uv after changing this file (see docs/Deployment.md).
 fastapi==0.162.0
 uvicorn[standard]==0.54.0
 sqlalchemy==2.1.6

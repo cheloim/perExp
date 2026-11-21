@@ -7,6 +7,11 @@ __pycache__/
 dist/
 .env
 .ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Celery beat runtime state (shelve DB, recreated on start)
+celerybeat-schedule*
 
 # Node
 node_modules
@@ -56,4 +61,5 @@ src/frontend/playwright-report/
 # Coverage artifacts (pytest-cov)
 coverage.json
 .coverage
+.coverage.*
 htmlcov/
