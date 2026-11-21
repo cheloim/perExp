@@ -235,13 +235,13 @@ business_rules:
 frontend:
   components:
     - name: "InvestmentsPage"
-      path: "frontend/src/pages/Investments.tsx"
+      path: "frontend/src/pages/InvestmentsPage.tsx"
       description: "Main portfolio view with holdings table and summary"
     - name: "InvestmentForm"
-      path: "frontend/src/components/InvestmentForm.tsx"
+      path: "frontend/src/pages/InvestmentsPage.tsx"
       description: "Form for adding/editing investments manually"
     - name: "PortfolioSummary"
-      path: "frontend/src/components/PortfolioSummary.tsx"
+      path: "frontend/src/pages/InvestmentsPage.tsx"
       description: "KPI cards showing total value, gain/loss, allocation"
 
 integrations:

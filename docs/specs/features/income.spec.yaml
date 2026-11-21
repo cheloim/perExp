@@ -2,7 +2,7 @@ feature: income-tracking
 domain: Financial Management
 type: full
 version: "1.0"
-status: planned
+status: partial
 owner: full-stack
 created: 2026-08-16
 updated: 2026-08-16
