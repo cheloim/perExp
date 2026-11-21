@@ -16,10 +16,13 @@ import EmptyState from "../components/ui/EmptyState";
 import QueryState, { QueryErrorBanner } from "../components/ui/QueryState";
 import Skeleton, { SkeletonCard } from "../components/ui/Skeleton";
 import SymbolicIcon from "../components/SymbolicIcon";
+import PeriodNavigator from "../components/PeriodNavigator";
 import { CurrencyInput } from "../components/ui/CurrencyInput";
 import { getCategoryIcon } from "../utils/categoryIcon";
 import type { BudgetGroup, BudgetEvent, BudgetSuggestion, BudgetSummaryItem } from "../types";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { usePeriod } from "../hooks/usePeriod";
+import { formatMonth } from "../utils/period";
 import { formatMoney, formatMoneyTotals } from "../utils/format";
 
 // ─── Trend Spark (6-month spending bars, mock parity, no chart lib) ──
@@ -1502,12 +1505,12 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
 function CategorySidePanel({
   category,
   onClose,
+  month,
 }: {
   category: BudgetSummaryItem;
   onClose: () => void;
+  month: string;
 }) {
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const currency = category.currency ?? "ARS";
 
   // Collect category IDs: the category itself + its children
@@ -1531,7 +1534,7 @@ function CategorySidePanel({
       m
         .getExpenses({
           category_ids: categoryIds.join(","),
-          month: currentMonth,
+          month,
         })
         .then((data) => {
           if (!cancelled) {
@@ -1550,7 +1553,7 @@ function CategorySidePanel({
     return () => {
       cancelled = true;
     };
-  }, [categoryIds.join(","), currentMonth]);
+  }, [categoryIds.join(","), month]);
 
   // Close on Escape key
   useEffect(() => {
@@ -1909,6 +1912,7 @@ function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: ()
 
 export default function BudgetPage() {
   const qc = useQueryClient();
+  const { month: periodMonth, setMonth: setPeriodMonth, isCurrentMonth } = usePeriod();
   const [showNewEvent, setShowNewEvent] = useState(false);
   const [showQuickConfig, setShowQuickConfig] = useState(false);
   const [editingGroup, setEditingGroup] = useState<BudgetGroup | null>(null);
@@ -1924,8 +1928,8 @@ export default function BudgetPage() {
     isError: summaryError,
     refetch: refetchSummary,
   } = useQuery({
-    queryKey: ["budget-summary"],
-    queryFn: () => getBudgetSummary(),
+    queryKey: ["budget-summary", periodMonth],
+    queryFn: () => getBudgetSummary(periodMonth),
   });
 
   const {
@@ -1980,15 +1984,19 @@ export default function BudgetPage() {
     void refetchEvents();
   };
 
-  // Compute KPIs
+  // Compute KPIs. Spent follows the shared period (summary is month-scoped);
+  // the budget envelope itself is monthly and does not change with the month.
   const totalBudget = useMemo(() => groups.reduce((s, g) => s + g.amount, 0), [groups]);
-  const totalSpent = useMemo(() => groups.reduce((s, g) => s + g.spent, 0), [groups]);
+  const totalSpent = useMemo(
+    () => summary?.total_spent ?? groups.reduce((s, g) => s + g.spent, 0),
+    [summary, groups],
+  );
   const totalAvailable = totalBudget - totalSpent;
 
-  // Daily pace vs budget pace (current month)
-  const now = new Date();
-  const dayOfMonth = now.getDate();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  // Daily pace vs budget pace, for the selected month
+  const [periodYear, periodMonthNumber] = periodMonth.split("-").map(Number);
+  const daysInMonth = new Date(periodYear, periodMonthNumber, 0).getDate();
+  const dayOfMonth = isCurrentMonth ? new Date().getDate() : daysInMonth;
   const dailyAvg = dayOfMonth > 0 ? totalSpent / dayOfMonth : 0;
   const budgetPace = daysInMonth > 0 ? totalBudget / daysInMonth : 0;
   const paceOk = budgetPace <= 0 || dailyAvg <= budgetPace * 1.1;
@@ -2001,8 +2009,7 @@ export default function BudgetPage() {
         ? "var(--color-warning)"
         : "var(--color-danger)";
   const spentPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
-  const monthLabelRaw = now.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-  const monthLabel = monthLabelRaw.charAt(0).toUpperCase() + monthLabelRaw.slice(1);
+  const monthLabel = formatMonth(periodMonth);
   const trendValues = (summary?.trend_6m ?? []).map((t) => t.total);
 
   // Group categories by macro group
@@ -2050,7 +2057,10 @@ export default function BudgetPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div>
-          <h1 className="adw-title-2 text-primary">Presupuesto</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="adw-title-2 text-primary">Presupuesto</h1>
+            <PeriodNavigator month={periodMonth} onChange={setPeriodMonth} />
+          </div>
           <p className="adw-caption adw-dim-label">
             {monthLabel} · montos en {budgetCurrency}
           </p>
@@ -2303,7 +2313,11 @@ export default function BudgetPage() {
       )}
       {editingGroup && <EditGroupModal onClose={() => setEditingGroup(null)} />}
       {selectedCategory && (
-        <CategorySidePanel category={selectedCategory} onClose={() => setSelectedCategory(null)} />
+        <CategorySidePanel
+          category={selectedCategory}
+          month={periodMonth}
+          onClose={() => setSelectedCategory(null)}
+        />
       )}
       {editingCategory && (
         <EditBudgetModal category={editingCategory} onClose={() => setEditingCategory(null)} />

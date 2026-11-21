@@ -4,8 +4,20 @@ import { expenseQueryKeys, invalidateExpenseQueries } from "./expenseQueries";
 
 describe("expense query keys", () => {
   it("keys the optimistic list exactly where the list query lives", () => {
-    expect(expenseQueryKeys.list("a-b", 100)).toEqual(["expenses-list", "a-b", 100]);
+    expect(expenseQueryKeys.list("a-b", 100)).toEqual(["expenses-list", "a-b", 100, "date:desc"]);
     expect(expenseQueryKeys.stats("a-b")).toEqual(["expense-stats", "a-b"]);
+  });
+
+  it("includes the server-side order in the cache key", () => {
+    expect(expenseQueryKeys.list("a-b", 100, "amount:asc")).toEqual([
+      "expenses-list",
+      "a-b",
+      100,
+      "amount:asc",
+    ]);
+    expect(expenseQueryKeys.list("a-b", 100, "amount:asc")).not.toEqual(
+      expenseQueryKeys.list("a-b", 100, "amount:desc"),
+    );
   });
 
   it("invalidates the list and every derived aggregate", () => {

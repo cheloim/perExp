@@ -109,4 +109,19 @@ describe("buildFilterChips", () => {
 
     expect(chips[0].label).toBe("01-09-2026 – 15-09-2026");
   });
+
+  it("does not turn the shared period into a removable date chip", () => {
+    const chips = buildFilterChips(
+      {
+        ...EMPTY,
+        month: "2026-10",
+        dateFrom: "2026-10-01",
+        dateTo: "2026-10-31",
+      },
+      CATEGORIES,
+      TAGS,
+    );
+
+    expect(chips).toEqual([]);
+  });
 });

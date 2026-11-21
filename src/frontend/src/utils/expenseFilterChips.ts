@@ -1,7 +1,7 @@
 import type { ExpenseFilters } from "../hooks/useExpenseFilters";
 import type { Category, Tag } from "../types";
 import { formatDateDMY } from "./format";
-import { presetLabel } from "./dateRange";
+import { monthRange, presetLabel } from "./dateRange";
 
 export type FilterChipKind =
   | "search"
@@ -76,15 +76,25 @@ export function buildFilterChips(
   }
 
   if (filters.dateFrom || filters.dateTo) {
-    chips.push({
-      key: "date_range",
-      label: filters.datePreset
-        ? presetLabel(filters.datePreset)
-        : `${filters.dateFrom ? formatDateDMY(filters.dateFrom) : "…"} – ${
-            filters.dateTo ? formatDateDMY(filters.dateTo) : "…"
-          }`,
-      kind: "date",
-    });
+    // A month selected in the shared period navigator is not a removable
+    // filter: removing the chip could not widen the list, because the period
+    // would still apply. Presets and custom ranges do get a chip.
+    const monthDates = filters.month ? monthRange(filters.month) : null;
+    const isMonthRange =
+      monthDates !== null &&
+      monthDates.from === filters.dateFrom &&
+      monthDates.to === filters.dateTo;
+    if (!isMonthRange) {
+      chips.push({
+        key: "date_range",
+        label: filters.datePreset
+          ? presetLabel(filters.datePreset)
+          : `${filters.dateFrom ? formatDateDMY(filters.dateFrom) : "…"} – ${
+              filters.dateTo ? formatDateDMY(filters.dateTo) : "…"
+            }`,
+        kind: "date",
+      });
+    }
   }
 
   if (filters.person) {

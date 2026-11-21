@@ -32,6 +32,8 @@
  *
  * OpenAPI spec version: 1.0.0
  */
+import type { ListExpensesDirection } from "./listExpensesDirection.ts";
+import type { ListExpensesSort } from "./listExpensesSort.ts";
 
 export type ListExpensesParams = {
   date_from?: string;
@@ -70,6 +72,14 @@ export type ListExpensesParams = {
    * Free-text search over description, notes and category name (decrypted at application level)
    */
   search?: string;
+  /**
+   * Field to order by. Applied to the whole filtered dataset before pagination.
+   */
+  sort?: ListExpensesSort;
+  /**
+   * Sort direction for the selected field.
+   */
+  direction?: ListExpensesDirection;
   skip?: number;
   limit?: number;
 };
