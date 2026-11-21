@@ -356,6 +356,14 @@ def _alert_uids() -> set[str]:
     return {r["uid"] for g in rules["groups"] for r in g["rules"]}
 
 
+def test_prometheus_scrapes_the_backend_by_service_name():
+    """The monitoring container shares the platform network; host-published
+    ports are not reachable in production, which left the backend target down."""
+    config = yaml.safe_load(_read(PROMETHEUS_CONF))
+    backend = next(job for job in config["scrape_configs"] if job["job_name"] == "oikonomia-backend")
+    assert backend["static_configs"][0]["targets"] == ["backend:8000"]
+
+
 class TestAlerting:
     def test_rules_cover_the_incident_modes(self):
         """These are the failures that were invisible during the incident."""
