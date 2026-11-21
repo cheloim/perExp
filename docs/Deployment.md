@@ -47,6 +47,33 @@ Both backend and frontend support hot reload via volume mounts:
 # Frontend: ./frontend/src:/app/src
 ```
 
+### Dependencias del backend (instalación reproducible)
+
+`src/backend/requirements.txt` declara los rangos de versiones; los locks fijan el
+grafo resuelto para Python 3.13, la versión de la imagen `python:3.13-slim`.
+
+```bash
+cd src/backend
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.lock       # runtime
+pip install -r requirements-dev.lock   # runtime + pytest/pytest-cov
+```
+
+Para agregar o actualizar una dependencia, editá `requirements.txt` y regenerá los
+locks con uv:
+
+```bash
+uv pip compile requirements.txt --python-version 3.13 --no-annotate -o requirements.lock
+uv pip compile requirements-dev.txt --python-version 3.13 --no-annotate -o requirements-dev.lock
+```
+
+Los locks fijan versiones exactas pero no hashes de wheels, para que la instalación
+funcione tanto en Linux como en macOS. `requirements-dev.txt` incluye
+`-r requirements.txt`, así que `requirements-dev.lock` también contiene las
+dependencias de runtime. La imagen de Docker y los workflows de CI todavía
+instalan los `requirements` sin lock; migrarlos es un paso aparte.
+
 ### Useful Commands
 
 ```bash

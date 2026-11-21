@@ -1,3 +1,5 @@
+# Runtime ranges plus test tools. requirements-dev.lock pins the resolved graph;
+# regenerate it with uv after changing this file (see docs/Deployment.md).
 -r requirements.txt
 
 # Test tools. Runtime dependencies live in requirements.txt; keep these out of
