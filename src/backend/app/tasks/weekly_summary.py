@@ -8,6 +8,7 @@ from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Setting, User
 from app.services.bot_reports import _current_week_range, build_weekly_report_data
+from app.services.money import format_money, format_totals
 from app.services.task_tracker import record_task_run
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,9 @@ def _generate_weekly_llm_analysis(report_data: dict) -> dict:
         total = report_data.get("total_expenses", 0)
         accumulated = report_data.get("monthly_accumulated", 0)
         categories = report_data.get("categories", [])
-        cat_text = ", ".join([f"{c['name']}: ${c['total']:,.0f}" for c in categories[:5]])
+        cat_text = ", ".join(
+            f"{c['name']}: {format_money(c['total'], 'ARS')}" for c in categories[:5]
+        )
 
         from app.services.report_context import (
             format_compra_mensual_lines,
@@ -41,8 +44,8 @@ def _generate_weekly_llm_analysis(report_data: dict) -> dict:
 
         llm_context = f"""RESUMEN SEMANAL - NikoFin
 
-GASTO SEMANAL: ${total:,.2f}
-ACUMULADO MES: ${accumulated:,.2f}
+GASTO SEMANAL: {format_money(total, "ARS")}
+ACUMULADO MES: {format_money(accumulated, "ARS")}
 TRANSACCIONES: {report_data.get("transaction_count", 0)}
 
 TOP CATEGORÍAS:
@@ -164,13 +167,8 @@ def send_weekly_reports():
                 count = report_data.get("transaction_count", 0)
                 llm = report_data.get("llm_analysis", {})
 
-                total_str = f"${total_ars:,.0f}"
-                if total_usd > 0:
-                    total_str += f" + USD {total_usd:,.2f}"
-
-                monthly_str = f"${monthly_ars:,.0f}"
-                if monthly_usd > 0:
-                    monthly_str += f" + USD {monthly_usd:,.2f}"
+                total_str = format_totals([(total_ars, "ARS"), (total_usd, "USD")])
+                monthly_str = format_totals([(monthly_ars, "ARS"), (monthly_usd, "USD")])
 
                 caption = (
                     f"📊 <b>Resumen Semanal — NikoFin</b>\n"
@@ -190,7 +188,7 @@ def send_weekly_reports():
                 if tag_breakdown:
                     top_tags = tag_breakdown[:3]
                     tag_lines = [
-                        f"  {'🏦 ' if t.get('group') == 'cuenta' else ''}{t['name']}: ${t['total']:,.0f}"
+                        f"  {'🏦 ' if t.get('group') == 'cuenta' else ''}{t['name']}: {format_money(t['total'], 'ARS')}"
                         for t in top_tags
                     ]
                     caption += "\n\n🏷️ <b>Por método de pago:</b>\n" + "\n".join(tag_lines)

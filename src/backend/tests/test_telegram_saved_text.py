@@ -40,7 +40,7 @@ def test_saved_text_shows_the_category_tree_and_the_account_tag():
 
     assert text == (
         "✅ ¡Listo! Guardé el gasto.\n\n"
-        "💰 $3.200\n"
+        "💰 $ 3.200,00\n"
         "💳 Visa Galicia\n"
         "📅 12 de julio de 2026\n\n"
         "☕ Café y snacks\n"
@@ -61,7 +61,7 @@ def test_saved_text_puts_installments_in_the_amount_line():
 
     text = telegram_bot._saved_text(expense)
 
-    assert "💰 $12.000 (3 cuotas de $4.000)" in text
+    assert "💰 $ 12.000,00 (3 cuotas de $ 4.000,00)" in text
     assert "💳 " not in text
 
 
@@ -110,8 +110,8 @@ def test_cat_emoji_matches_partial_category_names():
 
 
 def test_format_amount_uses_argentine_thousands_separator():
-    assert telegram_bot._format_amount(3200, "ARS") == "$3.200"
-    assert telegram_bot._format_amount(1234567, "ARS") == "$1.234.567"
+    assert telegram_bot._format_amount(3200, "ARS") == "$ 3.200,00"
+    assert telegram_bot._format_amount(1234567, "ARS") == "$ 1.234.567,00"
 
 
 @pytest.mark.parametrize(

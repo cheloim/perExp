@@ -7,6 +7,7 @@ from datetime import date, datetime
 from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Expense, ExpenseTag, ScheduledExpense
+from app.services.money import format_money, format_totals
 from app.services.task_lock import task_lock
 from app.services.task_tracker import record_task_run
 
@@ -92,6 +93,7 @@ def _execute_due_installments():
                 {
                     "description": scheduled.description,
                     "amount": scheduled.amount,
+                    "currency": scheduled.currency,
                     "installment_number": scheduled.installment_number,
                     "installment_total": scheduled.installment_total,
                 }
@@ -110,13 +112,14 @@ def _execute_due_installments():
                 if (e.get("installment_total") or 0) > 1:
                     inst = f" ({e['installment_number']}/{e['installment_total']})"
                 title = f"✅ Cuota{inst} registrada"
-                body = f"{e['description']} — ${e['amount']:,.0f}"
+                body = f"{e['description']} — {format_money(e['amount'], e['currency'])}"
             else:
                 title = f"✅ {count} cuotas registradas"
                 items = "\n".join(
-                    f"  • {e['description']} — ${e['amount']:,.0f}" for e in executions[:5]
+                    f"  • {e['description']} — {format_money(e['amount'], e['currency'])}"
+                    for e in executions[:5]
                 )
-                body = f"{items}\n\nTotal: ${total:,.0f}"
+                body = f"{items}\n\nTotal: {format_totals((e['amount'], e['currency']) for e in executions)}"
                 if count > 5:
                     body += f"\n... y {count - 5} más"
 

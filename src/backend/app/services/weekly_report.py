@@ -5,6 +5,7 @@ from datetime import date
 import emoji
 
 from app.services.date_utils import MONTHS_ES
+from app.services.money import format_money
 from app.services.report_renderer import render_report_image
 
 
@@ -13,13 +14,11 @@ def _strip_emojis(text: str) -> str:
 
 
 def _fmt(amount: float, currency: str = "ARS") -> str:
-    if currency == "USD":
-        return f"USD {amount:,.2f}"
-    return f"${amount:,.2f}"
+    return format_money(amount, currency)
 
 
 def _fmt_total(by_currency: dict[str, float] | None, fallback: float) -> str:
-    """Format totals per currency: '$123 + USD 45.67' or just '$123'."""
+    """Format totals per currency: '$ 1.234,50 + U$S 45,67' or just '$ 1.234,50'."""
     if not by_currency:
         return _fmt(fallback)
     parts = []

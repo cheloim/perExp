@@ -1,6 +1,6 @@
 import { DetailModal } from "./DetailModal";
 import type { SmartImportRow } from "../types";
-import { toUpperCase } from "../utils/format";
+import { formatMoney, toUpperCase } from "../utils/format";
 
 interface TransactionDetailModalProps {
   row: SmartImportRow | null;
@@ -20,7 +20,7 @@ export function TransactionDetailModal({ row, onClose }: TransactionDetailModalP
       <div className="space-y-4">
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-bold text-[var(--text-primary)]">
-            {row.amount.toLocaleString("es-AR")} {row.currency}
+            {formatMoney(row.amount, row.currency)}
           </span>
         </div>
 

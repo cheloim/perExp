@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.models import Category, Expense, User
 from app.services.categorization import auto_categorize
 from app.services.llm import LLMMessage, get_client
+from app.services.money import format_money
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,9 @@ def _format_expenses(expenses: Sequence[Expense]) -> str:
     """Expense list for the prompt: one line per expense, id first."""
     lines = []
     for exp in expenses:
-        amount = f"${exp.amount:,.2f}" if exp.amount is not None else "no especificado"
+        amount = (
+            format_money(exp.amount, exp.currency) if exp.amount is not None else "no especificado"
+        )
         day = exp.date.isoformat() if exp.date else "sin fecha"
         lines.append(f"- expense_id={exp.id} | {day} | {amount} | {exp.description}")
     return "\n".join(lines)

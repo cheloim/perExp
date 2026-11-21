@@ -17,6 +17,7 @@ import EmptyState from "../../components/ui/EmptyState";
 import ReviewEvidence from "./ReviewEvidence";
 import { showToast } from "../../utils/toast";
 import { downloadCsv } from "../../utils/csv";
+import { formatMoney } from "../../utils/format";
 
 /**
  * Internal review of miscategorization findings (issue #466).
@@ -71,14 +72,6 @@ function errorInfo(error: unknown): { status?: number; detail: string } {
     status: axiosError.response?.status,
     detail: axiosError.response?.data?.detail ?? axiosError.message ?? "Error inesperado",
   };
-}
-
-function formatAmount(amount: number | null, currency: string | null): string {
-  if (amount === null) return "—";
-  return amount.toLocaleString("es-AR", {
-    style: "currency",
-    currency: currency || "ARS",
-  });
 }
 
 function formatDate(value: string | null): string {
@@ -673,7 +666,9 @@ function ReviewRow({
       <tr className="border-b border-[var(--border-color)] align-top">
         <td className="p-2 whitespace-nowrap">{formatDate(review.date)}</td>
         <td className="p-2">{review.description ?? "—"}</td>
-        <td className="p-2 whitespace-nowrap">{formatAmount(review.amount, review.currency)}</td>
+        <td className="p-2 whitespace-nowrap">
+          {review.amount === null ? "—" : formatMoney(review.amount, review.currency)}
+        </td>
         <td className="p-2">
           {review.current_category_name ?? "—"}
           {" → "}

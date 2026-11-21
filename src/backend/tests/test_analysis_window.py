@@ -226,7 +226,7 @@ def test_month_over_month_deltas_are_computed_for_the_model(db, test_user, fake_
 
     prompt = _prompt_text(fake_llm.prompts)
     assert "COMPARACIÓN MES A MES:" in prompt
-    assert f"- {curr_key}: $3,000.00 (vs {prev_key}: +50.0%, +$1,000.00)" in prompt
+    assert f"- {curr_key}: $ 3.000,00 (vs {prev_key}: +50.0%, +$ 1.000,00)" in prompt
 
 
 def test_the_top_categories_compare_the_newest_month_against_the_previous_one(
@@ -249,8 +249,8 @@ def test_the_top_categories_compare_the_newest_month_against_the_previous_one(
 
     prompt = _prompt_text(fake_llm.prompts)
     assert "CATEGORÍAS — " in prompt
-    assert "- Supermercado: $3,000.00 (vs $1,000.00, +200.0%)" in prompt
-    assert "- Librería: $500.00 (vs $0.00, sin base)" in prompt
+    assert "- Supermercado: $ 3.000,00 (vs $ 1.000,00, +200.0%)" in prompt
+    assert "- Librería: $ 500,00 (vs $ 0,00, sin base)" in prompt
 
 
 # ── Month × category detail: the tail is data too ────────────────────
@@ -280,13 +280,13 @@ def test_every_month_details_every_category_not_just_the_top_five(db, test_user,
 
     prompt = _prompt_text(fake_llm.prompts)
     detail = prompt.split("DETALLE POR MES Y CATEGORÍA:")[1]
-    assert f"{prev_key} (total $1,000.00" in detail
-    assert f"{curr_key} (total $8,800.00" in detail
+    assert f"{prev_key} (total $ 1.000,00" in detail
+    assert f"{curr_key} (total $ 8.800,00" in detail
     # The sixth category of the month — outside any top five — with its share
     # of the month already computed, so the model never divides.
-    assert "- Cat 5: $500.00 (5.7%)" in detail
-    assert "- Cat 0: $3,000.00 (34.1%)" in detail
-    assert "- Cat 0: $1,000.00 (100.0%)" in detail
+    assert "- Cat 5: $ 500,00 (5.7%)" in detail
+    assert "- Cat 0: $ 3.000,00 (34.1%)" in detail
+    assert "- Cat 0: $ 1.000,00 (100.0%)" in detail
 
 
 def test_the_category_comparison_no_longer_cuts_the_tail(db, test_user, fake_llm):
@@ -304,8 +304,8 @@ def test_the_category_comparison_no_longer_cuts_the_tail(db, test_user, fake_llm
     _stream(AnalysisRequest(months=2), db, test_user)
 
     comp = _prompt_text(fake_llm.prompts).split("CATEGORÍAS — ")[1]
-    assert "- Cat 0: $3,000.00 (vs $0.00, sin base)" in comp
-    assert "- Cat 5: $500.00 (vs $0.00, sin base)" in comp
+    assert "- Cat 0: $ 3.000,00 (vs $ 0,00, sin base)" in comp
+    assert "- Cat 5: $ 500,00 (vs $ 0,00, sin base)" in comp
 
 
 def test_a_subcategory_names_its_parent_too(db, test_user, fake_llm):
@@ -324,8 +324,8 @@ def test_a_subcategory_names_its_parent_too(db, test_user, fake_llm):
     _stream(AnalysisRequest(months=1), db, test_user)
 
     prompt = _prompt_text(fake_llm.prompts)
-    assert "- Mantenimiento > Mantenimiento Automotor: $700.00" in prompt
-    assert "- Mantenimiento: $300.00" in prompt
+    assert "- Mantenimiento > Mantenimiento Automotor: $ 700,00" in prompt
+    assert "- Mantenimiento: $ 300,00" in prompt
 
 
 def test_a_month_without_spending_stays_visible_in_the_detail(db, test_user, fake_llm):
@@ -339,7 +339,7 @@ def test_a_month_without_spending_stays_visible_in_the_detail(db, test_user, fak
     _stream(AnalysisRequest(months=3), db, test_user)
 
     detail = _prompt_text(fake_llm.prompts).split("DETALLE POR MES Y CATEGORÍA:")[1]
-    assert f"{empty_key} (total $0.00):\n- (sin gastos registrados)" in detail
+    assert f"{empty_key} (total $ 0,00):\n- (sin gastos registrados)" in detail
 
 
 def test_a_parent_of_another_user_never_names_a_row(db, test_user, fake_llm):
@@ -366,7 +366,7 @@ def test_a_parent_of_another_user_never_names_a_row(db, test_user, fake_llm):
     _stream(AnalysisRequest(months=1), db, test_user)
 
     prompt = _prompt_text(fake_llm.prompts)
-    assert "- Hija: $100.00" in prompt
+    assert "- Hija: $ 100,00" in prompt
     assert "Secreta" not in prompt
 
 
@@ -388,7 +388,7 @@ def test_a_question_retrieves_the_spend_it_is_about(db, test_user, fake_llm):
     assert "GASTOS QUE COINCIDEN CON LA PREGUNTA (yenny, tortugas)" in prompt
     block = prompt.split("GASTOS QUE COINCIDEN CON LA PREGUNTA")[1]
     assert "YENNY TORTUGAS OPEN MALL" in block
-    assert "$55,479.67" in block
+    assert "$ 55.479,67" in block
 
 
 def test_retrieval_never_leaves_the_user(db, test_user, fake_llm):
@@ -411,8 +411,8 @@ def test_retrieval_never_leaves_the_user(db, test_user, fake_llm):
 
     prompt = _prompt_text(fake_llm.prompts)
     assert "YENNY TORTUGAS OPEN MALL" in prompt
-    assert "$999,999.00" not in prompt
-    assert "$55,479.67" in prompt
+    assert "$ 999.999,00" not in prompt
+    assert "$ 55.479,67" in prompt
 
 
 def test_the_prompt_stays_bounded_at_twelve_months(db, test_user, fake_llm):

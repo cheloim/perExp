@@ -14,6 +14,8 @@ import unicodedata
 from calendar import monthrange
 from datetime import date
 
+from app.services.money import format_money
+
 MIN_HISTORY_MONTHS = 3
 DEVIATION_BAND_PCT = 20.0
 COMPRA_WINDOW_MONTHS = 4
@@ -137,12 +139,12 @@ def build_budget_vs_real_lines(budget_items: list[dict]) -> list[str]:
                 else "dentro de banda"
             )
             lines.append(
-                f"  - {name}: presupuesto=${budget:,.0f}, gastado=${spent:,.0f} ({pct}%), "
-                f"media 3m=${avg:,.0f}, desvío={dev:+.0f}% vs media {band}"
+                f"  - {name}: presupuesto={format_money(budget, 'ARS')}, gastado={format_money(spent, 'ARS')} ({pct}%), "
+                f"media 3m={format_money(avg, 'ARS')}, desvío={dev:+.0f}% vs media {band}"
             )
         else:
             lines.append(
-                f"  - {name}: presupuesto=${budget:,.0f}, gastado=${spent:,.0f} ({pct}%), "
+                f"  - {name}: presupuesto={format_money(budget, 'ARS')}, gastado={format_money(spent, 'ARS')} ({pct}%), "
                 "sin historial"
             )
     return lines
@@ -155,7 +157,7 @@ def format_compra_mensual_lines(compras: list[dict]) -> list[str]:
         extra = ", monto variable" if c.get("variable_amount") else ""
         lines.append(
             f"  - {c['leaf_name']}: compra mensual día ~{c['pattern_day']}, "
-            f"ticket típico=${c['median_amount']:,.0f} "
+            f"ticket típico={format_money(c['median_amount'], 'ARS')} "
             f"({c['months_matched']} de {COMPRA_WINDOW_MONTHS} meses{extra})"
         )
     return lines

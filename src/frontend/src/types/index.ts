@@ -652,6 +652,7 @@ export interface InvestmentCreate {
 export interface TopMerchant {
   description: string;
   total_amount: number;
+  currency: string;
   count: number;
   category_name: string | null;
   category_color: string | null;
