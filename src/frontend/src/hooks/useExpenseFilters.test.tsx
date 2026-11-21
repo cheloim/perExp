@@ -296,6 +296,12 @@ describe("useExpenseFilters", () => {
     expect(sessionStorage.getItem(EXPENSES_FILTERS_KEY)).toBe("q=netflix");
   });
 
+  it("does not persist the shared month as an expenses filter", () => {
+    persistFilters(new URLSearchParams("month=2026-03&q=netflix"));
+
+    expect(sessionStorage.getItem(EXPENSES_FILTERS_KEY)).toBe("q=netflix");
+  });
+
   it("setCuenta swaps between an account and sin_cuenta", () => {
     const { result } = renderHook(() => useExpenseFilters(), {
       wrapper: makeWrapper("/?cuenta_id=7"),

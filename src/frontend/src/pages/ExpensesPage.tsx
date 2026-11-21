@@ -39,11 +39,13 @@ import {
   formatDateDMY,
 } from "../utils/format";
 import { useExpenseFilters } from "../hooks/useExpenseFilters";
+import { usePeriod } from "../hooks/usePeriod";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { expenseQueryKeys, invalidateExpenseQueries } from "../utils/expenseQueries";
 import { buildFilterChips, type FilterChip } from "../utils/expenseFilterChips";
 import { hasMorePages, paginationLabel } from "../utils/pagination";
 import { ExpensesFilterBar } from "../components/expenses/ExpensesFilterBar";
+import PeriodNavigator from "../components/PeriodNavigator";
 
 type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
 type SortDir = "asc" | "desc";
@@ -141,6 +143,27 @@ export default function ExpensesPage() {
     unknownParams,
   } = useExpenseFilters();
 
+  const { month: periodMonth, setMonth: setPeriodMonth } = usePeriod();
+
+  const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({
+    field: "date",
+    dir: "desc",
+  });
+  const handleSort = (field: SortField) => {
+    setSort((current) => ({
+      field,
+      dir: current.field === field && current.dir === "asc" ? "desc" : "asc",
+    }));
+  };
+  // Description is encrypted and category is a joined label, so only these
+  // columns can be ordered by the database. The rest keep the client order.
+  const serverSortKey =
+    sort.field === "date" || sort.field === "amount" ? `${sort.field}:${sort.dir}` : "date:desc";
+  const orderParams =
+    sort.field === "date" || sort.field === "amount"
+      ? { sort: sort.field, direction: sort.dir }
+      : {};
+
   const filterCategoryIds = filters.categoryIds;
   const filterUncategorized = filters.uncategorized;
   const filterPerson = filters.person;
@@ -188,6 +211,14 @@ export default function ExpensesPage() {
     setSearchParams(next, { replace: true });
   }, [wantsSuggestions, suggestionsFetched, showSuggestions, searchParams, setSearchParams]);
 
+  // With no explicit range, the shared period is the date filter. An explicit
+  // month link already arrives as date_from/date_to from useExpenseFilters.
+  const usesExplicitRange = Boolean(filterDateFrom || filterDateTo || filters.datePreset);
+  const monthFilter = usesExplicitRange ? undefined : periodMonth;
+  // Keep the date control in sync with the period actually applied, even when
+  // the month comes from the shared selector instead of the URL.
+  const filterBarFilters = monthFilter ? { ...filters, month: monthFilter } : filters;
+
   // The same filters feed the table, the stats cards and the breakdowns, so
   // the numbers above always match the rows below (issue #477).
   const filterParams = {
@@ -203,6 +234,7 @@ export default function ExpensesPage() {
     search: filterSearch,
     card_type: filterCardType,
     installment: filterInstallment,
+    month: monthFilter,
   };
 
   const handleCategorySelection = useCallback(
@@ -224,7 +256,7 @@ export default function ExpensesPage() {
 
   const [visibleCount, setVisibleCount] = useState(100);
 
-  const filterKey = `${filterCategoryIds.join(",")}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}-${filterCuentaId}-${filterSinCuenta}-${filterSearch}-${filterCardType}-${filterInstallment}`;
+  const filterKey = `${filterCategoryIds.join(",")}-${filterUncategorized}-${filterPerson}-${filterDateFrom}-${filterDateTo}-${filterTagId}-${filterUntagged}-${filterCuentaId}-${filterSinCuenta}-${filterSearch}-${filterCardType}-${filterInstallment}-${monthFilter ?? ""}`;
 
   // A new filter set starts from the first page again. An effect (instead of a
   // state update during render) keeps the render path pure; the list keeps the
@@ -242,8 +274,8 @@ export default function ExpensesPage() {
     isError: expensesError,
     refetch: refetchExpenses,
   } = useQuery<Expense[]>({
-    queryKey: expenseQueryKeys.list(filterKey, visibleCount),
-    queryFn: () => getExpenses({ ...filterParams, limit: visibleCount }),
+    queryKey: expenseQueryKeys.list(filterKey, visibleCount, serverSortKey),
+    queryFn: () => getExpenses({ ...filterParams, ...orderParams, limit: visibleCount }),
     placeholderData: (prev) => prev,
     staleTime: 30_000,
     enabled: ready,
@@ -271,16 +303,6 @@ export default function ExpensesPage() {
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({
-    field: "date",
-    dir: "desc",
-  });
-  const handleSort = (field: SortField) => {
-    setSort((current) => ({
-      field,
-      dir: current.field === field && current.dir === "asc" ? "desc" : "asc",
-    }));
-  };
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkPicker, setBulkPicker] = useState<{
     type: "category" | "cuenta" | "tags";
@@ -347,7 +369,7 @@ export default function ExpensesPage() {
     },
     onMutate: async ({ id, field, value }) => {
       await queryClient.cancelQueries({ queryKey: ["expenses-list"] });
-      const queryKey = expenseQueryKeys.list(filterKey, visibleCount);
+      const queryKey = expenseQueryKeys.list(filterKey, visibleCount, serverSortKey);
       const previous = queryClient.getQueryData<Expense[]>(queryKey);
       queryClient.setQueryData<Expense[]>(queryKey, (old) => {
         if (!old) return old;
@@ -404,11 +426,17 @@ export default function ExpensesPage() {
       const saved = pendingDeletes.current.get(id);
       if (saved?.expense) {
         queryClient.setQueryData<Expense[]>(
-          expenseQueryKeys.list(filterKey, visibleCount),
+          expenseQueryKeys.list(filterKey, visibleCount, serverSortKey),
           (old) =>
             old
-              ? [...old, saved.expense].sort(
-                  (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+              ? [...old, saved.expense].sort((a, b) =>
+                  sort.field === "amount"
+                    ? sort.dir === "asc"
+                      ? a.amount - b.amount
+                      : b.amount - a.amount
+                    : sort.dir === "asc"
+                      ? a.date.localeCompare(b.date)
+                      : b.date.localeCompare(a.date),
                 )
               : [saved.expense],
         );
@@ -424,15 +452,7 @@ export default function ExpensesPage() {
 
   const handleDelete = (id: number, description: string) => {
     // Optimistic: remove from list immediately
-    const queryKey = [
-      "expenses-list",
-      filterCategoryIds.join(","),
-      filterUncategorized,
-      filterPerson,
-      filterDateFrom,
-      filterDateTo,
-      filterTagId,
-    ];
+    const queryKey = expenseQueryKeys.list(filterKey, visibleCount, serverSortKey);
     const current = queryClient.getQueryData<Expense[]>(queryKey) ?? [];
     const removed = current.find((e) => e.id === id);
 
@@ -459,8 +479,14 @@ export default function ExpensesPage() {
           const existing = queryClient.getQueryData<Expense[]>(queryKey) ?? [];
           queryClient.setQueryData<Expense[]>(
             queryKey,
-            [...existing, entry.expense].sort(
-              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+            [...existing, entry.expense].sort((a, b) =>
+              sort.field === "amount"
+                ? sort.dir === "asc"
+                  ? a.amount - b.amount
+                  : b.amount - a.amount
+                : sort.dir === "asc"
+                  ? a.date.localeCompare(b.date)
+                  : b.date.localeCompare(a.date),
             ),
           );
         }
@@ -483,26 +509,15 @@ export default function ExpensesPage() {
     }`;
 
   const sortedExpenses = useMemo(() => {
+    // Date and amount are ordered by the API over the whole filtered dataset.
+    if (sort.field === "date" || sort.field === "amount") return expenses;
+
+    const field = sort.field === "category" ? "category_name" : sort.field;
     return [...expenses].sort((a, b) => {
-      const field = sort.field === "category" ? "category_name" : sort.field;
       const aVal = a[field as keyof Expense];
       const bVal = b[field as keyof Expense];
       if (aVal == null) return 1;
       if (bVal == null) return -1;
-      if (sort.field === "amount") {
-        return sort.dir === "asc"
-          ? (aVal as number) - (bVal as number)
-          : (bVal as number) - (aVal as number);
-      }
-      if (sort.field === "date") {
-        const parseDate = (s: string) => {
-          const [d, m, y] = s.split("-").map(Number);
-          return new Date(y, m - 1, d).getTime();
-        };
-        const aTime = parseDate(String(aVal));
-        const bTime = parseDate(String(bVal));
-        return sort.dir === "asc" ? aTime - bTime : bTime - aTime;
-      }
       let aStr = String(aVal);
       let bStr = String(bVal);
       if (sort.field === "description") {
@@ -705,6 +720,7 @@ export default function ExpensesPage() {
   const exportCSV = async () => {
     const allData = await getExpenses({
       ...filterParams,
+      ...orderParams,
       limit: 10000,
     });
     downloadCsv(allData, `gastos_${new Date().toISOString().slice(0, 10)}.csv`);
@@ -775,9 +791,9 @@ export default function ExpensesPage() {
   );
 
   const resultSummary = filterSearch
-    ? `${expenses.length}${expenses.length >= visibleCount ? "+" : ""} gastos para «${filterSearch}»`
+    ? `${paginationLabel(expenses.length, expenseStats?.count)} para «${filterSearch}»`
     : activeFiltersCount > 0 && !isLoading
-      ? `${expenses.length}${expenses.length >= visibleCount ? "+" : ""} gastos con los filtros aplicados`
+      ? `${paginationLabel(expenses.length, expenseStats?.count)} con los filtros aplicados`
       : "";
 
   if (expensesError && !isLoading && expenses.length === 0) {
@@ -812,8 +828,11 @@ export default function ExpensesPage() {
         </div>
       )}
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Gastos</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Gastos</h1>
+          <PeriodNavigator month={filters.month ?? periodMonth} onChange={setPeriodMonth} />
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={exportCSV}
@@ -880,7 +899,7 @@ export default function ExpensesPage() {
       )}
 
       <ExpensesFilterBar
-        filters={filters}
+        filters={filterBarFilters}
         searchInput={searchInput}
         onSearchInputChange={setSearchInput}
         expanded={filtersExpanded}
@@ -912,11 +931,11 @@ export default function ExpensesPage() {
           // the active range maps to exactly one calendar month.
           const monthForLink =
             filters.month ??
-            (filterDateFrom &&
-            filterDateTo &&
-            filterDateFrom.slice(0, 7) === filterDateTo.slice(0, 7)
-              ? filterDateFrom.slice(0, 7)
-              : undefined);
+            (filterDateFrom && filterDateTo
+              ? filterDateFrom.slice(0, 7) === filterDateTo.slice(0, 7)
+                ? filterDateFrom.slice(0, 7)
+                : undefined
+              : monthFilter);
           return (
             <>
               <div className="flex items-center justify-between">

@@ -9,8 +9,9 @@ import type { QueryClient } from "@tanstack/react-query";
  */
 export const expenseQueryKeys = {
   listBase: ["expenses-list"] as const,
-  list: (filterKey: string, visibleCount: number) =>
-    ["expenses-list", filterKey, visibleCount] as const,
+  /** `sortKey` is part of the key so a different SQL order is a different cache entry. */
+  list: (filterKey: string, visibleCount: number, sortKey = "date:desc") =>
+    ["expenses-list", filterKey, visibleCount, sortKey] as const,
   stats: (filterKey: string) => ["expense-stats", filterKey] as const,
 };
 

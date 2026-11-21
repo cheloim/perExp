@@ -839,6 +839,20 @@ paths:
           schema:
             type: string
           description: 'Free-text search over description, notes and category name (decrypted at application level)'
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [date, amount]
+            default: date
+          description: Field to order by. Applied to the whole filtered dataset before pagination.
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: Sort direction for the selected field.
         - name: skip
           in: query
           schema:
