@@ -250,3 +250,20 @@ jobs:
 
       - name: Validate docs matrix and feature specs
         run: python config/scripts/validate_docs.py
+
+  # Single stable check for branch protection. It runs even when a dependency
+  # fails or is cancelled, so a PR that only touches .github/** cannot be left
+  # permanently blocked by checks that never start.
+  ci-gate:
+    name: CI Gate
+    if: always()
+    needs: [frontend, backend, test, frontend-test, frontend-e2e, specs, roadmap, docs-gate]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "::error::One or more required CI jobs failed or were cancelled."
+            exit 1
+          fi
+          echo "All required CI jobs succeeded or were skipped."
