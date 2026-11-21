@@ -624,7 +624,9 @@ export default function Dashboard() {
           <p className="text-xs text-tertiary mt-1">{pasivosData?.count ?? 0} cuotas pendientes</p>
         </Link>
         <Link
-          to={`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`}
+          to={`/expenses?installment=1&date_from=${month}-01&date_to=${month}-${String(
+            new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate(),
+          ).padStart(2, "0")}`}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
           <p className="text-xs text-tertiary uppercase mb-1">Cuotas este mes</p>
