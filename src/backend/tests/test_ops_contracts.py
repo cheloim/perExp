@@ -360,7 +360,9 @@ def test_prometheus_scrapes_the_backend_by_service_name():
     """The monitoring container shares the platform network; host-published
     ports are not reachable in production, which left the backend target down."""
     config = yaml.safe_load(_read(PROMETHEUS_CONF))
-    backend = next(job for job in config["scrape_configs"] if job["job_name"] == "oikonomia-backend")
+    backend = next(
+        job for job in config["scrape_configs"] if job["job_name"] == "oikonomia-backend"
+    )
     assert backend["static_configs"][0]["targets"] == ["backend:8000"]
 
 
