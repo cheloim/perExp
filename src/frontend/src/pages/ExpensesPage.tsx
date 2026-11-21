@@ -47,7 +47,7 @@ import { hasMorePages, paginationLabel } from "../utils/pagination";
 import { ExpensesFilterBar } from "../components/expenses/ExpensesFilterBar";
 import PeriodNavigator from "../components/PeriodNavigator";
 
-type SortField = "date" | "description" | "category" | "bank" | "person" | "amount";
+type SortField = "date" | "category" | "bank" | "person" | "amount";
 type SortDir = "asc" | "desc";
 
 function hasMissingData(exp: Expense): boolean {
@@ -155,14 +155,14 @@ export default function ExpensesPage() {
       dir: current.field === field && current.dir === "asc" ? "desc" : "asc",
     }));
   };
-  // Description is encrypted and category is a joined label, so only these
-  // columns can be ordered by the database. The rest keep the client order.
-  const serverSortKey =
-    sort.field === "date" || sort.field === "amount" ? `${sort.field}:${sort.dir}` : "date:desc";
-  const orderParams =
-    sort.field === "date" || sort.field === "amount"
-      ? { sort: sort.field, direction: sort.dir }
-      : {};
+  // Date, amount and category are ordered by the API over the whole filtered
+  // dataset. Description is encrypted and is not offered as a sort.
+  const serverSortable =
+    sort.field === "date" || sort.field === "amount" || sort.field === "category";
+  const serverSortKey = serverSortable ? `${sort.field}:${sort.dir}` : "date:desc";
+  const orderParams = serverSortable
+    ? { sort: sort.field as "date" | "amount" | "category", direction: sort.dir }
+    : {};
 
   const filterCategoryIds = filters.categoryIds;
   const filterUncategorized = filters.uncategorized;
@@ -509,23 +509,18 @@ export default function ExpensesPage() {
     }`;
 
   const sortedExpenses = useMemo(() => {
-    // Date and amount are ordered by the API over the whole filtered dataset.
-    if (sort.field === "date" || sort.field === "amount") return expenses;
+    // Every offered sort is authoritative from the API over the whole filtered
+    // dataset. Bank/person remain client-side because they are derived labels.
+    if (sort.field === "date" || sort.field === "amount" || sort.field === "category") {
+      return expenses;
+    }
 
-    const field = sort.field === "category" ? "category_name" : sort.field;
     return [...expenses].sort((a, b) => {
-      const aVal = a[field as keyof Expense];
-      const bVal = b[field as keyof Expense];
-      if (aVal == null) return 1;
+      const aVal = a[sort.field as keyof Expense];
+      const bVal = b[sort.field as keyof Expense];
+      if (aVal == null) return bVal == null ? 0 : 1;
       if (bVal == null) return -1;
-      let aStr = String(aVal);
-      let bStr = String(bVal);
-      if (sort.field === "description") {
-        const pad = (n: number | null | undefined) => String(n ?? 0).padStart(4, "0");
-        aStr += `\x00${pad(a.installment_number)}`;
-        bStr += `\x00${pad(b.installment_number)}`;
-      }
-      const cmp = aStr.localeCompare(bStr);
+      const cmp = String(aVal).localeCompare(String(bVal));
       return sort.dir === "asc" ? cmp : -cmp;
     });
   }, [expenses, sort.field, sort.dir]);
@@ -1032,13 +1027,9 @@ export default function ExpensesPage() {
                   sort={sort}
                   onSort={handleSort}
                 />
-                <SortableHeader
-                  field="description"
-                  label="Descripción"
-                  className={thClass("description")}
-                  sort={sort}
-                  onSort={handleSort}
-                />
+                <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase">
+                  Descripción
+                </th>
                 <SortableHeader
                   field="category"
                   label="Categoría"

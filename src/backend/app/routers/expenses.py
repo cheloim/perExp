@@ -134,7 +134,7 @@ def get_expenses(
     cuenta_id: int | None = None,
     sin_cuenta: bool = False,
     search: str | None = None,
-    sort: Literal["date", "amount"] = "date",
+    sort: Literal["date", "amount", "category"] = "date",
     direction: Literal["asc", "desc"] = "desc",
     skip: int = 0,
     limit: int = 200,
@@ -175,10 +175,21 @@ def get_expenses(
         sin_cuenta=sin_cuenta,
         search=search,
     )
-    order_column = Expense.amount if sort == "amount" else Expense.date
-    order_clause = order_column.asc() if direction == "asc" else order_column.desc()
-    # The id tie-breaker keeps offset/limit stable when many rows share a date
-    # or amount, so "Ver más" cannot repeat or skip a row.
+    # Category.name is plaintext, so it can be ordered in SQL like date/amount.
+    # Description is encrypted and is intentionally not offered as a sort.
+    if sort == "category":
+        q = q.outerjoin(Category, Expense.category_id == Category.id)
+        order_column = Category.name
+        order_clause = (
+            order_column.asc().nulls_last()
+            if direction == "asc"
+            else order_column.desc().nulls_last()
+        )
+    else:
+        order_column = Expense.amount if sort == "amount" else Expense.date
+        order_clause = order_column.asc() if direction == "asc" else order_column.desc()
+    # The id tie-breaker keeps offset/limit stable when many rows share a date,
+    # amount or category, so "Ver más" cannot repeat or skip a row.
     return q.order_by(order_clause, desc(Expense.id)).offset(skip).limit(limit).all()
 
 

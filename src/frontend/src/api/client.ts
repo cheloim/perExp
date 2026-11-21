@@ -614,7 +614,7 @@ export type ExpenseFilterParams = {
   cuenta_id?: number;
   sin_cuenta?: boolean;
   search?: string;
-  sort?: "date" | "amount";
+  sort?: "date" | "amount" | "category";
   direction?: "asc" | "desc";
 };
 
