@@ -2,7 +2,7 @@ feature: voice-input
 domain: Expense Capture
 type: full
 version: "1.0"
-status: planned
+status: implemented
 owner: full-stack
 created: 2026-10-30
 updated: 2026-10-30

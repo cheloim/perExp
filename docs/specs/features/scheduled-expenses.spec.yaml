@@ -214,13 +214,13 @@ business_rules:
 frontend:
   components:
     - name: "ScheduledExpensesPage"
-      path: "frontend/src/pages/ScheduledExpenses.tsx"
+      path: "frontend/src/pages/InstallmentsPage.tsx"
       description: "List of scheduled expenses with create/edit/delete actions"
     - name: "ScheduledExpenseForm"
-      path: "frontend/src/components/ScheduledExpenseForm.tsx"
+      path: "frontend/src/pages/InstallmentsPage.tsx"
       description: "Form for creating/editing scheduled expenses"
     - name: "FrequencyBadge"
-      path: "frontend/src/components/FrequencyBadge.tsx"
+      path: "frontend/src/pages/InstallmentsPage.tsx"
       description: "Badge displaying the frequency of a scheduled expense"
 
 integrations:

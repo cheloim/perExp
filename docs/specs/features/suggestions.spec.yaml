@@ -134,10 +134,10 @@ business_rules:
 frontend:
   components:
     - name: "SuggestionsPanel"
-      path: "frontend/src/components/SuggestionsPanel.tsx"
+      path: "frontend/src/pages/ExpensesPage.tsx"
       description: "Panel showing pending category suggestions with accept/reject buttons"
     - name: "SuggestionCard"
-      path: "frontend/src/components/SuggestionCard.tsx"
+      path: "frontend/src/pages/ExpensesPage.tsx"
       description: "Individual suggestion display with category name and confidence"
 
 integrations:

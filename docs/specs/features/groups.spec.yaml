@@ -190,16 +190,16 @@ business_rules:
 frontend:
   components:
     - name: "GroupPage"
-      path: "frontend/src/pages/Group.tsx"
+      path: "frontend/src/components/UserPanel.tsx"
       description: "Group management page showing members and invite code"
     - name: "GroupCreateForm"
-      path: "frontend/src/components/GroupCreateForm.tsx"
+      path: "frontend/src/components/UserPanel.tsx"
       description: "Form to create a new group"
     - name: "GroupJoinForm"
-      path: "frontend/src/components/GroupJoinForm.tsx"
+      path: "frontend/src/components/UserPanel.tsx"
       description: "Form to join a group via invite code"
     - name: "MembersList"
-      path: "frontend/src/components/MembersList.tsx"
+      path: "frontend/src/components/UserPanel.tsx"
       description: "List of group members with remove action for owner"
 
 integrations: []

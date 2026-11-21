@@ -213,7 +213,7 @@ frontend:
         `AssistantShell` owns the thread; `configs.ts` owns the per-domain
         copy, endpoint and body shape.
     - name: "SessionCard"
-      path: "frontend/src/components/assistant/SessionCard.tsx"
+      path: "frontend/src/components/assistant/Assistant.tsx"
       description: "Past conversations in the Conversaciones tab, with their summary"
 
 integrations:

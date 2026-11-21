@@ -120,7 +120,7 @@ business_rules:
 frontend:
   components:
     - name: "NotificationsPanel"
-      path: "frontend/src/components/NotificationsPanel.tsx"
+      path: "frontend/src/components/NotificationCenterModal.tsx"
       description: >
         Panel showing notifications with read/dismiss actions. The title and
         body are shown in full — no clamp, no ellipsis — and a notification is
@@ -130,7 +130,7 @@ frontend:
       path: "frontend/src/workers/notifications.worker.ts"
       description: "SharedWorker that manages SSE connection and broadcasts to tabs"
     - name: "NotificationBell"
-      path: "frontend/src/components/NotificationBell.tsx"
+      path: "frontend/src/pages/NotificationsPage.tsx"
       description: "Bell icon with unread count badge in the header"
 
 integrations: []
