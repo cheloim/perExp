@@ -81,7 +81,7 @@ def _materialize_charge(
             Expense.user_id == recurring.user_id,
             Expense.recurring_expense_id == recurring.id,
             Expense.date == charge_date,
-            Expense.is_recurring_projection == True,  # noqa: E712
+            Expense.is_recurring_projection == True,
         )
         .first()
     )
@@ -166,7 +166,7 @@ def _process_due_recurring(db, today: date | None = None) -> dict[str, int]:
     due = (
         db.query(RecurringExpense)
         .filter(
-            RecurringExpense.is_active == True,  # noqa: E712
+            RecurringExpense.is_active == True,
             RecurringExpense.next_charge_date.isnot(None),
             RecurringExpense.next_charge_date <= today,
         )

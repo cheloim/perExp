@@ -18,7 +18,7 @@ def daily_uncategorized_check():
     """Check all active users for uncategorized expenses and create notifications."""
     db = SessionLocal()
     try:
-        users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
+        users = db.query(User).filter(User.is_active == True).all()
         notified = 0
 
         for user in users:
@@ -37,7 +37,7 @@ def daily_uncategorized_check():
                     .filter(
                         Notification.user_id == user.id,
                         Notification.type == "uncategorized_expenses",
-                        Notification.read == False,  # noqa: E712
+                        Notification.read == False,
                     )
                     .first()
                 )

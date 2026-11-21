@@ -16,10 +16,14 @@ import EmptyState from "../components/ui/EmptyState";
 import QueryState, { QueryErrorBanner } from "../components/ui/QueryState";
 import Skeleton, { SkeletonCard } from "../components/ui/Skeleton";
 import SymbolicIcon from "../components/SymbolicIcon";
+import type { IconName } from "../components/SymbolicIcon";
+import PeriodNavigator from "../components/PeriodNavigator";
 import { CurrencyInput } from "../components/ui/CurrencyInput";
 import { getCategoryIcon } from "../utils/categoryIcon";
 import type { BudgetGroup, BudgetEvent, BudgetSuggestion, BudgetSummaryItem } from "../types";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { usePeriod } from "../hooks/usePeriod";
+import { formatMonth } from "../utils/period";
 import { formatMoney, formatMoneyTotals } from "../utils/format";
 
 // ─── Trend Spark (6-month spending bars, mock parity, no chart lib) ──
@@ -47,6 +51,82 @@ function TrendSpark({ values }: { values: number[] }) {
 }
 
 // ─── Category Bar with Gradient ────────────────────────────────
+
+export interface BudgetStatusTone {
+  label: string;
+  icon: IconName;
+  color: string;
+  textColor: string;
+}
+
+/**
+ * Budget health is never colour-only: every band carries a distinct label and
+ * a distinct icon shape, so it survives monochrome and colour-blind rendering.
+ */
+export function budgetStatusForPct(pct: number): BudgetStatusTone {
+  if (pct >= 100) {
+    return {
+      label: "Excedido",
+      icon: "warning",
+      color: "var(--color-danger)",
+      textColor: "var(--color-danger-text)",
+    };
+  }
+  if (pct >= 90) {
+    return {
+      label: "Alerta",
+      icon: "bell",
+      color: "var(--color-warning)",
+      textColor: "var(--color-warning-text)",
+    };
+  }
+  if (pct >= 80) {
+    return {
+      label: "Cuidado",
+      icon: "eye",
+      color: "var(--color-warning)",
+      textColor: "var(--color-warning-text)",
+    };
+  }
+  if (pct >= 60) {
+    return {
+      label: "Normal",
+      icon: "chart-bar",
+      color: "var(--color-warning)",
+      textColor: "var(--color-warning-text)",
+    };
+  }
+  return {
+    label: "Bien",
+    icon: "check",
+    color: "var(--color-success)",
+    textColor: "var(--color-success-text)",
+  };
+}
+
+const BACKEND_STATUS: Record<string, { label: string; icon: IconName }> = {
+  exceeded: { label: "Excedido", icon: "warning" },
+  warning: { label: "Alerta", icon: "bell" },
+  ok: { label: "Bien", icon: "check" },
+  no_budget: { label: "Sin presupuesto", icon: "folder" },
+};
+
+export function budgetStatusFromBackend(status: string): { label: string; icon: IconName } {
+  return BACKEND_STATUS[status] ?? BACKEND_STATUS.no_budget;
+}
+
+export function BudgetStatusBadge({ pct }: { pct: number }) {
+  const status = budgetStatusForPct(pct);
+  return (
+    <span
+      className="text-xs font-semibold inline-flex items-center gap-1.5"
+      style={{ color: status.textColor }}
+    >
+      <SymbolicIcon name={status.icon} size={12} />
+      {status.label}
+    </span>
+  );
+}
 
 function CategoryBar({
   name,
@@ -77,41 +157,8 @@ function CategoryBar({
   const remaining = budget > 0 ? budget - spent : 0;
   const pct = budget > 0 ? (spent / budget) * 100 : 0;
 
-  // Status: dot + label (Adwaita tokens, no hardcoded hex, no emojis)
-  let status: { label: string; color: string; textColor: string } | null = null;
-  if (budget > 0) {
-    if (pct >= 100) {
-      status = {
-        label: "Excedido",
-        color: "var(--color-danger)",
-        textColor: "var(--color-danger-text)",
-      };
-    } else if (pct >= 90) {
-      status = {
-        label: "Alerta",
-        color: "var(--color-warning)",
-        textColor: "var(--color-warning-text)",
-      };
-    } else if (pct >= 80) {
-      status = {
-        label: "Cuidado",
-        color: "var(--color-warning)",
-        textColor: "var(--color-warning-text)",
-      };
-    } else if (pct >= 60) {
-      status = {
-        label: "Normal",
-        color: "var(--color-warning)",
-        textColor: "var(--color-warning-text)",
-      };
-    } else {
-      status = {
-        label: "Bien",
-        color: "var(--color-success)",
-        textColor: "var(--color-success-text)",
-      };
-    }
-  }
+  // Status: icon + label (Adwaita tokens, no hardcoded hex, no emojis)
+  const status = budget > 0 ? budgetStatusForPct(pct) : null;
 
   const overAvg = budget === 0 && avgMonthly > 0 && spent / avgMonthly >= 1;
   const nearAvg = budget === 0 && avgMonthly > 0 && spent / avgMonthly >= 0.8;
@@ -151,21 +198,12 @@ function CategoryBar({
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {limitedEvidence && (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full text-[var(--text-tertiary)] bg-[var(--color-base-alt)]">
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full text-[var(--text-tertiary)] bg-[var(--color-base-alt)]">
               evidencia limitada
             </span>
           )}
           {status ? (
-            <span
-              className="text-xs font-semibold inline-flex items-center gap-1.5"
-              style={{ color: status.textColor }}
-            >
-              <span
-                className="w-2 h-2 rounded-full inline-block"
-                style={{ backgroundColor: status.color }}
-              />
-              {status.label}
-            </span>
+            <BudgetStatusBadge pct={pct} />
           ) : (
             <span className="text-xs text-[var(--text-tertiary)] italic">Sin presupuesto</span>
           )}
@@ -184,7 +222,7 @@ function CategoryBar({
           )}
         </div>
       </div>
-      <p className="text-xs text-[var(--text-secondary)] mb-2 ml-9">
+      <p className="text-sm text-[var(--text-secondary)] mb-2 ml-9">
         {budget > 0 ? (
           <>
             {remaining >= 0 ? (
@@ -211,7 +249,7 @@ function CategoryBar({
             style={{ width: `${barPct}%`, backgroundColor: barColor }}
           />
         </div>
-        <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap">
+        <span className="text-sm text-[var(--text-secondary)] whitespace-nowrap">
           <b className="text-[var(--text-primary)] font-semibold">
             {budget > 0 ? `${Math.round(pct)}%` : formatMoney(spent, currency)}
           </b>
@@ -286,7 +324,7 @@ function CategoryGroupSection({
         <div className="flex items-center gap-4">
           {totalBudget > 0 && (
             <span
-              className={`text-xs font-semibold ${
+              className={`text-sm font-semibold ${
                 totalRemaining < 0
                   ? "text-[var(--color-danger-text)]"
                   : "text-[var(--color-success-text)]"
@@ -418,17 +456,17 @@ function EventCard({
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3 mb-3">
         <div className="text-center">
-          <p className="adw-caption adw-dim-label">PRESUPUESTO</p>
+          <p className="adw-caption text-[var(--text-tertiary)]">PRESUPUESTO</p>
           <p className="text-sm font-bold text-primary">
             {formatMoney(event.total_amount, currency)}
           </p>
         </div>
         <div className="text-center">
-          <p className="adw-caption adw-dim-label">GASTADO</p>
+          <p className="adw-caption text-[var(--text-tertiary)]">GASTADO</p>
           <p className="text-sm font-bold text-primary">{formatMoney(event.spent, currency)}</p>
         </div>
         <div className="text-center">
-          <p className="adw-caption adw-dim-label">RESTANTE</p>
+          <p className="adw-caption text-[var(--text-tertiary)]">RESTANTE</p>
           <p
             className={`text-sm font-bold ${
               remaining < 0 ? "text-[var(--color-danger-text)]" : "text-[var(--color-success-text)]"
@@ -446,7 +484,7 @@ function EventCard({
           style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
         />
       </div>
-      <p className="text-xs text-[var(--text-secondary)]">
+      <p className="text-sm text-[var(--text-secondary)]">
         {formatMoney(event.spent, currency)} / {formatMoney(event.total_amount, currency)}
       </p>
 
@@ -493,7 +531,7 @@ function UnbudgetedSection() {
 
   return (
     <div className="mb-6">
-      <p className="adw-caption-heading adw-dim-label px-1 mb-1.5">
+      <p className="adw-caption-heading text-[var(--text-tertiary)] px-1 mb-1.5">
         SIN ASIGNAR · {items.length} {items.length === 1 ? "CATEGORÍA" : "CATEGORÍAS"}
       </p>
       <div className="rounded-xl border border-[var(--border-color)] overflow-hidden bg-[var(--color-surface)]">
@@ -525,7 +563,7 @@ function UnbudgetedSection() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {s.months_with_data < 3 && (
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full text-[var(--text-tertiary)] bg-[var(--color-base-alt)]">
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full text-[var(--text-tertiary)] bg-[var(--color-base-alt)]">
                       evidencia limitada
                     </span>
                   )}
@@ -534,7 +572,7 @@ function UnbudgetedSection() {
                   </span>
                 </div>
               </div>
-              <p className="text-xs text-[var(--text-secondary)] mb-2 ml-9">
+              <p className="text-sm text-[var(--text-secondary)] mb-2 ml-9">
                 prom {formatMoney(s.avg_monthly, s.currency ?? "ARS")}/mes
                 {s.months_with_data < 3 && " · poco historial"}
               </p>
@@ -545,7 +583,7 @@ function UnbudgetedSection() {
                   border: "1px dashed color-mix(in srgb, var(--color-primary) 40%, transparent)",
                 }}
               >
-                <span className="text-xs text-[var(--text-secondary)]">
+                <span className="text-sm text-[var(--text-secondary)]">
                   Sugerido <strong>{formatMoney(s.suggested, s.currency ?? "ARS")}</strong>
                 </span>
                 <button
@@ -671,7 +709,7 @@ function EditBudgetModal({
             <h3 id="edit-budget-title" className="text-base font-semibold text-primary">
               {category.category_name}
             </h3>
-            <p className="adw-caption adw-dim-label">
+            <p className="text-sm text-[var(--text-tertiary)]">
               {existing
                 ? `Actual: ${formatMoney(existing.amount, currency)}`
                 : "Sin presupuesto asignado"}
@@ -697,7 +735,7 @@ function EditBudgetModal({
             {category.avg_monthly > 0 && (
               <button
                 onClick={() => setAmount(Math.round(category.avg_monthly))}
-                className="text-xs text-[var(--color-primary)] hover:underline font-medium mt-2"
+                className="text-sm text-[var(--color-primary)] hover:underline font-medium mt-2"
               >
                 Usar prom {formatMoney(category.avg_monthly, currency)}
               </button>
@@ -718,7 +756,7 @@ function EditBudgetModal({
               placeholder="75, 90, 100"
               className="w-full px-3 py-2 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
             />
-            <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">
               Recibís un aviso cada vez que el gasto cruza uno de estos niveles
             </p>
           </div>
@@ -826,7 +864,7 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
 
   const block = "text-xs text-[var(--text-secondary)] mt-1 leading-relaxed";
   const example =
-    "mt-1.5 rounded-lg px-2.5 py-2 text-[11px] text-[var(--text-secondary)] bg-[var(--color-base)] border border-[var(--border-color)]";
+    "mt-1.5 rounded-lg px-2.5 py-2 text-xs text-[var(--text-secondary)] bg-[var(--color-base)] border border-[var(--border-color)]";
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -843,7 +881,7 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
               ×
             </button>
           </div>
-          <p className="adw-caption adw-dim-label mt-0.5">
+          <p className="adw-caption text-[var(--text-tertiary)] mt-0.5">
             Lo esencial con ejemplos. El detalle vive en la Guía completa.
           </p>
         </div>
@@ -925,7 +963,7 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
                     >
                       Completar {g.display_name} ({items.length})
                     </button>
-                    <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
+                    <p className="text-sm text-[var(--text-tertiary)] mt-1">
                       Ej: {first.category_name}{" "}
                       {formatMoney(first.suggested, first.currency ?? "ARS")}
                     </p>
@@ -938,13 +976,13 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
                 aria-hidden="true"
                 className="mt-2 rounded-lg px-2.5 py-2 border border-dashed border-[var(--color-primary)]/40 bg-[var(--color-primary)]/5"
               >
-                <p className="text-[11px] font-semibold text-[var(--text-tertiary)] mb-1">
+                <p className="text-xs font-semibold text-[var(--text-tertiary)] mb-1">
                   Se crearían así:
                 </p>
                 {pending.slice(0, 3).map((s) => (
                   <div
                     key={s.category_id}
-                    className="flex items-center justify-between text-xs py-0.5"
+                    className="flex items-center justify-between text-sm py-0.5"
                   >
                     <span className="inline-flex items-center gap-2 text-[var(--text-primary)]">
                       <span
@@ -957,7 +995,7 @@ function BudgetHelpPanel({ groups, onClose }: { groups: BudgetGroup[]; onClose: 
                   </div>
                 ))}
                 {pending.length > 3 && (
-                  <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
+                  <p className="text-xs text-[var(--text-tertiary)] mt-1">
                     +{pending.length - 3} más
                   </p>
                 )}
@@ -1175,7 +1213,7 @@ function QuickConfigModal({
               <p className="text-sm font-medium text-[var(--text-primary)] truncate">
                 {r.parent ? `${r.parent} > ${r.name}` : r.name}
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)]">
+              <p className="text-sm text-[var(--text-tertiary)]">
                 {r.hasBudget ? (
                   <>
                     {formatMoney(r.budget, currency)} presup. · gastado{" "}
@@ -1196,7 +1234,7 @@ function QuickConfigModal({
           <div className="flex items-center gap-2 flex-shrink-0">
             {r.hasBudget && (
               <span
-                className="text-xs font-semibold"
+                className="text-sm font-semibold"
                 style={{
                   color: remaining < 0 ? "var(--color-danger)" : "var(--color-success)",
                 }}
@@ -1207,10 +1245,13 @@ function QuickConfigModal({
               </span>
             )}
             <span
-              className="w-2 h-2 rounded-full inline-block"
-              title={r.status}
-              style={{ backgroundColor: statusColor(r.status) }}
-            />
+              className="inline-flex items-center"
+              title={budgetStatusFromBackend(r.status).label}
+              style={{ color: statusColor(r.status) }}
+            >
+              <SymbolicIcon name={budgetStatusFromBackend(r.status).icon} size={12} />
+              <span className="sr-only">{budgetStatusFromBackend(r.status).label}</span>
+            </span>
             <button
               onClick={() => onEditCategory(toEditItem(r))}
               title={r.hasBudget ? `Editar ${r.name}` : `Asignar presupuesto a ${r.name}`}
@@ -1235,7 +1276,7 @@ function QuickConfigModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-base font-semibold text-primary mb-1">Todo lo presupuestado</h3>
-        <p className="adw-caption adw-dim-label mb-4">
+        <p className="text-sm text-[var(--text-tertiary)] mb-4">
           {budgeted.length} con presupuesto · {unassigned.length} con gasto sin asignar · total{" "}
           {formatMoney(totalAssigned, currency)}
         </p>
@@ -1259,7 +1300,9 @@ function QuickConfigModal({
           <>
             {budgeted.length > 0 && (
               <div className="mb-5">
-                <p className="adw-caption-heading adw-dim-label px-1 mb-1.5">PRESUPUESTADAS</p>
+                <p className="adw-caption-heading text-[var(--text-tertiary)] px-1 mb-1.5">
+                  PRESUPUESTADAS
+                </p>
                 <div className="rounded-xl border border-[var(--border-color)] overflow-hidden">
                   {budgeted.map(renderRow)}
                 </div>
@@ -1267,7 +1310,9 @@ function QuickConfigModal({
             )}
             {unassigned.length > 0 && (
               <div>
-                <p className="adw-caption-heading adw-dim-label px-1 mb-1.5">SIN ASIGNAR</p>
+                <p className="adw-caption-heading text-[var(--text-tertiary)] px-1 mb-1.5">
+                  SIN ASIGNAR
+                </p>
                 <div className="rounded-xl border border-[var(--border-color)] overflow-hidden">
                   {unassigned.map(renderRow)}
                 </div>
@@ -1348,7 +1393,7 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
     >
       <div className="card w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-base font-semibold text-primary mb-1">Editar grupos</h3>
-        <p className="adw-caption adw-dim-label mb-4">
+        <p className="adw-caption text-[var(--text-tertiary)] mb-4">
           Definí los montos. Como guía, la relación entre grupos conviene que ronde el 50/30/20 de
           tus ingresos (no hace falta que sea exacta).
         </p>
@@ -1362,7 +1407,7 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
                 </span>
               </div>
               <div>
-                <label className="block text-[10px] text-[var(--text-secondary)] mb-1">
+                <label className="block text-xs text-[var(--text-secondary)] mb-1">
                   Monto mensual
                 </label>
                 <input
@@ -1377,7 +1422,7 @@ function EditGroupModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
           ))}
-          <p className="text-xs text-[var(--text-secondary)] text-center">
+          <p className="text-sm text-[var(--text-secondary)] text-center">
             Total asignado: <strong>{formatMoney(total, currency)}</strong>
           </p>
         </div>
@@ -1502,12 +1547,12 @@ function NewEventModal({ onClose }: { onClose: () => void }) {
 function CategorySidePanel({
   category,
   onClose,
+  month,
 }: {
   category: BudgetSummaryItem;
   onClose: () => void;
+  month: string;
 }) {
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const currency = category.currency ?? "ARS";
 
   // Collect category IDs: the category itself + its children
@@ -1531,7 +1576,7 @@ function CategorySidePanel({
       m
         .getExpenses({
           category_ids: categoryIds.join(","),
-          month: currentMonth,
+          month,
         })
         .then((data) => {
           if (!cancelled) {
@@ -1550,7 +1595,7 @@ function CategorySidePanel({
     return () => {
       cancelled = true;
     };
-  }, [categoryIds.join(","), currentMonth]);
+  }, [categoryIds.join(","), month]);
 
   // Close on Escape key
   useEffect(() => {
@@ -1578,7 +1623,7 @@ function CategorySidePanel({
               />
               <div>
                 <h2 className="text-base font-semibold text-primary">{category.category_name}</h2>
-                <p className="text-xs text-[var(--text-secondary)]">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {formatMoney(category.budget_amount - category.spent_amount, currency)} restantes
                   de {formatMoney(category.budget_amount, currency)}
                 </p>
@@ -1713,17 +1758,17 @@ function EventSidePanel({
           </div>
           <div className="grid grid-cols-3 gap-3 mt-3">
             <div className="text-center">
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Presupuesto</p>
+              <p className="text-xs text-[var(--text-tertiary)] uppercase">Presupuesto</p>
               <p className="text-sm font-bold text-primary">
                 {formatMoney(event.total_amount, currency)}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Gastado</p>
+              <p className="text-xs text-[var(--text-tertiary)] uppercase">Gastado</p>
               <p className="text-sm font-bold text-primary">{formatMoney(event.spent, currency)}</p>
             </div>
             <div className="text-center">
-              <p className="text-[10px] text-[var(--text-tertiary)] uppercase">Restante</p>
+              <p className="text-xs text-[var(--text-tertiary)] uppercase">Restante</p>
               <p
                 className={`text-sm font-bold ${
                   event.total_amount - event.spent < 0
@@ -1867,11 +1912,11 @@ function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: ()
                 />
                 <div className="flex-1">
                   <p className="text-xs font-medium text-primary">{expense.description}</p>
-                  <p className="text-[10px] text-[var(--text-tertiary)]">
+                  <p className="text-xs text-[var(--text-tertiary)]">
                     {expense.date} · {expense.category_name || "Sin categoría"}
                   </p>
                 </div>
-                <span className="text-xs font-semibold text-primary">
+                <span className="text-sm font-semibold text-primary">
                   {formatMoney(expense.amount, expense.currency)}
                 </span>
               </label>
@@ -1880,7 +1925,7 @@ function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: ()
         )}
 
         {selectedIds.size > 0 && (
-          <p className="text-xs text-[var(--text-secondary)] mt-3 text-center">
+          <p className="text-sm text-[var(--text-secondary)] mt-3 text-center">
             Seleccionados: {formatMoneyTotals(expenses.filter((e: any) => selectedIds.has(e.id)))}
           </p>
         )}
@@ -1909,6 +1954,7 @@ function LinkExpensesModal({ event, onClose }: { event: BudgetEvent; onClose: ()
 
 export default function BudgetPage() {
   const qc = useQueryClient();
+  const { month: periodMonth, setMonth: setPeriodMonth, isCurrentMonth } = usePeriod();
   const [showNewEvent, setShowNewEvent] = useState(false);
   const [showQuickConfig, setShowQuickConfig] = useState(false);
   const [editingGroup, setEditingGroup] = useState<BudgetGroup | null>(null);
@@ -1924,8 +1970,8 @@ export default function BudgetPage() {
     isError: summaryError,
     refetch: refetchSummary,
   } = useQuery({
-    queryKey: ["budget-summary"],
-    queryFn: () => getBudgetSummary(),
+    queryKey: ["budget-summary", periodMonth],
+    queryFn: () => getBudgetSummary(periodMonth),
   });
 
   const {
@@ -1980,15 +2026,19 @@ export default function BudgetPage() {
     void refetchEvents();
   };
 
-  // Compute KPIs
+  // Compute KPIs. Spent follows the shared period (summary is month-scoped);
+  // the budget envelope itself is monthly and does not change with the month.
   const totalBudget = useMemo(() => groups.reduce((s, g) => s + g.amount, 0), [groups]);
-  const totalSpent = useMemo(() => groups.reduce((s, g) => s + g.spent, 0), [groups]);
+  const totalSpent = useMemo(
+    () => summary?.total_spent ?? groups.reduce((s, g) => s + g.spent, 0),
+    [summary, groups],
+  );
   const totalAvailable = totalBudget - totalSpent;
 
-  // Daily pace vs budget pace (current month)
-  const now = new Date();
-  const dayOfMonth = now.getDate();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  // Daily pace vs budget pace, for the selected month
+  const [periodYear, periodMonthNumber] = periodMonth.split("-").map(Number);
+  const daysInMonth = new Date(periodYear, periodMonthNumber, 0).getDate();
+  const dayOfMonth = isCurrentMonth ? new Date().getDate() : daysInMonth;
   const dailyAvg = dayOfMonth > 0 ? totalSpent / dayOfMonth : 0;
   const budgetPace = daysInMonth > 0 ? totalBudget / daysInMonth : 0;
   const paceOk = budgetPace <= 0 || dailyAvg <= budgetPace * 1.1;
@@ -2001,8 +2051,7 @@ export default function BudgetPage() {
         ? "var(--color-warning)"
         : "var(--color-danger)";
   const spentPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
-  const monthLabelRaw = now.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-  const monthLabel = monthLabelRaw.charAt(0).toUpperCase() + monthLabelRaw.slice(1);
+  const monthLabel = formatMonth(periodMonth);
   const trendValues = (summary?.trend_6m ?? []).map((t) => t.total);
 
   // Group categories by macro group
@@ -2050,12 +2099,15 @@ export default function BudgetPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div>
-          <h1 className="adw-title-2 text-primary">Presupuesto</h1>
-          <p className="adw-caption adw-dim-label">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="adw-title-2 text-primary">Presupuesto</h1>
+            <PeriodNavigator month={periodMonth} onChange={setPeriodMonth} />
+          </div>
+          <p className="adw-caption text-[var(--text-tertiary)]">
             {monthLabel} · montos en {budgetCurrency}
           </p>
           {summary?.fx_rate && (
-            <p className="adw-caption adw-dim-label">
+            <p className="adw-caption text-[var(--text-tertiary)]">
               Tasa usada: {summary.fx_rate.toLocaleString("es-AR")} {summary.fx_rate_source}
               {summary.fx_rate_date ? ` (${summary.fx_rate_date})` : ""}
             </p>
@@ -2088,7 +2140,7 @@ export default function BudgetPage() {
           {/* KPI Row */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div className="card p-4">
-              <p className="adw-caption adw-dim-label mb-1">DISPONIBLE</p>
+              <p className="adw-caption text-[var(--text-tertiary)] mb-1">DISPONIBLE</p>
               <p
                 className={`text-lg font-bold ${
                   totalAvailable < 0
@@ -2098,26 +2150,28 @@ export default function BudgetPage() {
               >
                 {formatMoney(totalAvailable, budgetCurrency)}
               </p>
-              <p className="adw-caption adw-dim-label mt-1">
+              <p className="text-sm text-[var(--text-tertiary)] mt-1">
                 de {formatMoney(totalBudget, budgetCurrency)} presupuestados
               </p>
               <TrendSpark values={trendValues} />
             </div>
             <div className="card p-4">
-              <p className="adw-caption adw-dim-label mb-1">GASTADO VS PRESUPUESTO</p>
+              <p className="adw-caption text-[var(--text-tertiary)] mb-1">GASTADO VS PRESUPUESTO</p>
               <p className="text-lg font-bold text-primary">
                 {formatMoney(totalSpent, budgetCurrency)}
               </p>
-              <p className="adw-caption adw-dim-label mt-1">{spentPct}% del presupuesto</p>
+              <p className="adw-caption text-[var(--text-tertiary)] mt-1">
+                {spentPct}% del presupuesto
+              </p>
               <TrendSpark values={trendValues} />
             </div>
             <div className="card p-4">
-              <p className="adw-caption adw-dim-label mb-1">RITMO DIARIO</p>
+              <p className="adw-caption text-[var(--text-tertiary)] mb-1">RITMO DIARIO</p>
               <p className="text-lg font-bold text-primary">
                 {formatMoney(dailyAvg, budgetCurrency)}
-                <span className="adw-caption adw-dim-label font-normal">/día</span>
+                <span className="text-sm text-[var(--text-tertiary)] font-normal">/día</span>
               </p>
-              <p className="adw-caption adw-dim-label mt-1">
+              <p className="text-sm text-[var(--text-tertiary)] mt-1">
                 esperado a hoy {formatMoney(expectedToday, budgetCurrency)} · real{" "}
                 {formatMoney(totalSpent, budgetCurrency)}
               </p>
@@ -2303,7 +2357,11 @@ export default function BudgetPage() {
       )}
       {editingGroup && <EditGroupModal onClose={() => setEditingGroup(null)} />}
       {selectedCategory && (
-        <CategorySidePanel category={selectedCategory} onClose={() => setSelectedCategory(null)} />
+        <CategorySidePanel
+          category={selectedCategory}
+          month={periodMonth}
+          onClose={() => setSelectedCategory(null)}
+        />
       )}
       {editingCategory && (
         <EditBudgetModal category={editingCategory} onClose={() => setEditingCategory(null)} />

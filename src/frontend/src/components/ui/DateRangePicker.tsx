@@ -115,6 +115,7 @@ export function DateRangePicker({ preset, from, to, month, onChange }: DateRange
     >
       <button
         type="button"
+        data-testid="date-range-trigger"
         onClick={() => (open ? setOpen(false) : openPicker())}
         aria-haspopup="dialog"
         aria-expanded={open}

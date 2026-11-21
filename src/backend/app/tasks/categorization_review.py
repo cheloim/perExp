@@ -29,7 +29,7 @@ def categorization_review_scan():
     """Review the recently created expenses of opted-in users."""
     db = SessionLocal()
     try:
-        users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
+        users = db.query(User).filter(User.is_active == True).all()
         scanned = 0
         persisted = 0
         for user in users:

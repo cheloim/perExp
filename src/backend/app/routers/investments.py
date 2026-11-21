@@ -424,7 +424,7 @@ def deduplicate_investments(
         else:
             kept = db.query(Investment).filter(Investment.id == seen[key]).first()
             curr_score = (inv.avg_cost > 0, inv.quantity)
-            kept_score = (kept.avg_cost > 0, kept.quantity)  # type: ignore[union-attr]
+            kept_score = (kept.avg_cost > 0, kept.quantity)
             if curr_score > kept_score:
                 to_delete.append(seen[key])
                 seen[key] = inv.id

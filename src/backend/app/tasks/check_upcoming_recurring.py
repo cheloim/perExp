@@ -37,7 +37,7 @@ def check_upcoming_recurring():
         upcoming = (
             db.query(RecurringExpense)
             .filter(
-                RecurringExpense.is_active == True,  # noqa: E712
+                RecurringExpense.is_active == True,
                 RecurringExpense.next_charge_date.isnot(None),
             )
             .all()
@@ -58,7 +58,7 @@ def check_upcoming_recurring():
                 .filter(
                     Notification.user_id == rec.user_id,
                     Notification.type == "upcoming_recurring",
-                    Notification.read == False,  # noqa: E712
+                    Notification.read == False,
                 )
                 .all()
             )

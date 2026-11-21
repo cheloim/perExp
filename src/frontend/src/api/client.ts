@@ -614,6 +614,8 @@ export type ExpenseFilterParams = {
   cuenta_id?: number;
   sin_cuenta?: boolean;
   search?: string;
+  sort?: "date" | "amount";
+  direction?: "asc" | "desc";
 };
 
 export const getExpenses = (params?: ExpenseFilterParams & { limit?: number; offset?: number }) =>

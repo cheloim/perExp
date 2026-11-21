@@ -1,7 +1,7 @@
 import re
 import uuid
 from datetime import date, datetime
-from typing import cast
+from typing import Literal, cast
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -113,7 +113,7 @@ def _track_merchant_preference(user_id: int, description: str, category_id: int,
     "",
     response_model=list[ExpenseResponse],
     summary="List expenses",
-    description="Returns expenses for the user's family group with filters for date range, category, bank, person, card type, installment status, account, and free-text search.",
+    description="Returns expenses for the user's family group with filters for date range, category, bank, person, card type, installment status, account, and free-text search. Ordering by date or amount happens in SQL, after filtering and before pagination.",
 )
 def get_expenses(
     date_from: date | None = None,
@@ -134,6 +134,8 @@ def get_expenses(
     cuenta_id: int | None = None,
     sin_cuenta: bool = False,
     search: str | None = None,
+    sort: Literal["date", "amount"] = "date",
+    direction: Literal["asc", "desc"] = "desc",
     skip: int = 0,
     limit: int = 200,
     db: Session = Depends(get_db),
@@ -173,7 +175,11 @@ def get_expenses(
         sin_cuenta=sin_cuenta,
         search=search,
     )
-    return q.order_by(desc(Expense.date)).offset(skip).limit(limit).all()
+    order_column = Expense.amount if sort == "amount" else Expense.date
+    order_clause = order_column.asc() if direction == "asc" else order_column.desc()
+    # The id tie-breaker keeps offset/limit stable when many rows share a date
+    # or amount, so "Ver más" cannot repeat or skip a row.
+    return q.order_by(order_clause, desc(Expense.id)).offset(skip).limit(limit).all()
 
 
 @router.get(

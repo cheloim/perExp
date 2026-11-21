@@ -58,6 +58,10 @@ function sanitizeFilterParams(params: URLSearchParams): URLSearchParams {
   // A notification's scroll target is not a filter: restoring it would keep
   // the transient flag alive on every visit.
   clean.delete("category_suggestions");
+  // The month belongs to the shared period (usePeriod owns its storage).
+  // Keeping a stale copy here would override the period chosen on another
+  // screen when this page restores its filters.
+  clean.delete("month");
   return clean;
 }
 

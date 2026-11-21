@@ -47,6 +47,35 @@ Both backend and frontend support hot reload via volume mounts:
 # Frontend: ./frontend/src:/app/src
 ```
 
+### Dependencias del backend (instalación reproducible)
+
+`src/backend/requirements.txt` declara los rangos de versiones; los locks fijan el
+grafo resuelto para Python 3.13, la versión de la imagen `python:3.13-slim`. La
+imagen de Docker instala `requirements.lock` y el job de tests del CI instala
+`requirements-dev.lock` (también sobre Python 3.13).
+
+```bash
+cd src/backend
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.lock       # runtime
+pip install -r requirements-dev.lock   # runtime + pytest/pytest-cov
+```
+
+Para agregar o actualizar una dependencia, editá `requirements.txt` y regenerá los
+locks con uv:
+
+```bash
+uv pip compile requirements.txt --python-version 3.13 --no-annotate -o requirements.lock
+uv pip compile requirements-dev.txt --python-version 3.13 --no-annotate -o requirements-dev.lock
+```
+
+Los locks fijan versiones exactas pero no hashes de wheels, para que la instalación
+funcione tanto en Linux como en macOS. `requirements-dev.txt` incluye
+`-r requirements.txt`, así que `requirements-dev.lock` también contiene las
+dependencias de runtime. `requirements.txt` y `requirements-dev.txt` siguen siendo
+la fuente de los rangos; lo que se instala en Docker y CI son los locks.
+
 ### Useful Commands
 
 ```bash
@@ -312,8 +341,8 @@ APScheduler runs every 15 minutes during BYMA trading hours:
 # Build stage
 FROM python:3.13-slim AS builder
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.lock .
+RUN pip install --no-cache-dir -r requirements.lock
 
 # Production stage
 FROM python:3.13-slim

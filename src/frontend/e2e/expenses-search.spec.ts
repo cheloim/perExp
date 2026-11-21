@@ -170,7 +170,7 @@ test("a date preset filters the API and survives a reload", async ({ page }) => 
   const requests = await openExpenses(page);
 
   await page.getByRole("button", { name: /Filtros/ }).click();
-  await page.getByRole("button", { name: "Cualquier fecha" }).click();
+  await page.getByTestId("date-range-trigger").click();
   await page.getByRole("button", { name: "3m" }).click();
 
   await expect(page).toHaveURL(/[?&]range=3m/);
@@ -193,7 +193,7 @@ test("clearing the filters is remembered across reloads", async ({ page }) => {
   await openExpenses(page);
 
   await page.getByRole("button", { name: /Filtros/ }).click();
-  await page.getByRole("button", { name: "Cualquier fecha" }).click();
+  await page.getByTestId("date-range-trigger").click();
   await page.getByRole("button", { name: "6m" }).click();
   await expect(page).toHaveURL(/[?&]range=6m/);
 
@@ -218,10 +218,10 @@ test("the category analysis links out and no chart request is made", async ({ pa
   await openExpenses(page);
 
   const link = page.getByRole("link", { name: /Ver análisis por categoría/ });
-  await expect(link).toHaveAttribute("href", "/cat-dashboard");
+  await expect(link).toHaveAttribute("href", /\/cat-dashboard\?month=\d{4}-\d{2}/);
 
   await page.getByRole("button", { name: /Filtros/ }).click();
-  await page.getByRole("button", { name: "Cualquier fecha" }).click();
+  await page.getByTestId("date-range-trigger").click();
   await page.getByRole("button", { name: "1m" }).click();
 
   // `1m` is the current calendar month, so the analysis page inherits it.
@@ -239,7 +239,7 @@ test("saved views can be stored and reapplied", async ({ page }) => {
   await openExpenses(page);
 
   await page.getByRole("button", { name: /Filtros/ }).click();
-  await page.getByRole("button", { name: "Cualquier fecha" }).click();
+  await page.getByTestId("date-range-trigger").click();
   await page.getByRole("button", { name: "3m" }).click();
   await expect(page).toHaveURL(/[?&]range=3m/);
 
@@ -344,7 +344,7 @@ test("the result count is announced politely", async ({ page }) => {
   await searchBox(page).fill("netflix");
 
   const live = page.getByTestId("expense-filters").locator('[aria-live="polite"]');
-  await expect(live).toHaveText(/1\+? gastos? para «netflix»/);
+  await expect(live).toHaveText(/Mostrando 1 de 3 gastos? para «netflix»/);
 });
 
 test("CSV export honors the active search", async ({ page }) => {

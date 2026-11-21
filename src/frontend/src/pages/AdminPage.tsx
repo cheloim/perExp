@@ -63,7 +63,7 @@ export default function AdminPage() {
   if (window.innerWidth < 1024) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <p className="text-[var(--text-[var(--text-secondary)])] text-lg">
+        <p className="text-[var(--text-secondary)] text-lg">
           Panel de administración solo disponible en desktop.
         </p>
       </div>
@@ -87,7 +87,7 @@ export default function AdminPage() {
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 tab === t
                   ? "border-[var(--color-primary)] text-[var(--color-primary)]"
-                  : "border-transparent text-[var(--text-[var(--text-tertiary)])] hover:text-[var(--text-[var(--text-secondary)])]"
+                  : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
               }`}
             >
               {TAB_LABELS[t]}
@@ -197,7 +197,7 @@ function UsersTab() {
           }}
           className="input max-w-sm"
         />
-        <span className="text-xs text-[var(--text-[var(--text-tertiary)])]">{total} usuarios</span>
+        <span className="text-xs text-[var(--text-tertiary)]">{total} usuarios</span>
       </div>
 
       {isLoading ? (
@@ -211,34 +211,30 @@ function UsersTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border-color)]">
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
-                  ID
-                </th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                <th className="text-left py-2 px-3 text-[var(--text-tertiary)] font-medium">ID</th>
+                <th className="text-left py-2 px-3 text-[var(--text-tertiary)] font-medium">
                   Nombre
                 </th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                <th className="text-left py-2 px-3 text-[var(--text-tertiary)] font-medium">
                   Email
                 </th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                <th className="text-left py-2 px-3 text-[var(--text-tertiary)] font-medium">
                   Estado
                 </th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                <th className="text-left py-2 px-3 text-[var(--text-tertiary)] font-medium">
                   Admin
                 </th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                <th className="text-left py-2 px-3 text-[var(--text-tertiary)] font-medium">
                   Telegram
                 </th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
-                  MFA
-                </th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                <th className="text-left py-2 px-3 text-[var(--text-tertiary)] font-medium">MFA</th>
+                <th className="text-left py-2 px-3 text-[var(--text-tertiary)] font-medium">
                   Proveedor
                 </th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                <th className="text-left py-2 px-3 text-[var(--text-tertiary)] font-medium">
                   Creado
                 </th>
-                <th className="text-left py-2 px-3 text-[var(--text-[var(--text-tertiary)])] font-medium">
+                <th className="text-left py-2 px-3 text-[var(--text-tertiary)] font-medium">
                   Acciones
                 </th>
               </tr>
@@ -275,7 +271,7 @@ function UsersTab() {
                         Activo
                       </span>
                     ) : (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-base-alt)] text-[var(--text-[var(--text-tertiary)])]">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-base-alt)] text-[var(--text-tertiary)]">
                         Inactivo
                       </span>
                     )}
@@ -291,14 +287,14 @@ function UsersTab() {
                     {u.telegram_connected ? (
                       <span className="text-[var(--color-success)]">✓</span>
                     ) : (
-                      <span className="text-[var(--text-[var(--text-tertiary)])]">-</span>
+                      <span className="text-[var(--text-tertiary)]">-</span>
                     )}
                   </td>
                   <td className="py-2 px-3">
                     {u.mfa_enabled ? (
                       <span className="text-[var(--color-success)]">✓</span>
                     ) : (
-                      <span className="text-[var(--text-[var(--text-tertiary)])]">-</span>
+                      <span className="text-[var(--text-tertiary)]">-</span>
                     )}
                   </td>
                   <td className="py-2 px-3">
@@ -307,12 +303,10 @@ function UsersTab() {
                         Google
                       </span>
                     ) : (
-                      <span className="text-xs text-[var(--text-[var(--text-tertiary)])]">
-                        Email
-                      </span>
+                      <span className="text-xs text-[var(--text-tertiary)]">Email</span>
                     )}
                   </td>
-                  <td className="py-2 px-3 text-xs text-[var(--text-[var(--text-tertiary)])]">
+                  <td className="py-2 px-3 text-xs text-[var(--text-tertiary)]">
                     {new Date(u.created_at).toLocaleDateString("es-AR")}
                   </td>
                   <td className="py-2 px-3">
@@ -383,7 +377,7 @@ function UsersTab() {
           >
             Anterior
           </button>
-          <span className="text-xs text-[var(--text-[var(--text-tertiary)])]">Página {page}</span>
+          <span className="text-xs text-[var(--text-tertiary)]">Página {page}</span>
           <button
             onClick={() => setPage(page + 1)}
             disabled={page * 50 >= total}
@@ -1561,11 +1555,11 @@ function MetricsTab() {
               ]}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-tertiary)" }} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--text-tertiary)" }} unit="ms" />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: "var(--text-tertiary)" }} />
+              <YAxis tick={{ fontSize: 12, fill: "var(--text-tertiary)" }} unit="ms" />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "var(--bg-primary)",
+                  backgroundColor: "var(--color-base)",
                   border: "1px solid var(--border-color)",
                   borderRadius: 8,
                   fontSize: 12,
@@ -1589,11 +1583,11 @@ function MetricsTab() {
               ]}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-tertiary)" }} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--text-tertiary)" }} />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: "var(--text-tertiary)" }} />
+              <YAxis tick={{ fontSize: 12, fill: "var(--text-tertiary)" }} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "var(--bg-primary)",
+                  backgroundColor: "var(--color-base)",
                   border: "1px solid var(--border-color)",
                   borderRadius: 8,
                   fontSize: 12,

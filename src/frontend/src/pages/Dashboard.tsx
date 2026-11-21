@@ -48,6 +48,8 @@ import SymbolicIcon from "../components/SymbolicIcon";
 import { ExpenseModal } from "../components/ExpenseModals";
 import EmptyState from "../components/ui/EmptyState";
 import QuickEditPopover from "../components/QuickEditPopover";
+import PeriodNavigator from "../components/PeriodNavigator";
+import { usePeriod } from "../hooks/usePeriod";
 
 const FALLBACK_COLORS = [
   "#3b82f6", // blue
@@ -142,9 +144,7 @@ function DashboardSkeleton() {
 }
 
 export default function Dashboard() {
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const month = currentMonth;
+  const { month, setMonth } = usePeriod();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Expense | null | undefined>(undefined);
@@ -492,7 +492,8 @@ export default function Dashboard() {
   const spendingUsd = byCurrency.find((c) => c.currency === "USD");
   const displaySpending = spendingArs?.total ?? spendingUsd?.total ?? 0;
   const displayCurrency = spendingArs ? "ARS" : spendingUsd ? "USD" : "ARS";
-  const currentMonthLoad = monthlyLoad.find((m) => m.is_current);
+  const currentMonthLoad =
+    monthlyLoad.find((m) => m.month === month) ?? monthlyLoad.find((m) => m.is_current);
   const cuotasComprometidas = currentMonthLoad?.total ?? 0;
   const cuotasUsd = currentMonthLoad?.by_currency?.USD ?? 0;
 
@@ -534,21 +535,24 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold text-primary">{APP_NAME}</h1>
           {myGroup && myGroup.members.length > 1 && (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
               Grupo familiar
             </span>
           )}
         </div>
-        <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
-          <span className="text-base leading-none">+</span>
-          <span>Nuevo gasto</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <PeriodNavigator month={month} onChange={setMonth} />
+          <button onClick={() => setEditing(null)} className="gnome-btn-primary-round text-sm">
+            <span className="text-base leading-none">+</span>
+            <span>Nuevo gasto</span>
+          </button>
+        </div>
       </div>
 
       {/* Uncategorized expenses banner */}
       {uncategorizedCount > 0 && (
         <button
-          onClick={() => navigate("/expenses?uncategorized=1")}
+          onClick={() => navigate(`/expenses?uncategorized=1&month=${month}`)}
           className="w-full flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors cursor-pointer"
         >
           <span className="text-lg">⚠</span>
@@ -593,15 +597,15 @@ export default function Dashboard() {
         } gap-4`}
       >
         <Link
-          to="/expenses"
+          to={`/expenses?month=${month}`}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
-          <p className="text-[10px] text-tertiary uppercase mb-1">Total gastado</p>
+          <p className="text-xs text-tertiary uppercase mb-1">Total gastado</p>
           <p className="text-lg font-bold text-primary">
             {formatMoney(displaySpending, displayCurrency)}
           </p>
           {spendingArs && spendingUsd ? (
-            <p className="text-xs text-secondary mt-0.5">
+            <p className="text-sm text-secondary mt-0.5">
               + {formatMoney(spendingUsd.total, "USD")}
             </p>
           ) : null}
@@ -610,10 +614,10 @@ export default function Dashboard() {
           </p>
         </Link>
         <Link
-          to="/expenses?card_type=credito"
+          to={`/expenses?card_type=credito&month=${month}`}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
-          <p className="text-[10px] text-tertiary uppercase mb-1">Deuda tarjetas</p>
+          <p className="text-xs text-tertiary uppercase mb-1">Deuda tarjetas</p>
           <p className="text-lg font-bold text-danger">
             {formatMoneyTotals(pasivosData?.pasivos ?? [])}
           </p>
@@ -623,17 +627,17 @@ export default function Dashboard() {
           to={`/expenses?installment=1&date_from=${month}-01&date_to=${month}-31`}
           className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
         >
-          <p className="text-[10px] text-tertiary uppercase mb-1">Cuotas este mes</p>
+          <p className="text-xs text-tertiary uppercase mb-1">Cuotas este mes</p>
           <p className="text-lg font-bold text-primary">
             {formatMoney(cuotasComprometidas, "ARS")}
           </p>
           {cuotasUsd > 0 && (
-            <p className="text-xs text-secondary mt-0.5">incl. {formatMoney(cuotasUsd, "USD")}</p>
+            <p className="text-sm text-secondary mt-0.5">incl. {formatMoney(cuotasUsd, "USD")}</p>
           )}
           <p className="text-xs text-tertiary mt-1">{currentMonthLoad?.count ?? 0} cuotas</p>
         </Link>
         <div className="card p-5">
-          <p className="text-[10px] text-tertiary uppercase mb-1">
+          <p className="text-xs text-tertiary uppercase mb-1">
             {useMtd ? "vs mismo día mes ant." : "vs Mes anterior"}
           </p>
           <p
@@ -656,13 +660,13 @@ export default function Dashboard() {
             to="/investments"
             className="card p-5 cursor-pointer hover:bg-[var(--color-base-alt)] transition-colors"
           >
-            <p className="text-[10px] text-tertiary uppercase mb-1">Inversiones</p>
+            <p className="text-xs text-tertiary uppercase mb-1">Inversiones</p>
             <div className="space-y-0.5">
               <p className="text-lg font-bold text-primary">
                 {savingsArs > 0 ? formatMoney(savingsArs, "ARS") : totalUsd > 0 ? "—" : "—"}
               </p>
               {totalUsd > 0 && (
-                <p className="text-xs text-secondary">≈ {formatMoney(totalUsd, "USD")}</p>
+                <p className="text-sm text-secondary">≈ {formatMoney(totalUsd, "USD")}</p>
               )}
             </div>
           </Link>
@@ -688,7 +692,7 @@ export default function Dashboard() {
               )}
             </div>
             <button
-              onClick={() => navigate("/cat-dashboard")}
+              onClick={() => navigate(`/cat-dashboard?month=${month}`)}
               className="text-xs text-secondary hover:text-primary transition-colors"
             >
               Ver detalle →
@@ -796,12 +800,12 @@ export default function Dashboard() {
                         {cat.category_name}
                       </span>
                       {prevTotal > 0 && (
-                        <span className="text-[10px] text-tertiary whitespace-nowrap">
+                        <span className="text-xs text-tertiary whitespace-nowrap">
                           {variation > 0 ? "↑" : variation < 0 ? "↓" : "→"}
                           {Math.abs(variation).toFixed(0)}%
                         </span>
                       )}
-                      <span className="text-xs text-tertiary whitespace-nowrap">
+                      <span className="text-sm text-tertiary whitespace-nowrap">
                         {formatMoney(cat.total, "ARS")}
                       </span>
                     </button>
@@ -829,7 +833,7 @@ export default function Dashboard() {
                   <button
                     key={d}
                     onClick={() => setDaysFilter(d)}
-                    className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                    className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
                       daysFilter === d
                         ? "bg-primary/15 text-primary font-medium"
                         : "text-tertiary hover:text-secondary"
@@ -841,7 +845,7 @@ export default function Dashboard() {
               </div>
             </div>
             <button
-              onClick={() => navigate("/expenses")}
+              onClick={() => navigate(`/expenses?month=${month}`)}
               className="text-xs text-secondary hover:text-primary transition-colors"
             >
               Ver todos →
@@ -862,7 +866,7 @@ export default function Dashboard() {
               }
               action={{
                 label: "Ver todos los gastos",
-                onClick: () => navigate("/expenses"),
+                onClick: () => navigate(`/expenses?month=${month}`),
               }}
             />
           ) : (
@@ -986,7 +990,7 @@ export default function Dashboard() {
                 Vacías
               </label>
               <button
-                onClick={() => navigate("/expenses")}
+                onClick={() => navigate(`/expenses?month=${month}`)}
                 className="text-xs text-secondary hover:text-primary transition-colors"
               >
                 Ver detalle →
@@ -1004,7 +1008,7 @@ export default function Dashboard() {
               {(() => {
                 // Use current month amounts from monthly breakdown
                 const withCurrent = tagData.map((t) => {
-                  const monthEntry = t.monthly?.find((m) => m.month === currentMonth);
+                  const monthEntry = t.monthly?.find((m) => m.month === month);
                   return { ...t, current_amount: monthEntry?.total ?? 0 };
                 });
                 const sorted = [...withCurrent].sort((a, b) => {
@@ -1055,9 +1059,9 @@ export default function Dashboard() {
                             const tagId = (entry.payload as { tag_id?: number | null } | undefined)
                               ?.tag_id;
                             if (tagId != null) {
-                              navigate(`/expenses?cuenta_id=${tagId}`);
+                              navigate(`/expenses?cuenta_id=${tagId}&month=${month}`);
                             } else {
-                              navigate("/expenses?sin_cuenta=1");
+                              navigate(`/expenses?sin_cuenta=1&month=${month}`);
                             }
                           }}
                           style={{ cursor: "pointer" }}
@@ -1089,9 +1093,9 @@ export default function Dashboard() {
                             key={i}
                             onClick={() => {
                               if (t.tag_id != null) {
-                                navigate(`/expenses?cuenta_id=${t.tag_id}`);
+                                navigate(`/expenses?cuenta_id=${t.tag_id}&month=${month}`);
                               } else {
-                                navigate("/expenses?sin_cuenta=1");
+                                navigate(`/expenses?sin_cuenta=1&month=${month}`);
                               }
                             }}
                             className={`flex items-center gap-2.5 w-full text-left hover:bg-[var(--color-base-alt)] rounded-lg px-2.5 py-1.5 transition-colors ${
@@ -1105,7 +1109,7 @@ export default function Dashboard() {
                             <span className="text-xs font-medium text-primary truncate flex-1">
                               {t.tag_name}
                             </span>
-                            <span className="text-xs text-tertiary whitespace-nowrap">
+                            <span className="text-sm text-tertiary whitespace-nowrap">
                               {t.current_amount > 0 ? formatMoney(t.current_amount, "ARS") : "—"}
                             </span>
                             {t.monthly && t.monthly.length > 1 && (
@@ -1127,7 +1131,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2.5 px-2.5 pt-2 mt-1 border-t border-[var(--border-color)]">
                         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-[var(--text-tertiary)]" />
                         <span className="text-xs font-semibold text-primary flex-1">Total</span>
-                        <span className="text-xs font-bold text-primary whitespace-nowrap">
+                        <span className="text-sm font-bold text-primary whitespace-nowrap">
                           {formatMoney(total, "ARS")}
                         </span>
                       </div>
@@ -1211,7 +1215,7 @@ export default function Dashboard() {
                   <span className="text-sm font-bold text-primary">
                     {formatMoney(currentMonthLoad.total, "ARS")}
                   </span>
-                  <span className="text-[10px] text-tertiary ml-1.5">
+                  <span className="text-xs text-tertiary ml-1.5">
                     {currentMonthLoad.count} cuota{currentMonthLoad.count !== 1 ? "s" : ""}
                   </span>
                 </div>
@@ -1252,7 +1256,7 @@ export default function Dashboard() {
                 />
                 <XAxis
                   dataKey="month"
-                  tick={{ fontSize: 10, fill: "var(--chart-text)" }}
+                  tick={{ fontSize: 12, fill: "var(--chart-text)" }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(v) => {
@@ -1307,8 +1311,8 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                    <span className="text-[10px] text-tertiary">{m.count}x</span>
-                    <span className="text-xs font-semibold text-primary">
+                    <span className="text-xs text-tertiary">{m.count}x</span>
+                    <span className="text-sm font-semibold text-primary">
                       {formatMoney(m.total_amount, m.currency)}
                     </span>
                   </div>

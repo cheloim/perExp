@@ -99,13 +99,13 @@ def find_matching_expense(
         Expense.date <= end,
         Expense.amount >= amount - tolerance,
         Expense.amount <= amount + tolerance,
-        Expense.is_income == False,  # noqa: E712
+        Expense.is_income == False,
         Expense.installment_group_id.is_(None),
     )
     if projection is True:
-        query = query.filter(Expense.is_recurring_projection == True)  # noqa: E712
+        query = query.filter(Expense.is_recurring_projection == True)
     elif projection is False:
-        query = query.filter(Expense.is_recurring_projection == False)  # noqa: E712
+        query = query.filter(Expense.is_recurring_projection == False)
 
     key = _merchant_key(description)
     if not key:

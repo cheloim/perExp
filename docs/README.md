@@ -32,7 +32,9 @@ un documento canónico.** Si dos documentos describen lo mismo, uno de los dos e
 | Observabilidad | `Monitoring.md` | Infra | 2026-10-04 |
 | Roadmap | `Roadmap.md` | Producto | automático |
 | Decisiones de arquitectura | `adr/` | Arquitectura | ver #533 |
-| Incidentes y restauración | `runbooks/` | Infra | ver #533 |
+| Runbooks de incidentes | `runbooks/README.md` | Infra | 2026-11-21 |
+| SLOs y error budget | `SLOs.md` | Infra | 2026-11-21 |
+| Threat model y datos personales | `Threat-Model.md` | Seguridad | 2026-11-21 |
 
 > Los documentos marcados con fecha **2026-06-29** o **2026-08-29** están pendientes de
 > revisión. El listado completo, con veredicto y evidencia del desvío, está en
@@ -65,11 +67,13 @@ docs/
 ├── README.md                 ← este archivo (matriz de autoridad)
 ├── Home.md                   ← hub para la wiki
 ├── *-*.md                    ← documentación por dominio
+├── SLOs.md                   ← objetivos operativos y error budget
+├── Threat-Model.md           ← activos, actores, STRIDE y riesgos
 ├── adr/                      ← decisiones de arquitectura (pendiente, #533)
 ├── analysis/                 ← auditorías y análisis puntuales
 ├── archive/                  ← documentos históricos, no vigentes
 ├── guides/                   ← guías operativas
-├── runbooks/                 ← respuesta a incidentes (pendiente, #533)
+├── runbooks/                 ← respuesta a incidentes (índice en README.md)
 ├── specs/
 │   ├── openapi.yaml          ← contrato curado (fuente de verdad de la API)
 │   ├── architecture/         ← diseño técnico
