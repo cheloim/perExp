@@ -10,7 +10,8 @@ import {
 } from "../api/client";
 import type { Expense, ExpenseCreate, ExpenseImageDraft } from "../types";
 import { Select } from "./ui/Select";
-import { useFocusTrap } from "../hooks/useFocusTrap";
+import Dialog from "./ui/Dialog";
+import Field from "./ui/Field";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { formatMoney } from "../utils/format";
 
@@ -395,8 +396,6 @@ export function ExpenseModal({
     }
   };
 
-  const trapRef = useFocusTrap(true);
-
   const [newTagName, setNewTagName] = useState("");
 
   const visibleTags = useMemo(() => tags.filter((t) => t.group_name !== "categoria"), [tags]);
@@ -503,39 +502,65 @@ export function ExpenseModal({
     closeGuardRef.current = requestClose;
   });
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-modal-backdrop bg-black/60"
-      onClick={requestClose}
-    >
-      <div
-        ref={trapRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={initial ? "Editar gasto" : "Nuevo gasto"}
-        className="relative card w-full max-w-md max-h-[90vh] overflow-auto p-5 space-y-2.5 animate-modal-content"
-        onClick={(e) => e.stopPropagation()}
+  const footer = queueFinished ? (
+    <div className="space-y-2">
+      <p role="status" className="text-sm font-medium text-[var(--text-primary)]">
+        ✅ {savedDrafts} {savedDrafts === 1 ? "gasto guardado" : "gastos guardados"}
+        {skippedDrafts > 0
+          ? ` · ${skippedDrafts} ${skippedDrafts === 1 ? "omitido" : "omitidos"}`
+          : ""}
+      </p>
+      <button
+        type="button"
+        onClick={onClose}
+        className="w-full px-4 py-2 rounded-md bg-[var(--color-primary)] text-white text-sm font-medium hover:brightness-110 transition"
       >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            {initial ? "Editar gasto" : "Nuevo gasto"}
-          </h2>
-          <button
-            onClick={requestClose}
-            aria-label="Cerrar diálogo"
-            className="text-[var(--text-tertiary)] hover:text-[var(--color-primary)] p-1 rounded-md transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M4 4l8 8M12 4l-8 8"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        </div>
+        Cerrar
+      </button>
+    </div>
+  ) : (
+    <div className="flex gap-2">
+      <button
+        type="button"
+        onClick={requestClose}
+        className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+      >
+        Cancelar
+      </button>
+      {isQueueActive && draftStatuses[draftIndex] === "pending" && (
+        <button
+          type="button"
+          onClick={handleSkip}
+          className="px-3 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
+        >
+          Omitir
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => void handleSubmit()}
+        disabled={!isValid || isSaving || isSubmitting}
+        className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
+      >
+        {isSaving || isSubmitting
+          ? "Guardando..."
+          : isQueueActive && pendingDrafts > 1
+            ? "Guardar y siguiente"
+            : "Guardar"}
+      </button>
+    </div>
+  );
 
+  return (
+    <Dialog
+      isOpen
+      onClose={requestClose}
+      title={initial ? "Editar gasto" : "Nuevo gasto"}
+      closeLabel="Cerrar diálogo"
+      size="md"
+      footer={footer}
+    >
+      <div className="space-y-2.5">
         {(submitError || saveError) && (
           <div
             role="alert"
@@ -660,10 +685,7 @@ export function ExpenseModal({
         )}
 
         {/* Fecha */}
-        <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)]">
-            Fecha <span className="text-danger">*</span>
-          </label>
+        <Field label="Fecha" required>
           <input
             type="date"
             value={(() => {
@@ -680,118 +702,117 @@ export function ExpenseModal({
             }}
             className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
           />
-        </div>
+        </Field>
 
         {/* Monto + Moneda */}
         <div className="grid grid-cols-3 gap-2">
           <div className="col-span-2">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">
-              Monto <span className="text-danger">*</span>
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              value={form.amount}
-              onChange={(e) => set("amount", parseFloat(e.target.value) || 0)}
-              aria-label="Monto"
-              className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-            />
+            <Field label="Monto" required>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={form.amount}
+                onChange={(e) => set("amount", parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+              />
+            </Field>
           </div>
           <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">Moneda</label>
-            <Select
-              value={form.currency ?? "ARS"}
-              onChange={(v) => set("currency", v)}
-              options={[
-                { value: "ARS", label: "ARS ($)" },
-                { value: "USD", label: "USD (U$S)" },
-              ]}
-            />
+            <Field label="Moneda">
+              <Select
+                value={form.currency ?? "ARS"}
+                onChange={(v) => set("currency", v)}
+                ariaLabel="Moneda"
+                options={[
+                  { value: "ARS", label: "ARS ($)" },
+                  { value: "USD", label: "USD (U$S)" },
+                ]}
+              />
+            </Field>
           </div>
         </div>
 
         {/* Descripción + Categoría */}
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">
-              Descripción <span className="text-danger">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.description}
-              onChange={(e) => set("description", e.target.value)}
-              placeholder="Ej: Supermercado Coto"
-              className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
-            />
+            <Field label="Descripción" required>
+              <input
+                type="text"
+                value={form.description}
+                onChange={(e) => set("description", e.target.value)}
+                placeholder="Ej: Supermercado Coto"
+                className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+              />
+            </Field>
           </div>
           <div>
-            <label className="text-xs font-medium text-[var(--text-secondary)]">
-              Categoría
-              {aiSuggested && (
-                <span className="ml-1.5 text-[10px] font-normal text-[var(--color-primary)] bg-[var(--color-primary)]/10 px-1.5 py-0.5 rounded-full">
-                  IA
-                </span>
-              )}
-            </label>
-            <Select
-              value={form.category_id ? String(form.category_id) : ""}
-              onChange={async (v) => {
-                if (!v) {
-                  set("category_id", null);
-                  return;
-                }
-                const parsed = parseInt(v);
-                if (!isNaN(parsed)) {
-                  set("category_id", parsed);
-                } else {
-                  try {
-                    const newCat = await createCategory({
-                      name: v,
-                      color: "#6366f1",
-                      keywords: "",
-                      parent_id: null,
-                    });
-                    queryClient.invalidateQueries({ queryKey: ["categories"] });
-                    set("category_id", newCat.id);
-                  } catch {
-                    // Duplicate name or other error
+            <Field label="Categoría" help={aiSuggested ? "Sugerida por IA" : undefined}>
+              <Select
+                value={form.category_id ? String(form.category_id) : ""}
+                ariaLabel="Categoría"
+                onChange={async (v) => {
+                  if (!v) {
+                    set("category_id", null);
+                    return;
                   }
-                }
-              }}
-              groups={(() => {
-                const parentIds = new Set(
-                  categories.filter((c) => c.parent_id).map((c) => c.parent_id!),
-                );
-                const parents = categories.filter((c) => !c.parent_id && parentIds.has(c.id));
-                const orphans = categories.filter((c) => !c.parent_id && !parentIds.has(c.id));
-                return [
-                  ...parents.map((parent) => ({
-                    label: parent.name,
-                    options: categories
-                      .filter((c) => c.parent_id === parent.id)
-                      .map((c) => ({ value: String(c.id), label: c.name })),
-                  })),
-                  ...(orphans.length > 0
-                    ? [
-                        {
-                          label: "—",
-                          options: orphans.map((c) => ({
-                            value: String(c.id),
-                            label: c.name,
-                          })),
-                        },
-                      ]
-                    : []),
-                ];
-              })()}
-              placeholder="Sin categoría"
-            />
+                  const parsed = parseInt(v);
+                  if (!isNaN(parsed)) {
+                    set("category_id", parsed);
+                  } else {
+                    try {
+                      const newCat = await createCategory({
+                        name: v,
+                        color: "#6366f1",
+                        keywords: "",
+                        parent_id: null,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["categories"] });
+                      set("category_id", newCat.id);
+                    } catch {
+                      // Duplicate name or other error
+                    }
+                  }
+                }}
+                groups={(() => {
+                  const parentIds = new Set(
+                    categories.filter((c) => c.parent_id).map((c) => c.parent_id!),
+                  );
+                  const parents = categories.filter((c) => !c.parent_id && parentIds.has(c.id));
+                  const orphans = categories.filter((c) => !c.parent_id && !parentIds.has(c.id));
+                  return [
+                    ...parents.map((parent) => ({
+                      label: parent.name,
+                      options: categories
+                        .filter((c) => c.parent_id === parent.id)
+                        .map((c) => ({ value: String(c.id), label: c.name })),
+                    })),
+                    ...(orphans.length > 0
+                      ? [
+                          {
+                            label: "—",
+                            options: orphans.map((c) => ({
+                              value: String(c.id),
+                              label: c.name,
+                            })),
+                          },
+                        ]
+                      : []),
+                  ];
+                })()}
+                placeholder="Sin categoría"
+              />
+            </Field>
           </div>
         </div>
 
         {/* Cuenta (single-select) */}
-        <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)]">Cuenta</label>
+        <div role="group" aria-labelledby="expense-account-label">
+          <span
+            id="expense-account-label"
+            className="text-xs font-medium text-[var(--text-secondary)]"
+          >
+            Cuenta
+          </span>
           <div className="flex flex-wrap gap-1 mt-1">
             {tags
               .filter((t) => t.group_name === "cuenta")
@@ -825,8 +846,13 @@ export function ExpenseModal({
         </div>
 
         {/* Etiquetas (multi-select + create) */}
-        <div>
-          <label className="text-xs font-medium text-[var(--text-secondary)]">Etiquetas</label>
+        <div role="group" aria-labelledby="expense-tags-label">
+          <span
+            id="expense-tags-label"
+            className="text-xs font-medium text-[var(--text-secondary)]"
+          >
+            Etiquetas
+          </span>
           {(() => {
             const selectedOtros = selectedTags.filter((t) => t.group_name === "otros");
             return selectedOtros.length > 0 ? (
@@ -862,6 +888,7 @@ export function ExpenseModal({
                 }
               }}
               placeholder="Buscar o crear etiqueta..."
+              aria-label="Buscar o crear etiqueta"
               className="flex-1 px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
             />
           </div>
@@ -941,46 +968,44 @@ export function ExpenseModal({
                   )}
                   {(cuotasEnabled || isInstallmentsOnly) && (
                     <>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-start gap-3">
                         <div className="flex-1">
-                          <label className="text-xs font-medium text-[var(--text-secondary)]">
-                            Cuota N°
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={installmentTotal || 60}
-                            aria-label="Cuota N°"
-                            value={form.installment_number ?? 1}
-                            onChange={(e) => {
-                              const next = parseInt(e.target.value) || 1;
-                              set("installment_number", next);
-                              setAmountKind(next > 1 ? "installment" : "total");
-                            }}
-                            className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
-                          />
+                          <Field label="Cuota N°">
+                            <input
+                              type="number"
+                              min={1}
+                              max={installmentTotal || 60}
+                              value={form.installment_number ?? 1}
+                              onChange={(e) => {
+                                const next = parseInt(e.target.value) || 1;
+                                set("installment_number", next);
+                                setAmountKind(next > 1 ? "installment" : "total");
+                              }}
+                              className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
+                            />
+                          </Field>
                         </div>
-                        <span className="text-[var(--text-tertiary)] mt-4">de</span>
+                        <span className="text-[var(--text-tertiary)] mt-6" aria-hidden="true">
+                          de
+                        </span>
                         <div className="flex-1">
-                          <label className="text-xs font-medium text-[var(--text-secondary)]">
-                            Total cuotas
-                          </label>
-                          <input
-                            type="number"
-                            min={2}
-                            max={60}
-                            aria-label="Total cuotas"
-                            value={form.installment_total ?? 12}
-                            onChange={(e) =>
-                              set("installment_total", parseInt(e.target.value) || 2)
-                            }
-                            className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
-                          />
+                          <Field
+                            label="Total cuotas"
+                            error={installmentTotal < 2 ? "Ingresá al menos 2 cuotas." : undefined}
+                          >
+                            <input
+                              type="number"
+                              min={2}
+                              max={60}
+                              value={form.installment_total ?? 12}
+                              onChange={(e) =>
+                                set("installment_total", parseInt(e.target.value) || 2)
+                              }
+                              className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition text-center"
+                            />
+                          </Field>
                         </div>
                       </div>
-                      {installmentTotal < 2 && (
-                        <p className="text-xs text-danger">Ingresá al menos 2 cuotas.</p>
-                      )}
                       {installmentsActive && (
                         <p className="text-xs text-[var(--text-secondary)]">
                           {isCurrentInstallment
@@ -1001,63 +1026,17 @@ export function ExpenseModal({
               )}
             </div>
 
-            <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)]">Notas</label>
+            <Field label="Notas">
               <textarea
                 value={form.notes ?? ""}
                 onChange={(e) => set("notes", e.target.value)}
                 className="w-full px-3 py-1.5 rounded-md border border-[var(--border-color)] text-sm text-[var(--text-primary)] bg-[var(--color-base-container)] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition resize-none"
                 rows={1}
               />
-            </div>
+            </Field>
           </div>
         )}
 
-        {/* Buttons */}
-        {queueFinished ? (
-          <div className="space-y-2 pt-1">
-            <p role="status" className="text-sm font-medium text-[var(--text-primary)]">
-              ✅ {savedDrafts} {savedDrafts === 1 ? "gasto guardado" : "gastos guardados"}
-              {skippedDrafts > 0
-                ? ` · ${skippedDrafts} ${skippedDrafts === 1 ? "omitido" : "omitidos"}`
-                : ""}
-            </p>
-            <button
-              onClick={onClose}
-              className="w-full px-4 py-2 rounded-md bg-[var(--color-primary)] text-white text-sm font-medium hover:brightness-110 transition"
-            >
-              Cerrar
-            </button>
-          </div>
-        ) : (
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={requestClose}
-              className="flex-1 px-4 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
-            >
-              Cancelar
-            </button>
-            {isQueueActive && draftStatuses[draftIndex] === "pending" && (
-              <button
-                onClick={handleSkip}
-                className="px-3 py-2 rounded-md border border-[var(--border-color)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] transition"
-              >
-                Omitir
-              </button>
-            )}
-            <button
-              onClick={() => void handleSubmit()}
-              disabled={!isValid || isSaving || isSubmitting}
-              className="flex-1 px-4 py-2 rounded-md bg-[var(--color-primary)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-60 transition"
-            >
-              {isSaving || isSubmitting
-                ? "Guardando..."
-                : isQueueActive && pendingDrafts > 1
-                  ? "Guardar y siguiente"
-                  : "Guardar"}
-            </button>
-          </div>
-        )}
         <ConfirmDialog
           isOpen={confirmReplace}
           title="¿Reemplazar los datos actuales?"
@@ -1090,6 +1069,6 @@ export function ExpenseModal({
           variant="danger"
         />
       </div>
-    </div>
+    </Dialog>
   );
 }

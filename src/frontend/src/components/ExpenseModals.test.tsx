@@ -56,7 +56,7 @@ describe("ExpenseModal comprobante scan", () => {
       target: { files: [new File(["image"], "ticket.png", { type: "image/png" })] },
     });
 
-    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(15200));
+    await waitFor(() => expect(screen.getByLabelText(/^Monto/)).toHaveValue(15200));
     expect(screen.getByDisplayValue("Supermercado Coto")).toBeInTheDocument();
     expect(screen.getByText(/revisalo antes de guardar/i)).toBeInTheDocument();
     expect(screen.getByText(/bank notification/i)).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe("ExpenseModal comprobante scan", () => {
     });
 
     expect(await screen.findByText(/más de un movimiento/i)).toBeInTheDocument();
-    expect(screen.getByLabelText("Monto")).toHaveValue(0);
+    expect(screen.getByLabelText(/^Monto/)).toHaveValue(0);
     expect(screen.getByPlaceholderText("Ej: Supermercado Coto")).toHaveValue("");
   });
 
@@ -91,7 +91,7 @@ describe("ExpenseModal comprobante scan", () => {
     fireEvent.change(screen.getByPlaceholderText("Ej: Supermercado Coto"), {
       target: { value: "Taxi" },
     });
-    fireEvent.change(screen.getByLabelText("Monto"), { target: { value: "1800" } });
+    fireEvent.change(screen.getByLabelText(/^Monto/), { target: { value: "1800" } });
     fireEvent.change(screen.getByLabelText(/escanear comprobante/i), {
       target: { files: [new File(["image"], "ticket.png", { type: "image/png" })] },
     });
@@ -99,9 +99,9 @@ describe("ExpenseModal comprobante scan", () => {
     expect(
       await screen.findByRole("dialog", { name: "¿Reemplazar los datos actuales?" }),
     ).toBeVisible();
-    expect(screen.getByLabelText("Monto")).toHaveValue(1800);
+    expect(screen.getByLabelText(/^Monto/)).toHaveValue(1800);
     fireEvent.click(screen.getByRole("button", { name: "Reemplazar" }));
-    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(15200));
+    await waitFor(() => expect(screen.getByLabelText(/^Monto/)).toHaveValue(15200));
   });
 
   it("shows low-confidence warning and only exposes scanning on create mode", async () => {
@@ -185,10 +185,10 @@ describe("ExpenseModal comprobante scan", () => {
     expect(
       await screen.findByRole("dialog", { name: "¿Reemplazar los datos actuales?" }),
     ).toBeVisible();
-    expect(screen.getByLabelText("Monto")).toHaveValue(0);
+    expect(screen.getByLabelText(/^Monto/)).toHaveValue(0);
     expect(screen.getByPlaceholderText("Ej: Supermercado Coto")).toHaveValue("Taxi");
     fireEvent.click(screen.getByRole("button", { name: "Reemplazar" }));
-    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(15200));
+    await waitFor(() => expect(screen.getByLabelText(/^Monto/)).toHaveValue(15200));
   });
 
   it("ignores an in-flight result after the preview is removed", async () => {
@@ -209,7 +209,7 @@ describe("ExpenseModal comprobante scan", () => {
     expect(signal.aborted).toBe(true);
     await act(async () => resolveScan(accepted));
 
-    expect(screen.getByLabelText("Monto")).toHaveValue(0);
+    expect(screen.getByLabelText(/^Monto/)).toHaveValue(0);
     expect(screen.getByPlaceholderText("Ej: Supermercado Coto")).toHaveValue("");
     expect(screen.queryByText(/comprobante detectado/i)).not.toBeInTheDocument();
   });
@@ -242,10 +242,10 @@ describe("ExpenseModal comprobante scan", () => {
     };
 
     await act(async () => resolveSecond(newerDraft));
-    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(4500));
+    await waitFor(() => expect(screen.getByLabelText(/^Monto/)).toHaveValue(4500));
     await act(async () => resolveFirst(accepted));
 
-    expect(screen.getByLabelText("Monto")).toHaveValue(4500);
+    expect(screen.getByLabelText(/^Monto/)).toHaveValue(4500);
     expect(screen.getByPlaceholderText("Ej: Supermercado Coto")).toHaveValue("Café");
   });
 });
@@ -260,7 +260,7 @@ describe("ExpenseModal cuotas y cola de revisión", () => {
     fireEvent.change(screen.getByPlaceholderText("Ej: Supermercado Coto"), {
       target: { value: "TV" },
     });
-    fireEvent.change(screen.getByLabelText("Monto"), { target: { value: "120000" } });
+    fireEvent.change(screen.getByLabelText(/^Monto/), { target: { value: "120000" } });
     fireEvent.click(screen.getByRole("button", { name: /más opciones/i }));
     fireEvent.click(screen.getByLabelText("Compra en cuotas"));
 
@@ -275,10 +275,10 @@ describe("ExpenseModal cuotas y cola de revisión", () => {
     fireEvent.change(screen.getByPlaceholderText("Ej: Supermercado Coto"), {
       target: { value: "Netflix" },
     });
-    fireEvent.change(screen.getByLabelText("Monto"), { target: { value: "15000" } });
+    fireEvent.change(screen.getByLabelText(/^Monto/), { target: { value: "15000" } });
     fireEvent.click(screen.getByRole("button", { name: /más opciones/i }));
     fireEvent.click(screen.getByLabelText("Compra en cuotas"));
-    fireEvent.change(screen.getByLabelText("Cuota N°"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText(/^Cuota N°/), { target: { value: "3" } });
 
     expect(
       screen.getByText("Estás registrando la cuota 3 de 12; se programan las restantes."),
@@ -292,7 +292,7 @@ describe("ExpenseModal cuotas y cola de revisión", () => {
     fireEvent.change(screen.getByPlaceholderText("Ej: Supermercado Coto"), {
       target: { value: "TV" },
     });
-    fireEvent.change(screen.getByLabelText("Monto"), { target: { value: "120000" } });
+    fireEvent.change(screen.getByLabelText(/^Monto/), { target: { value: "120000" } });
     fireEvent.click(screen.getByRole("button", { name: /más opciones/i }));
     fireEvent.click(screen.getByLabelText("Compra en cuotas"));
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
@@ -312,10 +312,10 @@ describe("ExpenseModal cuotas y cola de revisión", () => {
     fireEvent.change(screen.getByPlaceholderText("Ej: Supermercado Coto"), {
       target: { value: "Netflix" },
     });
-    fireEvent.change(screen.getByLabelText("Monto"), { target: { value: "15000" } });
+    fireEvent.change(screen.getByLabelText(/^Monto/), { target: { value: "15000" } });
     fireEvent.click(screen.getByRole("button", { name: /más opciones/i }));
     fireEvent.click(screen.getByLabelText("Compra en cuotas"));
-    fireEvent.change(screen.getByLabelText("Cuota N°"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText(/^Cuota N°/), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
@@ -364,7 +364,7 @@ describe("ExpenseModal cuotas y cola de revisión", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar y siguiente" }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(2500));
+    await waitFor(() => expect(screen.getByLabelText(/^Monto/)).toHaveValue(2500));
     expect(screen.getByDisplayValue("Farmacia")).toBeInTheDocument();
     expect(screen.getByText("Gasto 2 de 2")).toBeInTheDocument();
 
@@ -409,7 +409,7 @@ describe("ExpenseModal cuotas y cola de revisión", () => {
     await screen.findByText(/Detecté 2 gastos/);
     fireEvent.click(screen.getByRole("button", { name: "Omitir" }));
     expect(onSave).not.toHaveBeenCalled();
-    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(2500));
+    await waitFor(() => expect(screen.getByLabelText(/^Monto/)).toHaveValue(2500));
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
@@ -442,9 +442,9 @@ describe("ExpenseModal cuotas y cola de revisión", () => {
       target: { files: [new File(["image"], "resumen.png", { type: "image/png" })] },
     });
 
-    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(15000));
-    expect(screen.getByLabelText("Cuota N°")).toHaveValue(3);
-    expect(screen.getByLabelText("Total cuotas")).toHaveValue(12);
+    await waitFor(() => expect(screen.getByLabelText(/^Monto/)).toHaveValue(15000));
+    expect(screen.getByLabelText(/^Cuota N°/)).toHaveValue(3);
+    expect(screen.getByLabelText(/^Total cuotas/)).toHaveValue(12);
     expect(
       screen.getByText("Estás registrando la cuota 3 de 12; se programan las restantes."),
     ).toBeInTheDocument();
@@ -485,7 +485,7 @@ describe("ExpenseModal cuotas y cola de revisión", () => {
       target: { files: [new File(["image"], "resumen.png", { type: "image/png" })] },
     });
 
-    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(24000));
+    await waitFor(() => expect(screen.getByLabelText(/^Monto/)).toHaveValue(24000));
     expect(screen.getByText(/6 cuotas de/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
@@ -544,7 +544,7 @@ describe("ExpenseModal cola: aislamiento entre gastos", () => {
     await screen.findByText(/Detecté 2 gastos/);
     fireEvent.click(screen.getByRole("button", { name: "Guardar y siguiente" }));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(60000));
+    await waitFor(() => expect(screen.getByLabelText(/^Monto/)).toHaveValue(60000));
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
 
@@ -597,7 +597,7 @@ describe("ExpenseModal cola: aislamiento entre gastos", () => {
     });
 
     await screen.findByText(/Detecté 2 gastos/);
-    fireEvent.click(screen.getByRole("button", { name: "Sin categoría" }));
+    fireEvent.click(screen.getByRole("button", { name: /Sin categoría/ }));
     fireEvent.change(screen.getByPlaceholderText("Buscar o escribir..."), {
       target: { value: "Comida" },
     });
@@ -606,8 +606,8 @@ describe("ExpenseModal cola: aislamiento entre gastos", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guardar y siguiente" }));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     expect(onSave.mock.calls[0][0].category_id).toBe(7);
-    await waitFor(() => expect(screen.getByLabelText("Monto")).toHaveValue(2500));
-    expect(screen.getByRole("button", { name: "Sin categoría" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText(/^Monto/)).toHaveValue(2500));
+    expect(screen.getByRole("button", { name: /Sin categoría/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));

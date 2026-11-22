@@ -21,6 +21,10 @@ interface SelectProps {
   allowCustomValue?: boolean;
   /** Field name announced before the current value. */
   ariaLabel?: string;
+  /** Ties a visible `<label htmlFor>` to the trigger. */
+  id?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean | "false" | "true";
 }
 
 export function Select({
@@ -33,6 +37,9 @@ export function Select({
   disabled = false,
   allowCustomValue = true,
   ariaLabel,
+  id,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -204,10 +211,13 @@ export function Select({
     <div ref={ref} className={`relative ${className}`}>
       <button
         type="button"
+        id={id}
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         onKeyDown={handleKeyDown}
         aria-label={ariaLabel ? `${ariaLabel}: ${displayValue}` : undefined}
+        aria-describedby={ariaDescribedBy}
+        aria-invalid={ariaInvalid}
         className={`filter-control ${
           disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
         }`}

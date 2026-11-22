@@ -289,6 +289,8 @@ function LoginForm({
             onChange={(e) => setEmail(e.target.value)}
             placeholder="tu@email.com"
             required
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "login-error" : undefined}
             className="input"
           />
         </div>
@@ -305,6 +307,8 @@ function LoginForm({
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
             required
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "login-error" : undefined}
             className="input"
           />
         </div>
@@ -319,8 +323,16 @@ function LoginForm({
           </button>
         </div>
 
-        {error && <div className="alert-error">{error}</div>}
-        {authRedirectError && <div className="alert-error">{authRedirectError}</div>}
+        {error && (
+          <div id="login-error" role="alert" className="alert-error">
+            {error}
+          </div>
+        )}
+        {authRedirectError && (
+          <div role="alert" className="alert-error">
+            {authRedirectError}
+          </div>
+        )}
 
         <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
           {loading ? "Ingresando..." : "Ingresar"}
@@ -501,7 +513,11 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
               />
             </div>
 
-            {error && <div className="alert-error">{error}</div>}
+            {error && (
+              <div role="alert" className="alert-error">
+                {error}
+              </div>
+            )}
 
             <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
               {loading ? "Enviando..." : "Enviar enlace"}
@@ -661,7 +677,11 @@ function RegisterForm({ onLogin, onSuccess }: { onLogin: () => void; onSuccess: 
           />
         </div>
 
-        {error && <div className="alert-error">{error}</div>}
+        {error && (
+          <div role="alert" className="alert-error">
+            {error}
+          </div>
+        )}
 
         <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
           {loading ? "Registrando..." : "Crear cuenta"}
@@ -789,7 +809,11 @@ function ForceChangeForm({
           />
         </div>
 
-        {error && <div className="alert-error">{error}</div>}
+        {error && (
+          <div role="alert" className="alert-error">
+            {error}
+          </div>
+        )}
 
         <button type="submit" disabled={loading} className="gnome-btn-primary w-full mt-1">
           {loading ? "Guardando..." : "Guardar nueva contraseña"}
@@ -875,7 +899,11 @@ function MfaForm({
           />
         </div>
 
-        {error && <div className="alert-error">{error}</div>}
+        {error && (
+          <div role="alert" className="alert-error">
+            {error}
+          </div>
+        )}
 
         <button
           type="submit"

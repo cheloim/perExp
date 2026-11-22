@@ -34,11 +34,15 @@ export function CurrencyInput({
   onChange,
   placeholder,
   id,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
 }: {
   value: number | null;
   onChange: (v: number | null) => void;
   placeholder?: string;
   id?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean | "false" | "true";
 }) {
   const isEmpty = (v: number | null) => v === null || v === 0;
   const [raw, setRaw] = useState(isEmpty(value) ? "" : formatCurrencyAR(value!));
@@ -74,6 +78,8 @@ export function CurrencyInput({
       inputMode="decimal"
       value={raw}
       placeholder={placeholder ?? "0,00"}
+      aria-describedby={ariaDescribedBy}
+      aria-invalid={ariaInvalid}
       onChange={handleChange}
       onFocus={handleFocus}
       onBlur={handleBlur}

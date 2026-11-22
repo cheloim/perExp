@@ -55,7 +55,8 @@ test.describe("modals with the docked assistant", () => {
       await page.goto("/expenses");
       const firstRow = page.locator("tbody tr.group").first();
       await firstRow.waitFor({ timeout: 20_000 });
-      await firstRow.click();
+      // The row is no longer a click target; open the detail from its real control.
+      await firstRow.getByRole("button", { name: "Abrir detalle de Farmacia Central" }).click();
 
       const dialog = page.locator('[role="dialog"][aria-modal="true"]');
       await expect(dialog).toBeVisible();
