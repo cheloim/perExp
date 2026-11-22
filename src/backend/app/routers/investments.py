@@ -1,119 +1,31 @@
-import contextlib
-from datetime import datetime
+"""HTTP layer for the investments feature.
+
+Broker adapters, Yahoo quotes, settings/encryption and portfolio use cases live
+in ``app.services.investment_*``; this module only binds them to routes.
+"""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Investment, Setting, User
-from app.prompts import INVESTMENTS_SYSTEM_PROMPT
-from app.routers.groups import get_group_user_ids
+from app.models import User
 from app.schemas import InvestmentCreate
 from app.services import fx as fx_service
+from app.services import (
+    investment_cash,
+    investment_chat,
+    investment_portfolio,
+    investment_prices,
+    investment_settings,
+    investment_sync,
+)
 from app.services.auth import get_current_user
-from app.services.encryption import decrypt_value, encrypt_value
+from app.services.price_refresh import refresh_manual_prices
 
 router = APIRouter(tags=["investments"])
 
-# Sensitive setting keys that should be encrypted at rest
-SENSITIVE_KEYS = {"iol_password", "ppi_api_key", "ppi_api_secret"}
-
-
-_IOL_TYPE_MAP = {
-    "ACCIONES": "Acción",
-    "CEDEARS": "Cedear",
-    "BONOS": "Bono",
-    "LETRAS": "Letra",
-    "OBLIGACIONES_NEGOCIABLES": "ON",
-    "FONDOS_COMUNES_INVERSION": "FCI",
-    "CAUCIONES": "Caución",
-    "OPCIONES": "Otro",
-    "FUTUROS": "Otro",
-}
-
-_IOL_CURRENCY_MAP = {
-    "pesos_argentinos": "ARS",
-    "dolares_estadounidenses": "USD",
-    "dolares_cable": "USD",
-}
-
-_PPI_CURRENCY_MAP = {"Pesos": "ARS", "Dólares": "USD", "Dolares": "USD", "USD": "USD"}
-
-_PPI_TYPE_MAP = {
-    "ACCIONES": "Acción",
-    "CEDEARS": "Cedear",
-    "BONOS": "Bono",
-    "LETRAS": "Letra",
-    "ON": "ON",
-    "FCI": "FCI",
-    "CAUCIONES": "Caución",
-    "ETF": "Cedear",
-    "ACCIONES-USA": "Cedear",
-    "FCI-EXTERIOR": "FCI",
-    "NOBAC": "Bono",
-    "LEBAC": "Letra",
-    "OPCIONES": "Otro",
-    "FUTUROS": "Otro",
-}
-
-
-def _inv_response(inv: Investment, user_name: str | None = None) -> dict:
-    cost_basis = (inv.quantity or 0) * (inv.avg_cost or 0)
-    current_value = (
-        (inv.quantity or 0) * inv.current_price if inv.current_price is not None else None
-    )
-    pnl = (current_value - cost_basis) if current_value is not None else None
-    pnl_pct = (pnl / cost_basis * 100) if (pnl is not None and cost_basis != 0) else None
-    return {
-        "id": inv.id,
-        "ticker": inv.ticker or "",
-        "name": inv.name or "",
-        "type": inv.type or "",
-        "broker": inv.broker or "",
-        "quantity": inv.quantity or 0.0,
-        "avg_cost": inv.avg_cost or 0.0,
-        "current_price": inv.current_price,
-        "currency": inv.currency or "ARS",
-        "notes": inv.notes or "",
-        "updated_at": inv.updated_at.isoformat() if inv.updated_at else None,
-        "cost_basis": cost_basis,
-        "current_value": current_value,
-        "pnl": pnl,
-        "pnl_pct": pnl_pct,
-        "user_name": user_name,
-    }
-
-
-def _get_setting(db: Session, key: str, user_id: int | None = None) -> str:
-    scoped_key = f"{user_id}:{key}" if user_id is not None else key
-    row = db.query(Setting).filter(Setting.key == scoped_key).first()
-    if not row:
-        return ""
-    # Decrypt sensitive values
-    if key in SENSITIVE_KEYS:
-        return decrypt_value(row.value)
-    return row.value
-
-
-def _set_setting(db: Session, key: str, value: str, user_id: int | None = None):
-    scoped_key = f"{user_id}:{key}" if user_id is not None else key
-    # Encrypt sensitive values before storage
-    stored_value = encrypt_value(value) if key in SENSITIVE_KEYS else value
-    row = db.query(Setting).filter(Setting.key == scoped_key).first()
-    if row:
-        row.value = stored_value
-    else:
-        db.add(Setting(key=scoped_key, value=stored_value))
-    db.commit()
-
 
 # ─── Settings ────────────────────────────────────────────────────────────────
-
-
-def _get_user_creds(db: Session, user_id: int) -> dict:
-    """Return broker credentials for a user from the DB settings table."""
-    keys = ("iol_username", "iol_password", "ppi_api_key", "ppi_api_secret")
-    return {k: _get_setting(db, k, user_id=user_id) for k in keys}
 
 
 @router.get(
@@ -127,26 +39,10 @@ def get_settings(
     current_user: User = Depends(get_current_user),
 ):
     # Allow family group members to view other member's settings
-    target_user_id = user_id if user_id else current_user.id
-    if user_id and user_id != current_user.id:
-        uid_list = get_group_user_ids(current_user.id, db)
-        if user_id not in uid_list:
-            raise HTTPException(403, "No tenés acceso a la configuración de otro usuario")
-
-    prefix = f"{target_user_id}:"
-    rows = db.query(Setting).filter(Setting.key.like(f"{prefix}%")).all()
-    # Decrypt sensitive values for display
-    result = {}
-    for r in rows:
-        key = r.key[len(prefix) :]
-        if key in SENSITIVE_KEYS:
-            result[key] = decrypt_value(r.value)
-        else:
-            result[key] = r.value
-    creds = _get_user_creds(db, target_user_id)
-    result["iol_configured"] = bool(creds["iol_username"] and creds["iol_password"])
-    result["ppi_configured"] = bool(creds["ppi_api_key"] and creds["ppi_api_secret"])
-    return result
+    target_user_id = investment_settings.resolve_target_user_id(
+        db, current_user.id, user_id, deny_message=investment_settings.DENY_SETTINGS_VIEW
+    )
+    return investment_settings.load_user_settings(db, target_user_id)
 
 
 @router.put(
@@ -162,14 +58,12 @@ def put_setting(
     current_user: User = Depends(get_current_user),
 ):
     # Allow family group members to update other member's settings
-    target_user_id = user_id if user_id else current_user.id
-    if user_id and user_id != current_user.id:
-        uid_list = get_group_user_ids(current_user.id, db)
-        if user_id not in uid_list:
-            raise HTTPException(403, "No tenés acceso para modificar configuración de otro usuario")
+    target_user_id = investment_settings.resolve_target_user_id(
+        db, current_user.id, user_id, deny_message=investment_settings.DENY_SETTINGS_WRITE
+    )
 
     value = payload.get("value", "")
-    _set_setting(db, key, value, user_id=target_user_id)
+    investment_settings.set_setting(db, key, value, user_id=target_user_id)
     return {"ok": True}
 
 
@@ -185,16 +79,10 @@ def delete_setting(
     current_user: User = Depends(get_current_user),
 ):
     """Delete a single setting by key."""
-    target_user_id = user_id if user_id else current_user.id
-    if user_id and user_id != current_user.id:
-        uid_list = get_group_user_ids(current_user.id, db)
-        if user_id not in uid_list:
-            raise HTTPException(403, "No tenés acceso para modificar configuración de otro usuario")
-
-    scoped_key = f"{target_user_id}:{key}"
-    deleted = db.query(Setting).filter(Setting.key == scoped_key).delete()
-    db.commit()
-    return {"ok": True, "deleted": deleted > 0}
+    target_user_id = investment_settings.resolve_target_user_id(
+        db, current_user.id, user_id, deny_message=investment_settings.DENY_SETTINGS_WRITE
+    )
+    return {"ok": True, "deleted": investment_settings.delete_setting(db, target_user_id, key)}
 
 
 @router.delete(
@@ -209,40 +97,10 @@ def delete_broker_settings(
     current_user: User = Depends(get_current_user),
 ):
     """Delete all settings for a broker (iol or ppi)."""
-    target_user_id = user_id if user_id else current_user.id
-    if user_id and user_id != current_user.id:
-        uid_list = get_group_user_ids(current_user.id, db)
-        if user_id not in uid_list:
-            raise HTTPException(403, "No tenés acceso para modificar configuración de otro usuario")
-
-    broker_keys = {
-        "iol": ["iol_username", "iol_password"],
-        "ppi": ["ppi_api_key", "ppi_api_secret"],
-    }
-    if broker not in broker_keys:
-        raise HTTPException(400, f"Broker desconocido: {broker}")
-
-    deleted_count = 0
-    for key in broker_keys[broker]:
-        scoped_key = f"{target_user_id}:{key}"
-        deleted_count += db.query(Setting).filter(Setting.key == scoped_key).delete()
-
-    # Also delete all investments for this broker
-    investments_deleted = (
-        db.query(Investment)
-        .filter(
-            Investment.user_id == target_user_id,
-            Investment.broker == broker,
-        )
-        .delete()
+    target_user_id = investment_settings.resolve_target_user_id(
+        db, current_user.id, user_id, deny_message=investment_settings.DENY_SETTINGS_WRITE
     )
-
-    db.commit()
-    return {
-        "ok": True,
-        "deleted_settings": deleted_count,
-        "deleted_investments": investments_deleted,
-    }
+    return investment_portfolio.delete_broker_data(db, target_user_id, broker)
 
 
 # ─── Investments CRUD ─────────────────────────────────────────────────────────
@@ -258,17 +116,7 @@ def get_investments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
-    # Build user_id -> full_name mapping for family group
-    users = db.query(User).filter(User.id.in_(uid_list)).all()
-    user_names = {u.id: u.full_name or u.email for u in users}
-    q = db.query(Investment).filter(Investment.user_id.in_(uid_list))
-    if broker:
-        q = q.filter(Investment.broker == broker)
-    return [
-        _inv_response(inv, user_names.get(inv.user_id))
-        for inv in q.order_by(Investment.broker, Investment.type, Investment.name).all()
-    ]
+    return investment_portfolio.list_investments(db, current_user.id, broker)
 
 
 @router.post(
@@ -282,44 +130,7 @@ def create_investment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Buscar precio de Yahoo Finance automáticamente
-    yf_quote = _fetch_yahoo_quote(data.ticker, data.currency or "ARS") if data.ticker else None
-
-    # Buscar si ya existe ticker+broker para este usuario
-    existing = (
-        db.query(Investment)
-        .filter(
-            Investment.ticker == data.ticker,
-            Investment.broker == data.broker,
-            Investment.user_id == current_user.id,
-        )
-        .first()
-    )
-
-    if existing:
-        # Sumar quantities y promediar avg_cost
-        new_qty = existing.quantity + data.quantity
-        if new_qty > 0 and data.avg_cost > 0:
-            existing.avg_cost = (
-                existing.quantity * existing.avg_cost + data.quantity * data.avg_cost
-            ) / new_qty
-        existing.quantity = new_qty
-        # Usar precio de Yahoo Finance si está disponible
-        if yf_quote and yf_quote.get("price"):
-            existing.current_price = yf_quote["price"]
-        existing.updated_at = datetime.utcnow()
-        db.commit()
-        db.refresh(existing)
-        return _inv_response(existing)
-    else:
-        inv = Investment(**data.model_dump(), user_id=current_user.id, updated_at=datetime.utcnow())
-        # Sobrescribir current_price con el de Yahoo si está disponible
-        if yf_quote and yf_quote.get("price"):
-            inv.current_price = yf_quote["price"]
-        db.add(inv)
-        db.commit()
-        db.refresh(inv)
-        return _inv_response(inv)
+    return investment_portfolio.create_or_add_investment(db, current_user.id, data)
 
 
 @router.put(
@@ -333,24 +144,7 @@ def update_investment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
-    inv = (
-        db.query(Investment)
-        .filter(Investment.id == inv_id, Investment.user_id.in_(uid_list))
-        .first()
-    )
-    if not inv:
-        raise HTTPException(404, "Inversión no encontrada")
-    for k, v in data.model_dump().items():
-        setattr(inv, k, v)
-    # Obtener precio actualizado de Yahoo Finance
-    yf_quote = _fetch_yahoo_quote(data.ticker, data.currency or "ARS") if data.ticker else None
-    if yf_quote and yf_quote.get("price"):
-        inv.current_price = yf_quote["price"]
-    inv.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(inv)
-    return _inv_response(inv)
+    return investment_portfolio.update_investment(db, current_user.id, inv_id, data)
 
 
 @router.patch(
@@ -364,19 +158,9 @@ def update_investment_price(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
-    inv = (
-        db.query(Investment)
-        .filter(Investment.id == inv_id, Investment.user_id.in_(uid_list))
-        .first()
+    return investment_portfolio.update_investment_price(
+        db, current_user.id, inv_id, payload.get("current_price")
     )
-    if not inv:
-        raise HTTPException(404, "Inversión no encontrada")
-    inv.current_price = payload.get("current_price")
-    inv.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(inv)
-    return _inv_response(inv)
 
 
 @router.delete(
@@ -387,16 +171,7 @@ def update_investment_price(
 def delete_investment(
     inv_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    uid_list = get_group_user_ids(current_user.id, db)
-    inv = (
-        db.query(Investment)
-        .filter(Investment.id == inv_id, Investment.user_id.in_(uid_list))
-        .first()
-    )
-    if not inv:
-        raise HTTPException(404, "Inversión no encontrada")
-    db.delete(inv)
-    db.commit()
+    investment_portfolio.delete_investment(db, current_user.id, inv_id)
     return {"ok": True}
 
 
@@ -408,34 +183,7 @@ def delete_investment(
 def deduplicate_investments(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    all_inv = (
-        db.query(Investment)
-        .filter(Investment.user_id == current_user.id)
-        .order_by(Investment.id)
-        .all()
-    )
-    seen: dict[tuple, int] = {}
-    to_delete: list[int] = []
-
-    for inv in all_inv:
-        key = (inv.ticker, inv.broker)
-        if key not in seen:
-            seen[key] = inv.id
-        else:
-            kept = db.query(Investment).filter(Investment.id == seen[key]).first()
-            curr_score = (inv.avg_cost > 0, inv.quantity)
-            kept_score = (kept.avg_cost > 0, kept.quantity)
-            if curr_score > kept_score:
-                to_delete.append(seen[key])
-                seen[key] = inv.id
-            else:
-                to_delete.append(inv.id)
-
-    if to_delete:
-        db.query(Investment).filter(Investment.id.in_(to_delete)).delete(synchronize_session=False)
-        db.commit()
-
-    return {"removed": len(to_delete)}
+    return investment_portfolio.deduplicate_investments(db, current_user.id)
 
 
 # ─── Broker Sync ─────────────────────────────────────────────────────────────
@@ -447,171 +195,7 @@ def deduplicate_investments(
     description="Fetch and synchronize investment portfolio from InvertirOnline (IOL) broker into the local database.",
 )
 def sync_iol(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    import requests as _req
-
-    creds = _get_user_creds(db, current_user.id)
-    username = creds["iol_username"]
-    password = creds["iol_password"]
-    if not username or not password:
-        raise HTTPException(
-            400, "Credenciales de InvertirOnline no configuradas. Ingresalas en Ajustes."
-        )
-
-    try:
-        auth = _req.post(
-            "https://api.invertironline.com/token",
-            data={"username": username, "password": password, "grant_type": "password"},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            timeout=20,
-        )
-        auth.raise_for_status()
-    except _req.exceptions.HTTPError as e:
-        status = e.response.status_code if e.response is not None else "?"
-        if status in (400, 401):
-            raise HTTPException(
-                401, "Credenciales de IOL incorrectas. Verificá usuario y contraseña."
-            )
-        raise HTTPException(502, f"IOL respondió con error {status}. Intentá de nuevo más tarde.")
-    except _req.exceptions.ConnectionError:
-        raise HTTPException(502, "No se pudo conectar con IOL. Verificá tu conexión a internet.")
-    except _req.exceptions.Timeout:
-        raise HTTPException(504, "La conexión con IOL tardó demasiado. Intentá de nuevo.")
-    except Exception as e:
-        raise HTTPException(502, f"Error autenticando con IOL: {e}")
-
-    token = auth.json().get("access_token")
-    if not token:
-        raise HTTPException(502, "IOL no devolvió access_token")
-
-    headers = {"Authorization": f"Bearer {token}"}
-
-    raw: list[dict] = []
-    successful_markets: list[str] = []
-    for mercado in ("bCBA", "nYSE", "cFondos"):
-        try:
-            resp = _req.get(
-                f"https://api.invertironline.com/api/v2/portafolio/{mercado}",
-                headers=headers,
-                timeout=20,
-            )
-            if resp.status_code != 200:
-                continue
-            successful_markets.append(mercado)
-            for activo in resp.json().get("activos", []):
-                titulo = activo.get("titulo", {})
-                tipo_raw = titulo.get("tipo", "")
-                moneda_raw = titulo.get("moneda", "")
-                cantidad = float(activo.get("cantidad") or 0)
-                valorizado = float(activo.get("valorizado") or 0)
-                ganancia = activo.get("gananciaDinero")
-                ppc = float(activo.get("ppc") or 0)
-
-                if valorizado > 0 and cantidad > 0:
-                    effective_price = valorizado / cantidad
-                else:
-                    raw_price = activo.get("ultimoPrecio")
-                    effective_price = float(raw_price) if raw_price is not None else None
-
-                if ganancia is not None and valorizado > 0 and cantidad > 0:
-                    cost_basis = valorizado - float(ganancia)
-                    effective_avg_cost = cost_basis / cantidad
-                else:
-                    effective_avg_cost = ppc
-
-                raw.append(
-                    {
-                        "ticker": titulo.get("simbolo", ""),
-                        "name": titulo.get("descripcion", ""),
-                        "type": _IOL_TYPE_MAP.get(tipo_raw, "Otro"),
-                        "currency": _IOL_CURRENCY_MAP.get(moneda_raw, "ARS"),
-                        "quantity": cantidad,
-                        "avg_cost": effective_avg_cost,
-                        "current_price": effective_price,
-                    }
-                )
-        except Exception:
-            continue
-
-    best: dict[str, dict] = {}
-    for h in raw:
-        t = h["ticker"]
-        if not t:
-            continue
-        prev = best.get(t)
-        if prev is None:
-            best[t] = h
-        else:
-            prev_score = (prev["avg_cost"] > 0, prev["quantity"])
-            curr_score = (h["avg_cost"] > 0, h["quantity"])
-            if curr_score > prev_score:
-                best[t] = h
-
-    created = updated = 0
-    for h in best.values():
-        all_existing = (
-            db.query(Investment)
-            .filter(
-                Investment.ticker == h["ticker"],
-                Investment.broker == "InvertirOnline",
-                Investment.user_id == current_user.id,
-            )
-            .all()
-        )
-
-        if all_existing:
-            keeper = all_existing[0]
-            for dup in all_existing[1:]:
-                db.delete(dup)
-            keeper.quantity = h["quantity"]
-            keeper.avg_cost = h["avg_cost"]
-            keeper.current_price = h["current_price"]
-            keeper.type = h["type"]
-            keeper.currency = h["currency"]
-            keeper.updated_at = datetime.utcnow()
-            updated += 1
-        else:
-            db.add(
-                Investment(
-                    ticker=h["ticker"],
-                    name=h["name"],
-                    type=h["type"],
-                    broker="InvertirOnline",
-                    quantity=h["quantity"],
-                    avg_cost=h["avg_cost"],
-                    current_price=h["current_price"],
-                    currency=h["currency"],
-                    notes="",
-                    updated_at=datetime.utcnow(),
-                    user_id=current_user.id,
-                )
-            )
-            created += 1
-
-    removed = 0
-    if len(successful_markets) == 3:
-        fetched_tickers = set(best.keys())
-        stale = (
-            db.query(Investment)
-            .filter(
-                Investment.broker == "InvertirOnline",
-                Investment.user_id == current_user.id,
-                ~Investment.ticker.in_(fetched_tickers) if fetched_tickers else True,
-            )
-            .all()
-        )
-        for inv in stale:
-            db.delete(inv)
-            removed += 1
-
-    db.commit()
-    _set_setting(db, "iol_last_sync", datetime.utcnow().isoformat(), user_id=current_user.id)
-    return {
-        "broker": "IOL",
-        "created": created,
-        "updated": updated,
-        "removed": removed,
-        "total": len(best),
-    }
+    return investment_sync.sync_iol(db, current_user.id)
 
 
 @router.post(
@@ -620,120 +204,7 @@ def sync_iol(db: Session = Depends(get_db), current_user: User = Depends(get_cur
     description="Fetch and synchronize investment portfolio from Portfolio Personal Inversiones (PPI) broker into the local database.",
 )
 def sync_ppi(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    from ppi_client.ppi import PPI
-
-    creds = _get_user_creds(db, current_user.id)
-    api_key = creds["ppi_api_key"]
-    api_secret = creds["ppi_api_secret"]
-    if not api_key or not api_secret:
-        raise HTTPException(
-            400, "Credenciales de Portfolio Personal no configuradas. Ingresalas en Ajustes."
-        )
-
-    try:
-        ppi = PPI(sandbox=False)
-        ppi.account.login_api(api_key, api_secret)
-
-        accounts = ppi.account.get_accounts()
-        if not accounts:
-            raise HTTPException(502, "PPI no devolvió ninguna cuenta")
-        account_number = (
-            accounts[0].get("comitente")
-            or accounts[0].get("accountNumber")
-            or accounts[0].get("numeroCuenta")
-            or str(accounts[0].get("id", ""))
-        )
-        if not account_number:
-            raise HTTPException(502, f"No se pudo leer el número de cuenta de PPI: {accounts[0]}")
-
-        data = ppi.account.get_balance_and_positions(account_number)
-    except HTTPException:
-        raise
-    except PermissionError:
-        raise HTTPException(401, "Credenciales de PPI incorrectas. Verificá tu API Key y Secret.")
-    except Exception as e:
-        msg = str(e)
-        if "401" in msg or "unauthorized" in msg.lower() or "forbidden" in msg.lower():
-            raise HTTPException(
-                401, "Credenciales de PPI rechazadas. Verificá tu API Key y Secret."
-            )
-        raise HTTPException(502, f"Error conectando con PPI: {e}")
-
-    created = updated = 0
-    fetched_tickers: set[str] = set()
-    for group in data.get("groupedInstruments", []):
-        group_name = (group.get("name") or "").upper()
-        inv_type = _PPI_TYPE_MAP.get(group_name, "Otro")
-
-        for instrument in group.get("instruments", []):
-            ticker = instrument.get("ticker", "")
-            name = instrument.get("description", ticker)
-            price = instrument.get("price")
-            quantity = instrument.get("quantity")  # PPI returns actual quantity
-            currency_raw = instrument.get("currency", "Pesos")
-            if not ticker or not quantity:
-                continue
-
-            fetched_tickers.add(ticker)
-            price_f = float(price) if price is not None else None
-            quantity_f = float(quantity)
-            currency = _PPI_CURRENCY_MAP.get(currency_raw, "ARS")
-
-            existing = (
-                db.query(Investment)
-                .filter(
-                    Investment.ticker == ticker,
-                    Investment.broker == "Portfolio Personal",
-                    Investment.user_id == current_user.id,
-                )
-                .first()
-            )
-            if existing:
-                existing.quantity = quantity_f
-                existing.current_price = price_f if price_f is not None else existing.current_price
-                existing.type = inv_type
-                existing.currency = currency
-                existing.name = name or existing.name
-                existing.updated_at = datetime.utcnow()
-                # avg_cost is NOT provided by PPI API — preserve whatever the user set manually
-                # Don't overwrite avg_cost with current_price — it masks real P&L
-                updated += 1
-            else:
-                # Don't fake avg_cost — let it be 0 so user can set it manually
-                db.add(
-                    Investment(
-                        ticker=ticker,
-                        name=name,
-                        type=inv_type,
-                        broker="Portfolio Personal",
-                        quantity=quantity_f,
-                        avg_cost=0,
-                        current_price=price_f,
-                        currency=currency,
-                        notes="",
-                        updated_at=datetime.utcnow(),
-                        user_id=current_user.id,
-                    )
-                )
-                created += 1
-
-    removed = 0
-    stale = (
-        db.query(Investment)
-        .filter(
-            Investment.broker == "Portfolio Personal",
-            Investment.user_id == current_user.id,
-            ~Investment.ticker.in_(fetched_tickers) if fetched_tickers else True,
-        )
-        .all()
-    )
-    for inv in stale:
-        db.delete(inv)
-        removed += 1
-
-    db.commit()
-    _set_setting(db, "ppi_last_sync", datetime.utcnow().isoformat(), user_id=current_user.id)
-    return {"broker": "PPI", "created": created, "updated": updated, "removed": removed}
+    return investment_sync.sync_ppi(db, current_user.id)
 
 
 # ─── USD Rate ─────────────────────────────────────────────────────────────────
@@ -763,98 +234,7 @@ def get_cash_balances(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Returns uninvested cash balances from IOL and PPI."""
-    creds = _get_user_creds(db, current_user.id)
-    balances: dict = {
-        "iol": {"ars": None, "usd": None, "configured": False},
-        "ppi": {"ars": None, "usd": None, "configured": False},
-    }
-
-    # ── IOL ──────────────────────────────────────────────────────────────────
-    iol_user = creds["iol_username"]
-    iol_pass = creds["iol_password"]
-    if iol_user and iol_pass:
-        balances["iol"]["configured"] = True
-        try:
-            import requests as _req
-
-            auth = _req.post(
-                "https://api.invertironline.com/token",
-                data={"username": iol_user, "password": iol_pass, "grant_type": "password"},
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
-                timeout=20,
-            )
-            auth.raise_for_status()
-            token = auth.json().get("access_token", "")
-            if token:
-                headers = {"Authorization": f"Bearer {token}"}
-                r = _req.get(
-                    "https://api.invertironline.com/api/v2/estadocuenta",
-                    headers=headers,
-                    timeout=20,
-                )
-                if r.status_code == 200:
-                    data = r.json()
-                    # IOL returns a list of accounts or a single object depending on version
-                    cuentas = data if isinstance(data, list) else data.get("cuentas", [data])
-                    ars_total = 0.0
-                    usd_total = 0.0
-                    for cuenta in cuentas:
-                        moneda = str(cuenta.get("moneda", cuenta.get("currency", ""))).lower()
-                        disponible = float(
-                            cuenta.get(
-                                "disponible", cuenta.get("disponibleOperar", cuenta.get("saldo", 0))
-                            )
-                            or 0
-                        )
-                        if "dolar" in moneda or "usd" in moneda or "dollar" in moneda:
-                            usd_total += disponible
-                        else:
-                            ars_total += disponible
-                    balances["iol"]["ars"] = ars_total
-                    balances["iol"]["usd"] = usd_total
-        except Exception as e:
-            balances["iol"]["error"] = str(e)
-
-    # ── PPI ──────────────────────────────────────────────────────────────────
-    ppi_key = creds["ppi_api_key"]
-    ppi_secret = creds["ppi_api_secret"]
-    if ppi_key and ppi_secret:
-        balances["ppi"]["configured"] = True
-        try:
-            import requests as _req
-            from ppi_client.ppi import PPI
-            from requests.exceptions import JSONDecodeError as _JDE
-
-            ppi = PPI(sandbox=False)
-            ppi.account.login_api(ppi_key, ppi_secret)
-            accounts = ppi.account.get_accounts()
-            if accounts:
-                account_number = (
-                    accounts[0].get("comitente")
-                    or accounts[0].get("accountNumber")
-                    or accounts[0].get("numeroCuenta")
-                    or str(accounts[0].get("id", ""))
-                )
-                # Use get_available_balance — returns list of {name, symbol, amount, settlement}
-                availability = ppi.account.get_available_balance(account_number)
-                ars_total = usd_total = 0.0
-                for entry in availability or []:
-                    if entry.get("settlement") != "INMEDIATA":
-                        continue
-                    symbol = (entry.get("symbol") or "").upper()
-                    amount = float(entry.get("amount") or 0)
-                    if symbol == "ARS":
-                        ars_total += amount
-                    elif symbol == "USD":
-                        usd_total += amount
-                balances["ppi"]["ars"] = ars_total
-                balances["ppi"]["usd"] = usd_total
-        except (_JDE, ValueError):
-            balances["ppi"]["error"] = "API de PPI no disponible (intenta de nuevo más tarde)"
-        except Exception:
-            balances["ppi"]["error"] = "Error al obtener saldos de PPI (intenta de nuevo más tarde)"
-
-    return balances
+    return investment_cash.get_cash_balances(db, current_user.id)
 
 
 @router.post(
@@ -865,15 +245,11 @@ def get_cash_balances(
 def refresh_manual_prices_endpoint(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    from app.services.price_refresh import refresh_manual_prices
-
     updated = refresh_manual_prices(db, user_id=current_user.id)
     return {"updated": updated}
 
 
 # ─── Manual cash balances ─────────────────────────────────────────────────────
-
-_MANUAL_CASH_KEY = "manual_cash_balances"
 
 
 @router.get(
@@ -884,18 +260,7 @@ _MANUAL_CASH_KEY = "manual_cash_balances"
 def get_manual_cash_balances(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    import json
-
-    from app.models import Setting
-
-    scoped_key = f"{current_user.id}:{_MANUAL_CASH_KEY}"
-    row = db.query(Setting).filter(Setting.key == scoped_key).first()
-    if not row or not row.value:
-        return {}
-    try:
-        return json.loads(row.value)
-    except Exception:
-        return {}
+    return investment_cash.get_manual_cash_balances(db, current_user.id)
 
 
 @router.put(
@@ -909,23 +274,7 @@ def put_manual_cash_balance(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    import json
-
-    from app.models import Setting
-
-    scoped_key = f"{current_user.id}:{_MANUAL_CASH_KEY}"
-    row = db.query(Setting).filter(Setting.key == scoped_key).first()
-    current: dict = {}
-    if row and row.value:
-        with contextlib.suppress(Exception):
-            current = json.loads(row.value)
-    current[broker] = {"ars": body.get("ars"), "usd": body.get("usd")}
-    if row:
-        row.value = json.dumps(current)
-    else:
-        db.add(Setting(key=scoped_key, value=json.dumps(current)))
-    db.commit()
-    return current[broker]
+    return investment_cash.put_manual_cash_balance(db, current_user.id, broker, body)
 
 
 @router.delete(
@@ -936,22 +285,7 @@ def put_manual_cash_balance(
 def delete_manual_cash_balance(
     broker: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    import json
-
-    from app.models import Setting
-
-    scoped_key = f"{current_user.id}:{_MANUAL_CASH_KEY}"
-    row = db.query(Setting).filter(Setting.key == scoped_key).first()
-    if not row or not row.value:
-        return {}
-    try:
-        current = json.loads(row.value)
-        current.pop(broker, None)
-        row.value = json.dumps(current)
-        db.commit()
-    except Exception:
-        pass
-    return {}
+    return investment_cash.delete_manual_cash_balance(db, current_user.id, broker)
 
 
 # ─── Investments Chat ─────────────────────────────────────────────────────────
@@ -969,90 +303,10 @@ async def investments_chat_stream(
     current_user: User = Depends(get_current_user),
 ):
     """SSE chat endpoint for the investments assistant. Uses INVESTMENTS_LLM_API_KEY if set, else LLM_API_KEY."""
-    import json
-
-    from fastapi.responses import StreamingResponse
-
-    from app.services.chat_context import to_llm_messages
-    from app.services.llm import get_client, is_configured
-
-    question = (body.get("question") or "").strip()
-    context = (body.get("context") or "").strip()
-    if not question:
-
-        async def _err():
-            yield f"data: {json.dumps({'error': True, 'text': 'Pregunta vacía.'})}\n\ndata: [DONE]\n\n"
-
-        return StreamingResponse(_err(), media_type="text/event-stream")
-
-    if not is_configured("INVESTMENTS_LLM_API_KEY"):
-
-        async def _no_key():
-            yield f"data: {json.dumps({'error': True, 'text': 'INVESTMENTS_LLM_API_KEY / LLM_API_KEY no configurada.'})}\n\ndata: [DONE]\n\n"
-
-        return StreamingResponse(_no_key(), media_type="text/event-stream")
-
-    user_message = question
-    if context:
-        user_message = f"{context}\n\nPREGUNTA: {question}"
-
-    async def generate():
-        try:
-            client = get_client(api_key_env="INVESTMENTS_LLM_API_KEY")
-            async for text in client.astream(
-                to_llm_messages(body.get("messages"), user_message),
-                feature="investments_chat",
-                system=INVESTMENTS_SYSTEM_PROMPT,
-                temperature=0.4,
-            ):
-                yield f"data: {json.dumps({'text': text})}\n\n"
-        except Exception:
-            # Marked as an error frame: the text is not a reply, and the client
-            # must not store it in the thread as if the model had said it.
-            yield f"data: {json.dumps({'error': True, 'text': 'Error al procesar la solicitud'})}\n\n"
-        yield "data: [DONE]\n\n"
-
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    return investment_chat.investments_chat_response(body)
 
 
 # ─── Symbol Lookup ─────────────────────────────────────────────────────────────
-
-
-def _fetch_yahoo_quote(symbol: str, currency: str = "ARS") -> dict | None:
-    """Fetch quote from Yahoo Finance for a given symbol."""
-    import requests as _req
-
-    yf_headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
-    # Only append .BA for Argentine-listed stocks (ARS currency or already has suffix)
-    if "." in symbol:
-        yf_symbol = symbol
-    elif currency == "USD":
-        yf_symbol = symbol  # US-listed stock, no suffix
-    else:
-        yf_symbol = f"{symbol}.BA"
-    url = f"https://query2.finance.yahoo.com/v8/finance/chart/{yf_symbol}"
-    try:
-        resp = _req.get(
-            url, params={"interval": "1d", "range": "1d"}, headers=yf_headers, timeout=10
-        )
-        if resp.status_code != 200:
-            return None
-        result = resp.json().get("chart", {}).get("result", [])
-        if not result:
-            return None
-        meta = result[0].get("meta", {})
-        return {
-            "symbol": symbol.upper(),
-            "name": meta.get("shortName", ""),
-            "price": meta.get("regularMarketPrice"),
-            "currency": meta.get("currency", "USD"),
-        }
-    except Exception:
-        return None
 
 
 @router.get(
@@ -1067,11 +321,7 @@ def lookup_symbol(
     """
     Busca un símbolo en Yahoo Finance y retorna nombre y precio actual.
     """
-    if not symbol or len(symbol.strip()) < 1:
-        return None
-    symbol = symbol.strip().upper()
-    result = _fetch_yahoo_quote(symbol)
-    return result
+    return investment_prices.lookup_symbol(symbol)
 
 
 @router.get(
@@ -1086,70 +336,10 @@ def lookup_symbols(
     """
     Busca múltiples símbolos en Yahoo Finance y retorna un dict {symbol: {name, price, currency}}.
     """
-    if not symbols or len(symbols.strip()) < 1:
-        return {}
-    result = {}
-    for symbol in symbols.split(","):
-        symbol = symbol.strip().upper()
-        if symbol:
-            quote = _fetch_yahoo_quote(symbol)
-            result[symbol] = (
-                quote if quote else {"symbol": symbol, "name": "", "price": None, "currency": "USD"}
-            )
-    return result
+    return investment_prices.lookup_symbols(symbols)
 
 
 # ─── Investment History ─────────────────────────────────────────────────────────
-
-
-def _get_yahoo_ticker(inv: Investment) -> str | None:
-    """Map internal ticker to Yahoo Finance symbol."""
-    if not inv.ticker:
-        return None
-    ticker = inv.ticker.strip().upper()
-    currency = inv.currency or "ARS"
-    if currency == "USD":
-        return ticker
-    if "." not in ticker:
-        return f"{ticker}.BA"
-    return ticker
-
-
-def _fetch_yahoo_history(ticker: str, range_str: str, interval: str) -> list[dict]:
-    """Fetch historical prices from Yahoo Finance."""
-    import requests as _req
-
-    yf_headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
-    url = f"https://query2.finance.yahoo.com/v8/finance/chart/{ticker}"
-    params = {"interval": interval, "range": range_str}
-    try:
-        resp = _req.get(url, params=params, headers=yf_headers, timeout=10)
-        if resp.status_code != 200:
-            return []
-        result = resp.json().get("chart", {}).get("result", [])
-        if not result:
-            return []
-        quotes = result[0].get("indicators", {}).get("quote", [{}])
-        timestamps = result[0].get("timestamp", [])
-        closes = quotes[0].get("close", []) if quotes else []
-        if not timestamps or not closes:
-            return []
-        from datetime import datetime
-
-        formatted = []
-        for ts, close in zip(timestamps, closes, strict=False):
-            if close is None:
-                continue
-            dt = datetime.fromtimestamp(ts)
-            formatted.append(
-                {
-                    "date": dt.strftime("%Y-%m-%d"),
-                    "close": round(float(close), 2),
-                }
-            )
-        return formatted
-    except Exception:
-        return []
 
 
 @router.get(
@@ -1168,26 +358,4 @@ def get_investment_history(
     range: 1d, 7d, 30d (maps to Yahoo Finance range)
     Returns current price and array of {date, close} entries.
     """
-    inv = (
-        db.query(Investment)
-        .filter(
-            Investment.id == inv_id,
-            Investment.user_id.in_(get_group_user_ids(current_user.id, db)),
-        )
-        .first()
-    )
-    if not inv:
-        raise HTTPException(404, "Inversión no encontrada")
-
-    ticker = _get_yahoo_ticker(inv)
-    interval_map = {"1d": "5m", "7d": "15m", "30d": "1h"}
-    interval = interval_map.get(range, "15m")
-
-    history = _fetch_yahoo_history(ticker, range, interval) if ticker else []
-
-    return {
-        "ticker": inv.ticker or "",
-        "currency": inv.currency or "ARS",
-        "current_price": inv.current_price,
-        "history": history,
-    }
+    return investment_portfolio.get_investment_history(db, current_user.id, inv_id, range)
