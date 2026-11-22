@@ -1,0 +1,72 @@
+"""Conversation states and process-wide constants for the Telegram bot."""
+
+import os
+from zoneinfo import ZoneInfo
+
+BUE = ZoneInfo("America/Argentina/Buenos_Aires")
+
+
+APP_ENV = os.getenv("APP_ENV", "development")
+
+
+DEBUG_CAT = APP_ENV != "production" or os.getenv("DEBUG_CATEGORIZATION") == "1"
+
+
+WAITING_AUTH = 0
+
+
+WAITING_PAYMENT = 1
+
+
+WAITING_CARD_BANK = 2
+
+
+WAITING_CARD_TYPE = 3
+
+
+WAITING_CONFIRM = 4
+
+
+WAITING_CARD_MANUAL = 5
+
+
+WAITING_INSTALLMENT_QUESTION = 6
+
+
+WAITING_INSTALLMENT_NUMBER = 7
+
+
+WAITING_ACCOUNT_SELECT = 8
+
+
+WAITING_ACCOUNT_CREATE_NAME = 9
+
+
+WAITING_ACCOUNT_CREATE_TYPE = 10
+
+
+WAITING_CARD_CREATE_CHOICE = 11
+
+
+WAITING_CARD_CREATE_TYPE = 12
+
+
+WAITING_CARD_CREATE_NAME = 13
+
+
+WAITING_CARD_CREATE_CONFIRM = 14
+
+
+WAITING_EVENT_CONFIRM = 15
+
+
+WAITING_EDIT_SELECT = 16
+
+
+WAITING_EDIT_FIELD = 17
+
+
+WAITING_EDIT_VALUE = 18
+
+
+WAITING_EDIT_CONFIRM = 19
