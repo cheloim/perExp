@@ -34,12 +34,27 @@ def _first_day_months_ago(n: int) -> date:
     return d
 
 
-def _add_expense(db, user, on: date, description: str, amount: float) -> Expense:
+def _add_expense(
+    db,
+    user,
+    on: date,
+    description: str,
+    amount: float,
+    *,
+    currency: str = "ARS",
+    fx_rate: float | None = None,
+    fx_rate_date: date | None = None,
+    fx_rate_source: str | None = None,
+) -> Expense:
     exp = Expense(
         date=on,
         description=description,
         description_hmac=compute_hmac(description),
         amount=amount,
+        currency=currency,
+        fx_rate=fx_rate,
+        fx_rate_date=fx_rate_date,
+        fx_rate_source=fx_rate_source,
         user_id=user.id,
         is_income=False,
     )
@@ -413,6 +428,42 @@ def test_retrieval_never_leaves_the_user(db, test_user, fake_llm):
     assert "YENNY TORTUGAS OPEN MALL" in prompt
     assert "$ 999.999,00" not in prompt
     assert "$ 55.479,67" in prompt
+
+
+def test_usd_with_and_without_fx_is_disclosed_to_the_model(db, test_user, fake_llm):
+    """A USD row without a rate contributes zero; the model must know that
+    instead of reading the converted total as the whole picture."""
+    _add_expense(
+        db,
+        test_user,
+        date.today(),
+        "Netflix",
+        20.0,
+        currency="USD",
+        fx_rate=1000.0,
+        fx_rate_date=date.today(),
+        fx_rate_source="BNA",
+    )
+    _add_expense(db, test_user, date.today(), "Spotify", 5.0, currency="USD")
+    _add_expense(db, test_user, date.today(), "Supermercado", 1000.0)
+
+    _stream(AnalysisRequest(question="¿cuánto gasté?", months=3), db, test_user)
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert "Total gastado (ARS convertido): $ 21.000,00" in prompt
+    assert "U$S 25,00" in prompt
+    assert "Gastos en USD sin tipo de cambio: 1" in prompt
+    assert "no incluidos en el total convertido" in prompt
+
+
+def test_only_usd_without_fx_still_produces_a_prompt(db, test_user, fake_llm):
+    _add_expense(db, test_user, date.today(), "Spotify", 5.0, currency="USD")
+
+    _stream(AnalysisRequest(question="¿cuánto gasté?", months=3), db, test_user)
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert "Total gastado (ARS convertido): $ 0,00" in prompt
+    assert "Gastos en USD sin tipo de cambio: 1" in prompt
 
 
 def test_the_prompt_stays_bounded_at_twelve_months(db, test_user, fake_llm):

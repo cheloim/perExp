@@ -6,9 +6,22 @@ import { SHARED_STORAGE } from "./types";
 import { THREAD_PERSISTENCE_KEY, THREAD_TIMESTAMP_KEY } from "./storage";
 import type { Message } from "./types";
 import { useVoiceInput } from "../../hooks/useVoiceInput";
+import { exportAnalysisImage, sendAnalysisToTelegram } from "../../api/client";
+import { showToast } from "../../utils/toast";
 import { DOCKED_WIDTH_DEFAULT, DOCKED_WIDTH_MIN } from "./layoutMode";
 
 vi.mock("../../hooks/useVoiceInput", () => ({ useVoiceInput: vi.fn() }));
+
+vi.mock("../../utils/toast", () => ({ showToast: vi.fn() }));
+
+vi.mock("../../api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/client")>();
+  return {
+    ...actual,
+    exportAnalysisImage: vi.fn(),
+    sendAnalysisToTelegram: vi.fn(),
+  };
+});
 
 function sse(...texts: string[]): string[] {
   return [...texts.map((t) => `data: ${JSON.stringify({ text: t })}\n\n`), "data: [DONE]\n\n"];
@@ -45,6 +58,18 @@ describe("AssistantShell", () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem(THREAD_PERSISTENCE_KEY, "true");
+    vi.mocked(exportAnalysisImage).mockReset();
+    vi.mocked(sendAnalysisToTelegram).mockReset();
+    vi.mocked(showToast).mockReset();
+    Object.defineProperty(URL, "createObjectURL", {
+      value: vi.fn(() => "blob:analysis"),
+      configurable: true,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      value: vi.fn(),
+      configurable: true,
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     vi.mocked(useVoiceInput).mockReturnValue({
       supported: false,
       state: "idle",
@@ -61,6 +86,7 @@ describe("AssistantShell", () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -217,6 +243,70 @@ describe("AssistantShell", () => {
 
     const box = screen.getByRole("textbox");
     await waitFor(() => expect(box).toHaveFocus(), { timeout: 500 });
+  });
+
+  it("downloads the last assistant reply as an image", async () => {
+    seed([
+      { role: "user", text: "¿cuánto gasté?" },
+      { role: "assistant", text: "## Informe\n\nGastaste **$ 10.000**." },
+    ]);
+    vi.mocked(exportAnalysisImage).mockResolvedValue(new Blob(["png"], { type: "image/png" }));
+
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /descargar imagen/i }));
+
+    await waitFor(() =>
+      expect(exportAnalysisImage).toHaveBeenCalledWith(
+        "## Informe\n\nGastaste **$ 10.000**.",
+        "Asistente de Gastos",
+      ),
+    );
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith("Imagen descargada", "success", 3500, "bottom-center");
+  });
+
+  it("asks before sending the report to Telegram", async () => {
+    seed([
+      { role: "user", text: "¿cuánto gasté?" },
+      { role: "assistant", text: "Informe del asistente" },
+    ]);
+    vi.mocked(sendAnalysisToTelegram).mockResolvedValue({ sent: true });
+
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /enviar a telegram/i }));
+    expect(sendAnalysisToTelegram).not.toHaveBeenCalled();
+
+    const dialog = screen.getByRole("dialog", { name: "Enviar a Telegram" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Enviar" }));
+
+    await waitFor(() =>
+      expect(sendAnalysisToTelegram).toHaveBeenCalledWith(
+        "Informe del asistente",
+        "Asistente de Gastos",
+      ),
+    );
+    expect(showToast).toHaveBeenCalledWith(
+      "Informe enviado a Telegram",
+      "success",
+      4000,
+      "bottom-center",
+    );
   });
 
   it("traps focus and never lets Tab or Shift+Tab escape", async () => {

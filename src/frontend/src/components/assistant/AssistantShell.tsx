@@ -7,6 +7,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { exportAnalysisImage, sendAnalysisToTelegram } from "../../api/client";
+import { showToast } from "../../utils/toast";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import {
@@ -72,6 +74,9 @@ export function AssistantShell({
 
   const [input, setInput] = useState("");
   const [clearConfirm, setClearConfirm] = useState(false);
+  const [telegramConfirm, setTelegramConfirm] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [sendingTelegram, setSendingTelegram] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
   /**
    * The data window the spending assistant analyses. Not persisted: the shell
@@ -373,6 +378,52 @@ export function AssistantShell({
     setClearConfirm(false);
     inputRef.current?.focus();
   }, [cancel, clearThread]);
+
+  const exportText =
+    lastMessage?.role === "assistant" && !lastMessage.error ? lastMessage.text : "";
+
+  const downloadBlob = (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "analisis-asistente.png";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  };
+
+  const handleExportImage = async () => {
+    if (!exportText || exporting) return;
+    setExporting(true);
+    try {
+      const blob = await exportAnalysisImage(exportText, config.title);
+      downloadBlob(blob);
+      showToast("Imagen descargada", "success", 3500, "bottom-center");
+    } catch {
+      showToast("No se pudo generar la imagen. Intentá de nuevo.", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleSendTelegram = async () => {
+    if (!exportText || sendingTelegram) return;
+    setSendingTelegram(true);
+    try {
+      await sendAnalysisToTelegram(exportText, config.title);
+      setTelegramConfirm(false);
+      showToast("Informe enviado a Telegram", "success", 4000, "bottom-center");
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      showToast(
+        typeof detail === "string" ? detail : "No se pudo enviar el informe a Telegram.",
+        "error",
+      );
+    } finally {
+      setSendingTelegram(false);
+    }
+  };
 
   if (!open) return null;
 
@@ -709,6 +760,27 @@ export function AssistantShell({
               </div>
             )}
 
+            {!streaming && !hasError && lastMessage?.role === "assistant" && lastMessage.text && (
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Acciones del informe">
+                <button
+                  type="button"
+                  onClick={() => void handleExportImage()}
+                  disabled={exporting || sendingTelegram}
+                  className="text-xs px-3 py-1.5 rounded-full border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] disabled:opacity-50 transition-colors"
+                >
+                  {exporting ? "Generando imagen…" : "🖼 Descargar imagen"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTelegramConfirm(true)}
+                  disabled={exporting || sendingTelegram}
+                  className="text-xs px-3 py-1.5 rounded-full border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--color-base-alt)] disabled:opacity-50 transition-colors"
+                >
+                  {sendingTelegram ? "Enviando…" : "✈️ Enviar a Telegram"}
+                </button>
+              </div>
+            )}
+
             <div ref={chatEndRef} />
           </div>
         </div>
@@ -909,6 +981,17 @@ export function AssistantShell({
         onConfirm={handleClearThread}
         onCancel={() => setClearConfirm(false)}
         variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={telegramConfirm}
+        title="Enviar a Telegram"
+        message="Se va a enviar una imagen con este informe a tu cuenta de Telegram vinculada. ¿Querés enviarlo?"
+        confirmLabel="Enviar"
+        cancelLabel="Cancelar"
+        onConfirm={() => void handleSendTelegram()}
+        onCancel={() => setTelegramConfirm(false)}
+        variant="primary"
       />
     </>
   );

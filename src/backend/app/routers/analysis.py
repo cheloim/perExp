@@ -5,14 +5,14 @@ from calendar import monthrange
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
 from app.models import AnalysisHistory, Category, Expense, User
 from app.prompts import ANALYSIS_SYSTEM_PROMPT
-from app.schemas import AnalysisHistoryResponse, AnalysisRequest
+from app.schemas import AnalysisExportRequest, AnalysisHistoryResponse, AnalysisRequest
 from app.services.access import scoped_user_ids_for
 from app.services.aggregation import (
     fallback_rate as resolve_fallback_rate,
@@ -22,6 +22,7 @@ from app.services.aggregation import (
     spending_condition,
     to_ars,
 )
+from app.services.analysis_export import render_analysis_image
 from app.services.auth import get_current_user
 from app.services.chat_context import to_llm_messages
 from app.services.llm import LLMMessage, get_client, is_configured
@@ -279,6 +280,20 @@ async def stream_analysis(
     totals_text = " · ".join(
         format_money(amount, currency) for currency, amount in sorted(breakdown.totals.items())
     )
+    rate_parts = []
+    if breakdown.rate:
+        rate_parts.append(f"tasa {breakdown.rate:,.2f}")
+        if breakdown.rate_source:
+            rate_parts.append(str(breakdown.rate_source))
+        if breakdown.rate_date:
+            rate_parts.append(f"del {breakdown.rate_date}")
+    rate_detail = f" ({' '.join(rate_parts)})" if rate_parts else ""
+    missing_fx_line = (
+        f"\n- Gastos en USD sin tipo de cambio: {breakdown.missing_fx} "
+        "(no incluidos en el total convertido)"
+        if breakdown.missing_fx
+        else ""
+    )
 
     by_cat: dict = {}
     by_month: dict = {}
@@ -407,13 +422,13 @@ async def stream_analysis(
 
 RESUMEN:
 - Total gastado (ARS convertido): {format_money(total, "ARS")}
-- Totales por moneda: {totals_text or "sin gastos"}{f" (tasa {breakdown.rate:,.2f} {breakdown.rate_source} del {breakdown.rate_date})" if breakdown.rate else ""}
+- Totales por moneda: {totals_text or "sin gastos"}{rate_detail}{missing_fx_line}
 - Transacciones: {len(expenses)}
 - Promedio por transacción: {format_money(total / len(expenses), "ARS")}
 {f"- Meses: {len(by_month)}, promedio mensual: {format_money(total / len(by_month), 'ARS')}" if len(by_month) > 1 else ""}
 
 GASTOS POR CATEGORÍA:
-{chr(10).join(f"- {k}: {format_money(v, 'ARS')} ({v / total * 100:.1f}%)" for k, v in sorted(by_cat.items(), key=lambda x: x[1], reverse=True))}
+{chr(10).join(f"- {k}: {format_money(v, 'ARS')}{f' ({v / total * 100:.1f}%)' if total else ''}" for k, v in sorted(by_cat.items(), key=lambda x: x[1], reverse=True))}
 
 GASTOS POR MES:
 {chr(10).join(f"- {k}: {format_money(v, 'ARS')}" for k, v in sorted(by_month.items()))}
@@ -492,6 +507,63 @@ TOP 10 GASTOS MÁS ALTOS:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post(
+    "/export/image",
+    summary="Export an assistant reply as an image",
+    description="Render a reply produced by the assistant as a downloadable PNG. The client sends the text it already has; the model is not involved.",
+)
+def export_analysis_image(
+    body: AnalysisExportRequest,
+    current_user: User = Depends(get_current_user),
+):
+    allowed, retry_after = check_rate_limit(f"analysis-export:{current_user.id}", "analysis_export")
+    if not allowed:
+        raise HTTPException(
+            429,
+            f"Demasiadas exportaciones. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    png = render_analysis_image(body.text, body.title)
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Content-Disposition": 'attachment; filename="analisis-asistente.png"'},
+    )
+
+
+@router.post(
+    "/export/telegram",
+    summary="Send an assistant reply to Telegram",
+    description="Render the reply as an image and send it to the user's linked Telegram chat. This endpoint is the app-controlled action behind the confirmation dialog; it never accepts a chat id from the client.",
+)
+def export_analysis_to_telegram(
+    body: AnalysisExportRequest,
+    current_user: User = Depends(get_current_user),
+):
+    allowed, retry_after = check_rate_limit(f"analysis-export:{current_user.id}", "analysis_export")
+    if not allowed:
+        raise HTTPException(
+            429,
+            f"Demasiados envíos. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    chat_id = current_user.telegram_chat_id
+    if not chat_id or chat_id == "[encrypted]":
+        raise HTTPException(
+            400,
+            "Conectá tu cuenta de Telegram desde Configuración para enviar el informe.",
+        )
+
+    png = render_analysis_image(body.text, body.title)
+    from app.telegram.sending import send_photo_to_chat
+
+    if not send_photo_to_chat(chat_id, png, caption="📊 Análisis del asistente"):
+        raise HTTPException(502, "No se pudo enviar el informe a Telegram. Intentá de nuevo.")
+    return {"sent": True}
 
 
 @router.post(
