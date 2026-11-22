@@ -275,7 +275,8 @@ como redirect URI autorizado en Google Cloud Console.
 
 ### Alertas
 
-Todo alerta por Telegram, al chat del admin. Las reglas viven en
+Todo alerta por Telegram, a un **bot de alertas dedicado** y a un grupo/chat
+operativo separado del bot de producto. Las reglas viven en
 `docker/grafana/provisioning/alerting/rules.yml` (Grafana-managed) y **no** en
 `docker/prometheus/rules.yml`: ahí se evaluaban y quedaban en `firing`, pero sin
 Alertmanager ni provisioning en Grafana no notificaban a nadie.
@@ -298,9 +299,9 @@ escribe ahí `oikonomia_housekeeping_last_success_timestamp_seconds` y
 y dispara igual).
 
 El contact point es de Telegram y **los secretos no se commitean**: `deploy.yml`
-reemplaza los placeholders desde `.env`. Si falta `TELEGRAM_ADMIN_CHAT_ID`, el
-deploy borra el contact point y avisa — las alertas se siguen evaluando y quedan
-visibles en Grafana, pero no notifican.
+reemplaza los placeholders desde `.env` usando `TELEGRAM_ALERT_BOT_TOKEN` y
+`TELEGRAM_ADMIN_CHAT_ID`. Ambos son obligatorios en `validate-config`; si faltan,
+el deploy aborta para no quedar con alertas que evalúan pero no notifican.
 
 El provisioning se verificó levantando un Grafana real con los archivos del
 repo: 13 reglas cargadas, contact point y política raíz correctos, sin errores.
