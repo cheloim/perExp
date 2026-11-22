@@ -496,6 +496,7 @@ def test_image_with_two_drafts_saves_both_and_offers_batch_undo(
             amount=parsed["amount"],
             currency=parsed["currency"],
             description=parsed["description"],
+            date=date(2026, 10, 29),
             installment_total=None,
             installment_number=None,
         )
