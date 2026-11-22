@@ -8,8 +8,11 @@ global:
 
 scrape_configs:
   - job_name: "oikonomia-backend"
+    # Same compose network as the platform stack: resolve the service name
+    # instead of depending on the host-published port, which is unreachable
+    # from the monitoring container in production.
     static_configs:
-      - targets: ["host.containers.internal:8000"]
+      - targets: ["backend:8000"]
     metrics_path: /metrics
 
   - job_name: "postgres"
