@@ -1,0 +1,16 @@
+apiVersion: 1
+
+templates:
+  - orgId: 1
+    name: oikonomia-telegram
+    template: |
+      {{ define "oikonomia.telegram" -}}
+      {{ if eq .Status "firing" }}🔴 ALERTA{{ else }}✅ RESUELTA{{ end }}{{ with .CommonLabels.alertname }} — {{ . }}{{ end }}
+      {{ with .CommonLabels.severity }}Severidad: {{ . }}{{ end }}
+      {{ range .Alerts }}
+      {{ with .Annotations.summary }}• {{ . }}{{ end }}
+      {{ with .Annotations.description }}{{ . }}{{ end }}
+      {{ if and .ValueString (ne .ValueString "[no value]") }}Valor: {{ .ValueString }}{{ end }}
+      {{ end }}
+      {{ with .ExternalURL }}Ver en Grafana: {{ . }}{{ end }}
+      {{- end }}
