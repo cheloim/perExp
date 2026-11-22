@@ -6,7 +6,8 @@
 # Grafana, pero sin notificación, y el pipeline avisa con ::warning::.
 #
 # Telegram a propósito: es un canal que no depende de la plataforma ni del
-# mail, y sale por HTTPS desde Grafana hacia afuera.
+# mail, y sale por HTTPS desde Grafana hacia afuera. Usa un bot dedicado a
+# alertas, separado del bot de producto.
 apiVersion: 1
 
 contactPoints:
@@ -22,6 +23,6 @@ contactPoints:
           # con secureSettings el provisioning falla con "could not find Bot
           # Token in settings" y no se carga ninguna alerta. El archivo vive en
           # el server con la misma protección que .env.
-          bottoken: "__TELEGRAM_BOT_TOKEN__"
+          bottoken: "__TELEGRAM_ALERT_BOT_TOKEN__"
           message: |-
             {{ template "telegram.default.message" . }}

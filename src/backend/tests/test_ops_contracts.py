@@ -395,7 +395,7 @@ class TestAlerting:
         # Grafana wants the bot token in `settings`: `secureSettings` makes the
         # whole alerting provisioning fail to load.
         settings = telegram[0]["settings"]
-        assert settings.get("bottoken") == "__TELEGRAM_BOT_TOKEN__"
+        assert settings.get("bottoken") == "__TELEGRAM_ALERT_BOT_TOKEN__"
         assert settings.get("chatid") == "__TELEGRAM_ADMIN_CHAT_ID__"
 
     def test_no_secret_is_committed_in_the_alerting_provisioning(self):
@@ -412,8 +412,9 @@ class TestAlerting:
 
     def test_deploy_injects_the_telegram_secret(self):
         deploy = _read(DEPLOY_YML)
-        assert "__TELEGRAM_BOT_TOKEN__" in deploy, "deploy must fill the placeholders"
+        assert "__TELEGRAM_ALERT_BOT_TOKEN__" in deploy, "deploy must fill the placeholders"
         assert "__TELEGRAM_ADMIN_CHAT_ID__" in deploy
+        assert "TELEGRAM_ALERT_BOT_TOKEN=${{ secrets.TELEGRAM_ALERT_BOT_TOKEN }}" in deploy
 
     def test_node_exporter_collects_the_staleness_metrics(self):
         """Without the textfile collector housekeeping's metrics never reach
