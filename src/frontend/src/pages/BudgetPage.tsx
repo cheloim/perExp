@@ -2329,6 +2329,7 @@ export default function BudgetPage() {
                 type="number"
                 value={incomeInput}
                 onChange={(e) => setIncomeInput(e.target.value)}
+                aria-label="Ingreso mensual"
                 placeholder="500,000"
                 className="input flex-1 text-lg py-3"
               />
