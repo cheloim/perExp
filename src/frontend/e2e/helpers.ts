@@ -53,7 +53,7 @@ export const DEFAULT_MOCKS: Record<string, unknown> = {
   "/groups/my-invite-code": { invite_code: "ABCD-EFGH" },
   "/notifications/unread-count": { count: 0 },
   "/dashboard": { total: 0, expenses: [], categories: [] },
-  "/scheduled-summary": { installments: [], manual: [] },
+  "/dashboard/scheduled-summary": { installments: [], manual: [] },
 };
 
 /** Route everything under /api so no request ever reaches the Vite proxy. */
