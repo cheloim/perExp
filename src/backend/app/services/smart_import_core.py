@@ -359,6 +359,10 @@ async def run_smart_import(file_content: bytes, filename: str, db: Session, user
                 row_date = pd.to_datetime(normalized, dayfirst=True).date()
         except Exception:
             row_date = None
+        # pandas returns NaT (not None) for an empty/invalid date; NaT is
+        # truthy and breaks the "inherit the previous date" pass below.
+        if row_date is not None and pd.isna(row_date):
+            row_date = None
 
         inst_num = r.get("installment_number")
         inst_total = r.get("installment_total")

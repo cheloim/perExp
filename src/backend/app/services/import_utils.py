@@ -511,7 +511,11 @@ def fix_missing_installments(db: Session, user_id: int) -> dict:
         if not pattern:
             continue
         inst_num, inst_total = pattern
-        key = (e.description.lower().strip(), round(abs(e.amount), 2), inst_total)
+        key = (
+            _strip_installment_suffix(e.description).lower().strip(),
+            round(abs(e.amount), 2),
+            inst_total,
+        )
         groups[key].append((e, inst_num, inst_total))
 
     expenses_created = 0
