@@ -18,7 +18,7 @@ groups:
       - uid: oikonomia-disk-critical
         title: "Disco: menos del 10% libre"
         condition: A
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 5m
         labels:
@@ -43,7 +43,7 @@ groups:
       - uid: oikonomia-disk-warning
         title: "Disco: menos del 20% libre"
         condition: A
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 10m
         labels:
@@ -68,7 +68,7 @@ groups:
       - uid: oikonomia-disk-filling
         title: "Disco: se llena en menos de 24 horas"
         condition: A
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 30m
         labels:
@@ -153,7 +153,7 @@ groups:
       - uid: oikonomia-housekeeping-stale
         title: "La limpieza dejó de correr"
         condition: A
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 30m
         labels:
@@ -172,12 +172,12 @@ groups:
               intervalMs: 60000
               maxDataPoints: 43200
               refId: A
-              expr: time() - oikonomia_housekeeping_last_success_timestamp_seconds > 172800
+              expr: (time() - oikonomia_housekeeping_last_success_timestamp_seconds > 172800) or absent(oikonomia_housekeeping_last_success_timestamp_seconds) or vector(0)
 
       - uid: oikonomia-backup-stale
         title: "Los backups de la base dejaron de correr"
         condition: A
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 30m
         labels:
@@ -196,7 +196,7 @@ groups:
               intervalMs: 60000
               maxDataPoints: 43200
               refId: A
-              expr: time() - oikonomia_backup_newest_timestamp_seconds > 172800
+              expr: (time() - oikonomia_backup_newest_timestamp_seconds > 172800) or absent(oikonomia_backup_newest_timestamp_seconds) or vector(0)
 
   # ── LLM: migradas de docker/prometheus/rules.yml ───────────────────
   - orgId: 1
@@ -207,7 +207,7 @@ groups:
       - uid: oikonomia-llm-budget-nearly-exhausted
         title: "Presupuesto de LLM casi agotado"
         condition: A
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 10m
         labels:
@@ -231,7 +231,7 @@ groups:
       - uid: oikonomia-llm-budget-exhausted
         title: "Presupuesto de LLM agotado"
         condition: A
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 5m
         labels:
@@ -254,7 +254,7 @@ groups:
       - uid: oikonomia-llm-credit-low
         title: "Crédito prepago de LLM bajo"
         condition: A
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 15m
         labels:
@@ -277,7 +277,7 @@ groups:
       - uid: oikonomia-llm-credit-expiring
         title: "Crédito de LLM por vencer"
         condition: A
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 1h
         labels:
@@ -301,7 +301,7 @@ groups:
       - uid: oikonomia-llm-high-error-rate
         title: "Muchas llamadas al LLM fallando"
         condition: A
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 10m
         labels:
@@ -325,7 +325,7 @@ groups:
       - uid: oikonomia-llm-metrics-failing
         title: "El uso del LLM no se está registrando"
         condition: A
-        noDataState: NoData
+        noDataState: OK
         execErrState: Error
         for: 15m
         labels:
