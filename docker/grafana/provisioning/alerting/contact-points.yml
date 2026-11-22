@@ -24,5 +24,4 @@ contactPoints:
           # Token in settings" y no se carga ninguna alerta. El archivo vive en
           # el server con la misma protección que .env.
           bottoken: "__TELEGRAM_ALERT_BOT_TOKEN__"
-          message: |-
-            {{ template "telegram.default.message" . }}
+          message: '{{ template "oikonomia.telegram" . }}'

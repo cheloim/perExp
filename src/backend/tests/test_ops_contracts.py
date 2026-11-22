@@ -547,3 +547,15 @@ class TestHousekeepingSafety2:
         """`db_*.dump` is what backup-db.sh writes now; a find that only looks
         for the old `.sql.gz` would report 'never backed up' forever."""
         assert "db_*.dump" in _read(HOUSEKEEPING)
+
+
+def test_telegram_message_uses_the_oikonomia_template():
+    """Alert messages are summarized, not a raw label dump."""
+    templates = yaml.safe_load(_read(os.path.join(ALERTING_DIR, "templates.yml")))
+    body = templates["templates"][0]["template"]
+    assert '{{ define "oikonomia.telegram"' in body
+    assert ".CommonLabels.alertname" in body
+    assert ".Annotations.summary" in body
+    contact = yaml.safe_load(_read(CONTACT_POINTS))
+    receiver = contact["contactPoints"][0]["receivers"][0]
+    assert receiver["settings"]["message"].strip() == '{{ template "oikonomia.telegram" . }}'

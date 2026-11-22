@@ -301,7 +301,9 @@ y dispara igual).
 El contact point es de Telegram y **los secretos no se commitean**: `deploy.yml`
 reemplaza los placeholders desde `.env` usando `TELEGRAM_ALERT_BOT_TOKEN` y
 `TELEGRAM_ADMIN_CHAT_ID`. Ambos son obligatorios en `validate-config`; si faltan,
-el deploy aborta para no quedar con alertas que evalúan pero no notifican.
+el deploy aborta para no quedar con alertas que evalúan pero no notifican. El
+mensaje se define en `templates.yml` (`oikonomia.telegram`): estado, regla,
+severidad, resumen/descripción y link a Grafana, sin el dump de labels.
 
 El provisioning se verificó levantando un Grafana real con los archivos del
 repo: 13 reglas cargadas, contact point y política raíz correctos, sin errores.
