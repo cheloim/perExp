@@ -454,6 +454,26 @@ def test_usd_with_and_without_fx_is_disclosed_to_the_model(db, test_user, fake_l
     assert "U$S 25,00" in prompt
     assert "Gastos en USD sin tipo de cambio: 1" in prompt
     assert "no incluidos en el total convertido" in prompt
+    assert "Promedio por transacción: $ 10.500,00" in prompt
+    assert "$ 7.000,00" not in prompt
+
+
+def test_monthly_average_ignores_months_with_only_missing_fx(db, test_user, fake_llm):
+    _add_expense(db, test_user, _first_day_months_ago(0), "Actual", 1000.0)
+    _add_expense(db, test_user, _first_day_months_ago(1), "Anterior", 1000.0)
+    _add_expense(
+        db,
+        test_user,
+        _first_day_months_ago(2),
+        "USD sin tasa",
+        5.0,
+        currency="USD",
+    )
+
+    _stream(AnalysisRequest(question="¿cuánto gasté?", months=3), db, test_user)
+
+    prompt = _prompt_text(fake_llm.prompts)
+    assert "Meses: 2, promedio mensual: $ 1.000,00" in prompt
 
 
 def test_only_usd_without_fx_still_produces_a_prompt(db, test_user, fake_llm):

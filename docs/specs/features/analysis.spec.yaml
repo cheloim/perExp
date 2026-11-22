@@ -137,7 +137,7 @@ endpoints:
       text:
         type: "string"
         required: true
-        constraints: "1..50.000 characters"
+        constraints: "1..20.000 characters"
       title:
         type: "string"
         required: false

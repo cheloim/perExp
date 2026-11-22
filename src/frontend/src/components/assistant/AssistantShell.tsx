@@ -992,6 +992,7 @@ export function AssistantShell({
         onConfirm={() => void handleSendTelegram()}
         onCancel={() => setTelegramConfirm(false)}
         variant="primary"
+        pending={sendingTelegram}
       />
     </>
   );

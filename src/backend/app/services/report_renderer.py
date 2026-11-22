@@ -12,13 +12,22 @@ from playwright.sync_api import sync_playwright
 logger = logging.getLogger(__name__)
 
 
-def render_report_image(template_name: str, context: dict, width: int = 800) -> bytes:
+def render_report_image(
+    template_name: str,
+    context: dict,
+    width: int = 800,
+    *,
+    block_external: bool = False,
+) -> bytes:
     """Render a Jinja2 template to PNG using Playwright.
 
     Args:
         template_name: Name of the HTML template file (e.g. 'report_template_budget.html')
         context: Dict of variables to pass to the template
         width: Viewport width in pixels (default 800)
+        block_external: Abort every network request. Use it for templates that
+            contain user/model text, so markdown images cannot make the backend
+            fetch internal URLs (SSRF).
 
     Returns:
         PNG image bytes
@@ -39,6 +48,8 @@ def render_report_image(template_name: str, context: dict, width: int = 800) -> 
             viewport={"width": width, "height": 600},
             device_scale_factor=2,  # Retina quality
         )
+        if block_external:
+            page.route("**/*", lambda route: route.abort())
         page.set_content(html_content, wait_until="networkidle")
         page.emulate_media(media="screen")
 

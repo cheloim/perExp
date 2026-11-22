@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import unicodedata
 from calendar import monthrange
@@ -12,7 +13,12 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal, get_db
 from app.models import AnalysisHistory, Category, Expense, User
 from app.prompts import ANALYSIS_SYSTEM_PROMPT
-from app.schemas import AnalysisExportRequest, AnalysisHistoryResponse, AnalysisRequest
+from app.schemas import (
+    AnalysisExportRequest,
+    AnalysisHistoryResponse,
+    AnalysisRequest,
+    AnalysisTelegramExportResponse,
+)
 from app.services.access import scoped_user_ids_for
 from app.services.aggregation import (
     fallback_rate as resolve_fallback_rate,
@@ -30,6 +36,27 @@ from app.services.money import format_money
 from app.services.rate_limit import check_rate_limit
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
+logger = logging.getLogger(__name__)
+
+# Telegram sendPhoto accepts up to 10 MB. Leave headroom for the multipart
+# envelope instead of discovering the limit at the Telegram API.
+ANALYSIS_IMAGE_MAX_BYTES = 9_500_000
+
+
+def _render_export_image(body: AnalysisExportRequest) -> bytes:
+    try:
+        png = render_analysis_image(body.text, body.title)
+    except Exception as exc:
+        logger.exception("Analysis image render failed")
+        raise HTTPException(
+            502, "No se pudo generar la imagen del informe. Intentá de nuevo."
+        ) from exc
+    if len(png) > ANALYSIS_IMAGE_MAX_BYTES:
+        raise HTTPException(
+            413,
+            "El informe es demasiado largo para exportarlo como imagen.",
+        )
+    return png
 
 
 def _first_of_month_back(today: date, back: int) -> date:
@@ -294,6 +321,8 @@ async def stream_analysis(
         if breakdown.missing_fx
         else ""
     )
+    converted_count = len(expenses) - breakdown.missing_fx
+    average = total / converted_count if converted_count else 0.0
 
     by_cat: dict = {}
     by_month: dict = {}
@@ -306,6 +335,14 @@ async def stream_analysis(
         by_month[key] = by_month.get(key, 0.0) + amount_ars
         month_cat = by_month_cat.setdefault(key, {})
         month_cat[cat_name] = month_cat.get(cat_name, 0.0) + amount_ars
+
+    converted_months = sum(1 for month_total in by_month.values() if month_total > 0)
+    monthly_average_line = (
+        f"- Meses: {converted_months}, promedio mensual: "
+        f"{format_money(total / converted_months, 'ARS')}"
+        if converted_months > 1
+        else ""
+    )
 
     top_10 = sorted(expenses, key=lambda x: x.amount, reverse=True)[:10]
 
@@ -424,8 +461,8 @@ RESUMEN:
 - Total gastado (ARS convertido): {format_money(total, "ARS")}
 - Totales por moneda: {totals_text or "sin gastos"}{rate_detail}{missing_fx_line}
 - Transacciones: {len(expenses)}
-- Promedio por transacción: {format_money(total / len(expenses), "ARS")}
-{f"- Meses: {len(by_month)}, promedio mensual: {format_money(total / len(by_month), 'ARS')}" if len(by_month) > 1 else ""}
+- Promedio por transacción: {format_money(average, "ARS")}
+{monthly_average_line}
 
 GASTOS POR CATEGORÍA:
 {chr(10).join(f"- {k}: {format_money(v, 'ARS')}{f' ({v / total * 100:.1f}%)' if total else ''}" for k, v in sorted(by_cat.items(), key=lambda x: x[1], reverse=True))}
@@ -513,6 +550,15 @@ TOP 10 GASTOS MÁS ALTOS:
     "/export/image",
     summary="Export an assistant reply as an image",
     description="Render a reply produced by the assistant as a downloadable PNG. The client sends the text it already has; the model is not involved.",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "PNG image of the report",
+            "content": {"image/png": {"schema": {"type": "string", "format": "binary"}}},
+        },
+        413: {"description": "The rendered image exceeds the size limit"},
+        502: {"description": "The image renderer failed"},
+    },
 )
 def export_analysis_image(
     body: AnalysisExportRequest,
@@ -526,7 +572,7 @@ def export_analysis_image(
             headers={"Retry-After": str(retry_after)},
         )
 
-    png = render_analysis_image(body.text, body.title)
+    png = _render_export_image(body)
     return Response(
         content=png,
         media_type="image/png",
@@ -538,6 +584,11 @@ def export_analysis_image(
     "/export/telegram",
     summary="Send an assistant reply to Telegram",
     description="Render the reply as an image and send it to the user's linked Telegram chat. This endpoint is the app-controlled action behind the confirmation dialog; it never accepts a chat id from the client.",
+    response_model=AnalysisTelegramExportResponse,
+    responses={
+        413: {"description": "The rendered image exceeds the size limit"},
+        502: {"description": "The image renderer or Telegram failed"},
+    },
 )
 def export_analysis_to_telegram(
     body: AnalysisExportRequest,
@@ -558,7 +609,7 @@ def export_analysis_to_telegram(
             "Conectá tu cuenta de Telegram desde Configuración para enviar el informe.",
         )
 
-    png = render_analysis_image(body.text, body.title)
+    png = _render_export_image(body)
     from app.telegram.sending import send_photo_to_chat
 
     if not send_photo_to_chat(chat_id, png, caption="📊 Análisis del asistente"):

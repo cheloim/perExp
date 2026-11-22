@@ -273,6 +273,29 @@ describe("AssistantShell", () => {
     expect(showToast).toHaveBeenCalledWith("Imagen descargada", "success", 3500, "bottom-center");
   });
 
+  it("cancelling the Telegram dialog does not send anything", () => {
+    seed([
+      { role: "user", text: "¿cuánto gasté?" },
+      { role: "assistant", text: "Informe del asistente" },
+    ]);
+
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /enviar a telegram/i }));
+    const dialog = screen.getByRole("dialog", { name: "Enviar a Telegram" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+
+    expect(sendAnalysisToTelegram).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "Enviar a Telegram" })).not.toBeInTheDocument();
+  });
+
   it("asks before sending the report to Telegram", async () => {
     seed([
       { role: "user", text: "¿cuánto gasté?" },

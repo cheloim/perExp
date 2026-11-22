@@ -5,6 +5,7 @@ application action, not a model action: the same text is rendered through the
 existing Playwright report pipeline so the image matches the rest of the app.
 """
 
+import threading
 from datetime import datetime
 from html import escape
 from pathlib import Path
@@ -18,6 +19,10 @@ _TEMPLATE_DIR = Path(__file__).resolve().parent
 _ENV = Environment(loader=FileSystemLoader(str(_TEMPLATE_DIR)))
 
 _MARKDOWN_EXTENSIONS = ["tables", "fenced_code", "sane_lists"]
+
+# Playwright launches a browser per render. The endpoint is rate-limited per
+# day, but a burst could still start several Chromium instances at once.
+_RENDER_LOCK = threading.Lock()
 
 
 def _render_markdown(text: str) -> str:
@@ -56,8 +61,10 @@ def render_analysis_image(
     created_at: datetime | None = None,
 ) -> bytes:
     """Render the reply to a PNG using the shared Playwright renderer."""
-    return render_report_image(
-        "analysis_report.html",
-        _context(text, title, created_at),
-        width=900,
-    )
+    with _RENDER_LOCK:
+        return render_report_image(
+            "analysis_report.html",
+            _context(text, title, created_at),
+            width=900,
+            block_external=True,
+        )

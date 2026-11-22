@@ -64,6 +64,41 @@ def test_image_export_requires_text(db, export_user):
     assert response.status_code == 422
 
 
+def test_image_export_rejects_an_oversized_reply(db, export_user):
+    client = _client(db, export_user)
+    try:
+        response = client.post("/analysis/export/image", json={"text": "x" * 20_001})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+
+
+def test_image_export_reports_a_renderer_failure(db, export_user, monkeypatch):
+    def fail(*_args, **_kwargs):
+        raise RuntimeError("chromium crashed")
+
+    monkeypatch.setattr(analysis, "render_analysis_image", fail)
+    client = _client(db, export_user)
+    try:
+        response = client.post("/analysis/export/image", json={"text": "Informe"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+
+
+def test_image_export_rejects_an_image_over_the_telegram_limit(db, export_user, monkeypatch):
+    monkeypatch.setattr(analysis, "render_analysis_image", lambda *a, **k: b"x" * 9_500_001)
+    client = _client(db, export_user)
+    try:
+        response = client.post("/analysis/export/image", json={"text": "Informe"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 413
+
+
 def test_the_rendered_html_escapes_raw_html_and_keeps_markdown():
     html = analysis_export.render_analysis_html(
         "## Resumen\n\nGastaste **$ 10.000**.\n\n<script>alert(1)</script>",
@@ -76,6 +111,21 @@ def test_the_rendered_html_escapes_raw_html_and_keeps_markdown():
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;" in html
     assert "22/11/2026 18:02" in html
+
+
+def test_image_render_blocks_external_requests(monkeypatch):
+    captured = {}
+
+    def fake_render(template_name, context, **kwargs):
+        captured.update(template_name=template_name, kwargs=kwargs)
+        return b"png"
+
+    monkeypatch.setattr(analysis_export, "render_report_image", fake_render)
+
+    analysis_export.render_analysis_image("![x](http://127.0.0.1:1/secret)", "Análisis")
+
+    assert captured["template_name"] == "analysis_report.html"
+    assert captured["kwargs"]["block_external"] is True
 
 
 def test_telegram_export_sends_the_image_to_the_linked_chat(db, export_user, monkeypatch):
@@ -102,6 +152,26 @@ def test_telegram_export_sends_the_image_to_the_linked_chat(db, export_user, mon
     assert sent["image_bytes"] == b"png-bytes"
 
 
+def test_telegram_export_ignores_a_client_supplied_chat_id(db, export_user, monkeypatch):
+    sent = {}
+    monkeypatch.setattr(analysis, "render_analysis_image", lambda *a, **k: b"png")
+    monkeypatch.setattr(
+        "app.telegram.sending.send_photo_to_chat",
+        lambda chat_id, image_bytes, caption=None: sent.update(chat_id=chat_id) or True,
+    )
+    client = _client(db, export_user)
+    try:
+        response = client.post(
+            "/analysis/export/telegram",
+            json={"text": "Informe", "chat_id": "999999"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert sent["chat_id"] == "123456"
+
+
 def test_telegram_export_requires_a_linked_account(db):
     user = _user(db, "no-telegram@example.com")
     client = _client(db, user)
@@ -115,6 +185,20 @@ def test_telegram_export_requires_a_linked_account(db):
 
     assert response.status_code == 400
     assert "Telegram" in response.json()["detail"]
+
+
+def test_telegram_export_rejects_an_encrypted_placeholder(db):
+    user = _user(db, "encrypted-telegram@example.com", telegram_chat_id="[encrypted]")
+    client = _client(db, user)
+    try:
+        response = client.post(
+            "/analysis/export/telegram",
+            json={"text": "Informe del asistente"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
 
 
 def test_telegram_export_reports_a_transport_failure(db, export_user, monkeypatch):

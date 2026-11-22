@@ -17,6 +17,8 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   variant?: "danger" | "primary";
+  /** The action is in flight: both buttons stay disabled until it settles. */
+  pending?: boolean;
 }
 
 /**
@@ -32,6 +34,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   variant = "danger",
+  pending = false,
 }: ConfirmDialogProps) {
   // Telegram BackButton
   useEffect(() => {
@@ -41,11 +44,13 @@ export function ConfirmDialog({
   }, [isOpen, onCancel]);
 
   const handleConfirm = () => {
+    if (pending) return;
     hapticSuccess();
     onConfirm();
   };
 
   const handleCancel = () => {
+    if (pending) return;
     hapticLight();
     onCancel();
   };
@@ -59,17 +64,24 @@ export function ConfirmDialog({
       size="sm"
       footer={
         <div className="flex gap-2 justify-end">
-          <button type="button" onClick={handleCancel} className="gnome-btn-secondary text-sm">
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={pending}
+            className="gnome-btn-secondary text-sm disabled:opacity-50"
+          >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={handleConfirm}
-            className={`text-sm font-medium ${
+            disabled={pending}
+            aria-busy={pending}
+            className={`text-sm font-medium disabled:opacity-50 ${
               variant === "danger" ? "gnome-btn-danger" : "gnome-btn-primary"
             }`}
           >
-            {confirmLabel}
+            {pending ? "Procesando…" : confirmLabel}
           </button>
         </div>
       }

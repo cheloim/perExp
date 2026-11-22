@@ -1594,10 +1594,14 @@ paths:
                 format: binary
         '401':
           description: Unauthorized
+        '413':
+          description: The rendered image exceeds the size limit
         '422':
           description: Invalid request body
         '429':
           description: Export rate limit reached
+        '502':
+          description: The image renderer failed
 
   /analysis/export/telegram:
     post:
@@ -1628,12 +1632,14 @@ paths:
           description: The account has no linked Telegram chat
         '401':
           description: Unauthorized
+        '413':
+          description: The rendered image exceeds the size limit
         '422':
           description: Invalid request body
         '429':
           description: Export rate limit reached
         '502':
-          description: Telegram rejected the message
+          description: The image renderer or Telegram failed
 
   /analysis/history:
     get:
@@ -5401,7 +5407,7 @@ components:
         text:
           type: string
           minLength: 1
-          maxLength: 50000
+          maxLength: 20000
           description: The assistant reply to render.
         title:
           type: string

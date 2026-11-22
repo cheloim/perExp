@@ -46,6 +46,7 @@ jiter==0.19.0
 kombu==5.7.0
 limits==5.8.0
 mako==1.4.3
+markdown==3.11.3
 markupsafe==3.0.4
 mccabe==0.7.0
 msgpack==1.0.2

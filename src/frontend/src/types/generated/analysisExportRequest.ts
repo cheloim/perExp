@@ -37,7 +37,7 @@ export interface AnalysisExportRequest {
   /**
    * The assistant reply to render.
    * @minLength 1
-   * @maxLength 50000
+   * @maxLength 20000
    */
   text: string;
   /**
