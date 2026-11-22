@@ -99,11 +99,117 @@ def test_cuenta_tag_matches_account_name_without_card_row(db, test_user):
 
 
 def test_account_does_not_match_only_because_the_amount_is_in_usd(db, test_user):
-    _account(db, test_user, "Cuenta USD")
+    _account(db, test_user, "USD")
 
     result = _match_account_from_text("pagué 5 usd en netflix", test_user.id, db)
 
     assert result is None
+
+
+def test_two_cards_with_the_same_name_and_no_bank_are_not_assigned(db, test_user):
+    _card(db, test_user, name="Visa", bank="Galicia")
+    _card(db, test_user, name="Visa", bank="Santander")
+
+    result = _match_card_from_text(
+        db.query(Card).filter(Card.user_id == test_user.id).all(), "Visa", None, None
+    )
+
+    assert result is None
+
+
+def test_two_cards_of_the_same_bank_and_type_are_not_assigned(db, test_user):
+    _card(db, test_user, name="Visa", bank="Santander")
+    _card(db, test_user, name="Mastercard", bank="Santander")
+
+    assert _match_card_from_notification(test_user.id, "Santander", "credito", None, db) is None
+
+
+def test_bank_notification_without_bank_does_not_pick_a_card(db, test_user):
+    _card(db, test_user, name="Visa", bank="Galicia")
+    _card(db, test_user, name="Mastercard", bank="Santander")
+
+    assert _match_card_from_notification(test_user.id, None, "credito", None, db) is None
+    assert _match_card_from_notification(test_user.id, None, "credito", "Naranja", db) is None
+
+
+def test_tag_with_another_bank_is_rejected(db, test_user):
+    _tag(db, test_user, "Galicia Visa Crédito")
+
+    result = _match_cuenta_tag_from_text("Visa Crédito", "Santander", test_user.id, db)
+
+    assert result is None
+
+
+def test_tag_with_another_franchise_is_rejected(db, test_user):
+    _tag(db, test_user, "Santander Mastercard Crédito")
+
+    result = _match_cuenta_tag_from_text("Visa Crédito", "Santander", test_user.id, db)
+
+    assert result is None
+
+
+def test_tag_with_the_opposite_card_type_is_rejected(db, test_user):
+    _tag(db, test_user, "Santander Visa Crédito")
+
+    result = _match_cuenta_tag_from_text("Visa", "Santander", test_user.id, db, card_type="debito")
+
+    assert result is None
+
+
+def test_two_tags_with_the_same_bank_and_type_are_not_assigned(db, test_user):
+    _tag(db, test_user, "Santander Visa Crédito")
+    _tag(db, test_user, "Santander Amex Crédito")
+
+    result = _match_cuenta_tag_from_text(None, "Santander", test_user.id, db, card_type="credito")
+
+    assert result is None
+
+
+def test_two_accounts_of_the_same_type_without_a_bank_are_not_assigned(db, test_user):
+    _account(db, test_user, "Caja de Ahorro Galicia")
+    _account(db, test_user, "Caja de Ahorro Santander")
+
+    result = _match_account_from_text("pagué con la caja de ahorro 5000", test_user.id, db)
+
+    assert result is None
+
+
+def test_account_type_keyword_c_c_matches_a_cuenta_corriente(db, test_user):
+    account = _account(db, test_user, "Cuenta Corriente", account_type="cuenta_corriente")
+
+    result = _match_account_from_text("pagué con c/c 5000", test_user.id, db)
+
+    assert result is account
+
+
+def test_account_type_keyword_c_a_matches_a_caja_de_ahorro(db, test_user):
+    account = _account(db, test_user, "Caja de Ahorro")
+
+    result = _match_account_from_text("pagué con c/a 5000", test_user.id, db)
+
+    assert result is account
+
+
+def test_tag_can_match_from_the_text_when_bank_extraction_misses_it(db, test_user):
+    tag = _tag(db, test_user, "Nación")
+
+    result = _match_cuenta_tag_from_text(
+        None,
+        None,
+        test_user.id,
+        db,
+        text="pagué con la tarjeta nación 5000",
+    )
+
+    assert result is tag
+
+
+def test_amex_and_american_express_share_the_franchise(db, test_user):
+    card = _card(db, test_user, name="American Express", bank="Santander")
+
+    result = _match_card_from_text([card], "Amex", "Santander", None)
+
+    assert result is card
 
 
 def test_compra_does_not_look_like_mercadopago(db, test_user):

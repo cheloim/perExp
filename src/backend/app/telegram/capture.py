@@ -20,6 +20,7 @@ from app.telegram.parsing import (
     _match_account_from_text,
     _match_card_from_notification,
     _match_cuenta_tag_from_text,
+    _normalize_card_type,
 )
 from app.telegram.persistence import _installment_args
 from app.telegram.report_handlers import _chunk_message
@@ -359,7 +360,7 @@ async def _handle_bank_notification(
 
         if card:
             card_id = card.id
-        elif parsed.get("card_type") == "debito" and parsed.get("bank"):
+        elif _normalize_card_type(parsed.get("card_type")) == "debito" and parsed.get("bank"):
             account = _match_account_from_text(text, user_id, db)
             if account:
                 account_id = account.id

@@ -203,6 +203,13 @@ def _saved_text(expense: "Expense", payment_label: str = "", tags: list | None =
     return "\n".join(lines)
 
 
+def _shorten(value: object, limit: int) -> str:
+    text = str(value or "")
+    if len(text) <= limit:
+        return text
+    return f"{text[: limit - 1].rstrip()}…"
+
+
 def _batch_amount_line(expense: "Expense") -> str:
     """The amount actually saved for one row, with its installment position."""
     amount = _format_amount(expense.amount, expense.currency)
@@ -233,17 +240,17 @@ def _saved_batch_text(
         header += f" ({failed} {noun})"
     lines = [f"{header}:"]
     if payment_label:
-        lines.append(f"💳 {_escape_html(payment_label)}")
+        lines.append(f"💳 {_escape_html(_shorten(payment_label, 120))}")
     lines.append("")
 
     for index, (expense, levels) in enumerate(items, start=1):
         emoji = _cat_emoji(levels[0]) if levels else "•"
-        description = _escape_html(expense.description or "Sin descripción")
+        description = _escape_html(_shorten(expense.description or "Sin descripción", 180))
         date_str = _format_date_es(expense.date.strftime("%Y-%m-%d"))
         lines.append(f"{index}. {emoji} {description}")
         lines.append(f"   {_batch_amount_line(expense)} · 📅 {date_str}")
         if levels:
-            category = " > ".join(_escape_html(level) for level in levels)
+            category = " > ".join(_escape_html(_shorten(level, 80)) for level in levels)
             lines.append(f"   {_cat_emoji(levels[0])} {category}")
         if index < count:
             lines.append("")
