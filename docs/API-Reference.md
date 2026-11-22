@@ -15,6 +15,30 @@
 El gate falla si el contrato curado queda atrás de los routers o si un gap documentado se
 arregla sin achicar el baseline (`tests/openapi_contract_baseline.yaml`, hoy vacío).
 
+## Prefijos `/v1` y `/api`
+
+La API se publica bajo dos prefijos equivalentes:
+
+| Prefijo | Estado | Para quién |
+|---|---|---|
+| `/v1/...` | Canónico | Clientes nuevos. Es la versión que va a sobrevivir a cambios incompatibles. |
+| `/api/...` | Alias de transición | Web, MiniApp, bots y cualquier cliente ya desplegado. |
+
+Los dos los resuelve nginx (`src/frontend/nginx.conf`), no FastAPI: la location strippea
+el prefijo y el backend sigue sirviendo sus routers en `/` (`/v1/expenses` y
+`/api/expenses` llegan los dos como `/expenses`). Como es una sola location para ambos,
+no pueden divergir. Todavía no hay endpoints exclusivos de `/v1` ni negociación de
+versión; eso llega con la política de compatibilidad de #527.
+
+En desarrollo, el proxy de Vite replica el alias (`/api` y `/v1`); el backend directo
+(`http://localhost:8001`) sigue sin prefijo, igual que en producción detrás de nginx.
+
+Para clientes nuevos, usá `/v1`. El alias `/api` no se retira sin un período de aviso y
+una actualización coordinada de web, bots y MiniApp. El contrato de que ambos prefijos
+responden igual está en `tests/test_nginx_api_prefix.py` (corre el nginx real contra un
+upstream falso y cubre routing, query string, uploads multipart, SSE sin buffering y el
+bloqueo de `/metrics`).
+
 ## Mapa de routers
 
 | Router | Prefijo | Endpoints | Responsabilidad |
@@ -53,6 +77,7 @@ Todas las rutas salvo `/health`, `/auth/*` y `/webhook/whatsapp` requieren
 
 ## Convenciones
 
+- Los prefijos de la tabla son relativos: no incluyen `/v1` ni `/api` (ver arriba).
 - Errores: `{"detail": "..."}` con el código HTTP correspondiente.
 - Paginación: `limit`/`offset` o `page` según el router (no está unificado; ver #527).
 - Fechas: ISO 8601 en UTC.
