@@ -73,8 +73,9 @@ run() {
 
 notify_failure() {
     local msg="$1"
-    if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_ADMIN_CHAT_ID:-}" ]; then
-        curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+    local alert_bot="${TELEGRAM_ALERT_BOT_TOKEN:-${TELEGRAM_BOT_TOKEN:-}}"
+    if [ -n "$alert_bot" ] && [ -n "${TELEGRAM_ADMIN_CHAT_ID:-}" ]; then
+        curl -sS -X POST "https://api.telegram.org/bot${alert_bot}/sendMessage" \
             --data-urlencode "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
             --data-urlencode "text=[housekeeping] $msg" \
             >/dev/null 2>&1 || true

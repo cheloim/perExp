@@ -291,6 +291,7 @@ jobs:
           LLM_CREDIT_AMOUNT_USD=${{ vars.LLM_CREDIT_AMOUNT_USD || '10' }}
           LLM_CREDIT_EXPIRES_AT=${{ vars.LLM_CREDIT_EXPIRES_AT }}
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALERT_BOT_TOKEN=${{ secrets.TELEGRAM_ALERT_BOT_TOKEN }}
           TELEGRAM_OIDC_CLIENT_ID=${{ secrets.TELEGRAM_OIDC_CLIENT_ID }}
           TELEGRAM_OIDC_CLIENT_SECRET=${{ secrets.TELEGRAM_OIDC_CLIENT_SECRET }}
           GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
@@ -432,7 +433,7 @@ jobs:
           port: ${{ vars.SSH_PORT || '43422' }}
           script: |
             cd /opt/creditcardanalyzer
-            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_ADMIN_PASSWORD GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_PROMETHEUS_USER GRAFANA_CLOUD_PROMETHEUS_PASSWORD GRAFANA_CLOUD_LOKI_URL GRAFANA_CLOUD_LOKI_USER GRAFANA_CLOUD_LOKI_PASSWORD"
+            REQUIRED="POSTGRES_PASSWORD LLM_API_KEY SECRET_KEY TELEGRAM_BOT_TOKEN TELEGRAM_ALERT_BOT_TOKEN TELEGRAM_ADMIN_CHAT_ID GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET EMAIL_API_KEY ADMIN_EMAIL INVESTMENTS_LLM_API_KEY MESSAGES_BOT_LLM_API_KEY GRAFANA_ADMIN_PASSWORD GRAFANA_CLOUD_PROMETHEUS_URL GRAFANA_CLOUD_PROMETHEUS_USER GRAFANA_CLOUD_PROMETHEUS_PASSWORD GRAFANA_CLOUD_LOKI_URL GRAFANA_CLOUD_LOKI_USER GRAFANA_CLOUD_LOKI_PASSWORD"
             MISSING=""
             for var in $REQUIRED; do
               VALUE=$(grep "^${var}=" .env | cut -d= -f2-)
@@ -1303,12 +1304,12 @@ jobs:
             # visibles en Grafana, pero no notifican, y el pipeline lo dice.
             echo "Setting up alerting..."
             CONTACT_POINTS=/opt/creditcardanalyzer/grafana/provisioning/alerting/contact-points.yml
-            if [ -n "${TELEGRAM_BOT_TOKEN}" ] && [ -n "${TELEGRAM_ADMIN_CHAT_ID}" ]; then
+            if [ -n "${TELEGRAM_ALERT_BOT_TOKEN}" ] && [ -n "${TELEGRAM_ADMIN_CHAT_ID}" ]; then
               if [ ! -f "$CONTACT_POINTS" ]; then
                 echo "::error::Falta $CONTACT_POINTS en el server"
                 exit 1
               fi
-              sed -i "s|__TELEGRAM_BOT_TOKEN__|${TELEGRAM_BOT_TOKEN}|; s|__TELEGRAM_ADMIN_CHAT_ID__|${TELEGRAM_ADMIN_CHAT_ID}|" "$CONTACT_POINTS"
+              sed -i "s|__TELEGRAM_ALERT_BOT_TOKEN__|${TELEGRAM_ALERT_BOT_TOKEN}|; s|__TELEGRAM_ADMIN_CHAT_ID__|${TELEGRAM_ADMIN_CHAT_ID}|" "$CONTACT_POINTS"
               # El archivo queda con el bot token: misma protección que .env.
               chmod 600 "$CONTACT_POINTS"
               echo "Contact point de Telegram configurado"
@@ -1319,7 +1320,7 @@ jobs:
               TESTED_CHAT=$(cat /opt/creditcardanalyzer/.telegram_chat_tested 2>/dev/null || true)
               if [ "$TESTED_CHAT" != "${TELEGRAM_ADMIN_CHAT_ID}" ]; then
                 TG_HTTP=$(curl -sS -o /tmp/tg-test.out -w "%{http_code}" \
-                  "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+                  "https://api.telegram.org/bot${TELEGRAM_ALERT_BOT_TOKEN}/sendMessage" \
                   --data-urlencode "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
                   --data-urlencode "text=[oikonomia] Canal de alertas configurado" || echo "000")
                 if [ "$TG_HTTP" = "200" ]; then
@@ -1331,7 +1332,7 @@ jobs:
                 fi
               fi
             else
-              echo "::warning::Falta TELEGRAM_ADMIN_CHAT_ID en .env: las alertas se evalúan pero no notifican"
+              echo "::warning::Falta TELEGRAM_ALERT_BOT_TOKEN o TELEGRAM_ADMIN_CHAT_ID en .env: las alertas se evalúan pero no notifican"
               rm -f /opt/creditcardanalyzer/grafana/provisioning/alerting/contact-points.yml
               rm -f /opt/creditcardanalyzer/grafana/provisioning/alerting/policies.yml
             fi
