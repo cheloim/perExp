@@ -1104,35 +1104,18 @@ export default function ExpensesPage() {
                         )}
                         <tr
                           key={exp.id}
-                          className={`group cursor-pointer transition-colors hover:bg-[var(--color-base-alt)]/30 ${
+                          className={`group transition-colors hover:bg-[var(--color-base-alt)]/30 ${
                             selectedIds.has(exp.id)
                               ? "bg-[var(--color-primary)]/10 shadow-[inset_3px_0_0_var(--color-primary)]"
                               : ""
                           }`}
                           style={missing ? { borderLeft: "3px solid #f6d32d" } : undefined}
-                          onClick={() => setDetailExpense(exp)}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            setQuickEdit({
-                              expenseId: exp.id,
-                              type: "category",
-                              rect: DOMRect.fromRect({
-                                x: e.clientX,
-                                y: e.clientY,
-                                width: 0,
-                                height: 0,
-                              }),
-                            });
-                          }}
                         >
-                          <td className="w-10 px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                          <td className="w-10 px-3 py-3">
                             <input
                               type="checkbox"
                               checked={selectedIds.has(exp.id)}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleRowSelection(exp.id, e.shiftKey);
-                              }}
+                              onClick={(e) => toggleRowSelection(exp.id, e.shiftKey)}
                               onChange={() => {}}
                               aria-label={`Seleccionar ${exp.description}`}
                               className="h-4 w-4 cursor-pointer accent-[var(--color-primary)]"
