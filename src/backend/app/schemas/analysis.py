@@ -27,6 +27,17 @@ class AnalysisRequest(BaseModel):
     messages: list[ChatMessage] | None = Field(default=None, max_length=50)
 
 
+class AnalysisExportRequest(BaseModel):
+    """The assistant reply the user chose to export or send to Telegram."""
+
+    text: str = Field(min_length=1, max_length=20_000)
+    title: str | None = Field(default=None, max_length=120)
+
+
+class AnalysisTelegramExportResponse(BaseModel):
+    sent: bool
+
+
 class AnalysisHistoryResponse(BaseModel):
     id: int
     created_at: datetime

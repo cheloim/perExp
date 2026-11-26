@@ -1,18 +1,25 @@
 import json
+import logging
 import re
+import struct
 import unicodedata
 from calendar import monthrange
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
 from app.models import AnalysisHistory, Category, Expense, User
 from app.prompts import ANALYSIS_SYSTEM_PROMPT
-from app.schemas import AnalysisHistoryResponse, AnalysisRequest
+from app.schemas import (
+    AnalysisExportRequest,
+    AnalysisHistoryResponse,
+    AnalysisRequest,
+    AnalysisTelegramExportResponse,
+)
 from app.services.access import scoped_user_ids_for
 from app.services.aggregation import (
     fallback_rate as resolve_fallback_rate,
@@ -22,6 +29,7 @@ from app.services.aggregation import (
     spending_condition,
     to_ars,
 )
+from app.services.analysis_export import render_analysis_image
 from app.services.auth import get_current_user
 from app.services.chat_context import to_llm_messages
 from app.services.llm import LLMMessage, get_client, is_configured
@@ -29,6 +37,45 @@ from app.services.money import format_money
 from app.services.rate_limit import check_rate_limit
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
+logger = logging.getLogger(__name__)
+
+# Telegram sendPhoto accepts up to 10 MB. Leave headroom for the multipart
+# envelope instead of discovering the limit at the Telegram API.
+ANALYSIS_IMAGE_MAX_BYTES = 9_500_000
+
+
+def _png_dimensions(png: bytes) -> tuple[int, int] | None:
+    """Read the IHDR dimensions without decoding the image."""
+    if len(png) < 24 or png[:8] != b"\x89PNG\r\n\x1a\n" or png[12:16] != b"IHDR":
+        return None
+    return struct.unpack(">II", png[16:24])
+
+
+def _telegram_photo_fits(png: bytes) -> bool:
+    """Telegram sendPhoto limits: width + height <= 10.000 and ratio <= 20."""
+    size = _png_dimensions(png)
+    if size is None:
+        return False
+    width, height = size
+    if width <= 0 or height <= 0:
+        return False
+    return width + height <= 10_000 and max(width, height) / min(width, height) <= 20
+
+
+def _render_export_image(body: AnalysisExportRequest) -> bytes:
+    try:
+        png = render_analysis_image(body.text, body.title)
+    except Exception as exc:
+        logger.exception("Analysis image render failed")
+        raise HTTPException(
+            502, "No se pudo generar la imagen del informe. Intentá de nuevo."
+        ) from exc
+    if len(png) > ANALYSIS_IMAGE_MAX_BYTES:
+        raise HTTPException(
+            413,
+            "El informe es demasiado largo para exportarlo como imagen.",
+        )
+    return png
 
 
 def _first_of_month_back(today: date, back: int) -> date:
@@ -279,6 +326,22 @@ async def stream_analysis(
     totals_text = " · ".join(
         format_money(amount, currency) for currency, amount in sorted(breakdown.totals.items())
     )
+    rate_parts = []
+    if breakdown.rate:
+        rate_parts.append(f"tasa {breakdown.rate:,.2f}")
+        if breakdown.rate_source:
+            rate_parts.append(str(breakdown.rate_source))
+        if breakdown.rate_date:
+            rate_parts.append(f"del {breakdown.rate_date}")
+    rate_detail = f" ({' '.join(rate_parts)})" if rate_parts else ""
+    missing_fx_line = (
+        f"\n- Gastos en USD sin tipo de cambio: {breakdown.missing_fx} "
+        "(no incluidos en el total convertido)"
+        if breakdown.missing_fx
+        else ""
+    )
+    converted_count = len(expenses) - breakdown.missing_fx
+    average = total / converted_count if converted_count else 0.0
 
     by_cat: dict = {}
     by_month: dict = {}
@@ -291,6 +354,14 @@ async def stream_analysis(
         by_month[key] = by_month.get(key, 0.0) + amount_ars
         month_cat = by_month_cat.setdefault(key, {})
         month_cat[cat_name] = month_cat.get(cat_name, 0.0) + amount_ars
+
+    converted_months = sum(1 for month_total in by_month.values() if month_total > 0)
+    monthly_average_line = (
+        f"- Meses: {converted_months}, promedio mensual: "
+        f"{format_money(total / converted_months, 'ARS')}"
+        if converted_months > 1
+        else ""
+    )
 
     top_10 = sorted(expenses, key=lambda x: x.amount, reverse=True)[:10]
 
@@ -407,13 +478,13 @@ async def stream_analysis(
 
 RESUMEN:
 - Total gastado (ARS convertido): {format_money(total, "ARS")}
-- Totales por moneda: {totals_text or "sin gastos"}{f" (tasa {breakdown.rate:,.2f} {breakdown.rate_source} del {breakdown.rate_date})" if breakdown.rate else ""}
+- Totales por moneda: {totals_text or "sin gastos"}{rate_detail}{missing_fx_line}
 - Transacciones: {len(expenses)}
-- Promedio por transacción: {format_money(total / len(expenses), "ARS")}
-{f"- Meses: {len(by_month)}, promedio mensual: {format_money(total / len(by_month), 'ARS')}" if len(by_month) > 1 else ""}
+- Promedio por transacción: {format_money(average, "ARS")}
+{monthly_average_line}
 
 GASTOS POR CATEGORÍA:
-{chr(10).join(f"- {k}: {format_money(v, 'ARS')} ({v / total * 100:.1f}%)" for k, v in sorted(by_cat.items(), key=lambda x: x[1], reverse=True))}
+{chr(10).join(f"- {k}: {format_money(v, 'ARS')}{f' ({v / total * 100:.1f}%)' if total else ''}" for k, v in sorted(by_cat.items(), key=lambda x: x[1], reverse=True))}
 
 GASTOS POR MES:
 {chr(10).join(f"- {k}: {format_money(v, 'ARS')}" for k, v in sorted(by_month.items()))}
@@ -492,6 +563,86 @@ TOP 10 GASTOS MÁS ALTOS:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post(
+    "/export/image",
+    summary="Export an assistant reply as an image",
+    description="Render a reply produced by the assistant as a downloadable PNG. The client sends the text it already has; the model is not involved.",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "PNG image of the report",
+            "content": {"image/png": {"schema": {"type": "string", "format": "binary"}}},
+        },
+        413: {"description": "The rendered image exceeds the size limit"},
+        502: {"description": "The image renderer failed"},
+    },
+)
+def export_analysis_image(
+    body: AnalysisExportRequest,
+    current_user: User = Depends(get_current_user),
+):
+    allowed, retry_after = check_rate_limit(f"analysis-export:{current_user.id}", "analysis_export")
+    if not allowed:
+        raise HTTPException(
+            429,
+            f"Demasiadas exportaciones. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    png = _render_export_image(body)
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Content-Disposition": 'attachment; filename="analisis-asistente.png"'},
+    )
+
+
+@router.post(
+    "/export/telegram",
+    summary="Send an assistant reply to Telegram",
+    description="Render the reply as an image and send it to the user's linked Telegram chat. This endpoint is the app-controlled action behind the confirmation dialog; it never accepts a chat id from the client.",
+    response_model=AnalysisTelegramExportResponse,
+    responses={
+        413: {"description": "The rendered image exceeds the size limit"},
+        502: {"description": "The image renderer or Telegram failed"},
+    },
+)
+def export_analysis_to_telegram(
+    body: AnalysisExportRequest,
+    current_user: User = Depends(get_current_user),
+):
+    allowed, retry_after = check_rate_limit(f"analysis-export:{current_user.id}", "analysis_export")
+    if not allowed:
+        raise HTTPException(
+            429,
+            f"Demasiados envíos. Intentá de nuevo en {retry_after} segundos",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    chat_id = current_user.telegram_chat_id
+    if not chat_id or chat_id == "[encrypted]":
+        raise HTTPException(
+            400,
+            "Conectá tu cuenta de Telegram desde Configuración para enviar el informe.",
+        )
+
+    png = _render_export_image(body)
+    from app.telegram.sending import send_document_to_chat, send_photo_to_chat
+
+    caption = "📊 Análisis del asistente"
+    if _telegram_photo_fits(png):
+        sent = send_photo_to_chat(chat_id, png, caption=caption)
+    else:
+        # sendPhoto rejects width + height > 10.000. The same PNG is still
+        # useful as a document, without resizing or splitting the report.
+        sent = send_document_to_chat(
+            chat_id, png, caption=caption, filename="analisis-asistente.png"
+        )
+    if not sent:
+        raise HTTPException(502, "No se pudo enviar el informe a Telegram. Intentá de nuevo.")
+    return {"sent": True}
 
 
 @router.post(

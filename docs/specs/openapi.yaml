@@ -1570,6 +1570,78 @@ paths:
         '500':
           description: LLM_API_KEY is not configured
 
+  /analysis/export/image:
+    post:
+      tags: [analysis]
+      summary: Export an assistant reply as an image
+      operationId: exportAnalysisImage
+      description: >
+        Render a reply produced by the assistant as a downloadable PNG. The
+        client sends the text it already has; the model is not involved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisExportRequest'
+      responses:
+        '200':
+          description: PNG image of the report
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Unauthorized
+        '413':
+          description: The rendered image exceeds the size limit
+        '422':
+          description: Invalid request body
+        '429':
+          description: Export rate limit reached
+        '502':
+          description: The image renderer failed
+
+  /analysis/export/telegram:
+    post:
+      tags: [analysis]
+      summary: Send an assistant reply to Telegram
+      operationId: exportAnalysisToTelegram
+      description: >
+        Render the reply as an image and send it to the user's linked Telegram
+        chat. This is the app-controlled action behind the confirmation
+        dialog; it never accepts a chat id from the client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisExportRequest'
+      responses:
+        '200':
+          description: Report sent
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sent]
+                properties:
+                  sent:
+                    type: boolean
+        '400':
+          description: The account has no linked Telegram chat
+        '401':
+          description: Unauthorized
+        '413':
+          description: The rendered image exceeds the size limit
+        '422':
+          description: Invalid request body
+        '429':
+          description: Export rate limit reached
+        '502':
+          description: The image renderer or Telegram failed
+
   /analysis/history:
     get:
       tags: [analysis]
@@ -5328,6 +5400,21 @@ components:
           description: The whole conversation so far, so the model has context.
           items:
             $ref: '#/components/schemas/ChatMessage'
+
+    AnalysisExportRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 20000
+          description: The assistant reply to render.
+        title:
+          type: string
+          nullable: true
+          maxLength: 120
+          description: Optional heading for the image.
 
     AnalysisHistoryEntry:
       type: object

@@ -27,9 +27,10 @@ alembic>=1.13.0
 celery>=5.4.0
 redis>=8.1.0
 
-# PDF generation
+# PDF/image generation
 playwright>=1.61.0
 jinja2>=3.1.0
+markdown>=3.7
 
 # Email (password recovery)
 resend>=2.50.1

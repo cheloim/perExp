@@ -1,4 +1,9 @@
-from app.schemas.analysis import AnalysisHistoryResponse, AnalysisRequest
+from app.schemas.analysis import (
+    AnalysisExportRequest,
+    AnalysisHistoryResponse,
+    AnalysisRequest,
+    AnalysisTelegramExportResponse,
+)
 from app.schemas.auth import (
     ChangePasswordRequest,
     DeleteAccountRequest,
@@ -106,8 +111,10 @@ __all__ = [
     "ExpenseUpdate",
     "FxRateResponse",
     "InvestmentCreate",
+    "AnalysisExportRequest",
     "AnalysisHistoryResponse",
     "AnalysisRequest",
+    "AnalysisTelegramExportResponse",
     "CardClosingResponse",
     "CardsMappingEntry",
     "ImportJobResponse",

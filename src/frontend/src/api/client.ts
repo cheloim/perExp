@@ -829,6 +829,18 @@ export const getAnalysisHistory = () =>
 export const deleteAnalysisHistory = (id: number) =>
   api.delete(`/analysis/history/${id}`).then((r) => r.data);
 
+export async function exportAnalysisImage(text: string, title?: string): Promise<Blob> {
+  const { data } = await api.post(
+    "/analysis/export/image",
+    { text, title },
+    { responseType: "blob" },
+  );
+  return data as Blob;
+}
+
+export const sendAnalysisToTelegram = (text: string, title?: string) =>
+  api.post<{ sent: boolean }>("/analysis/export/telegram", { text, title }).then((r) => r.data);
+
 export const getDashboardAITrends = (params?: { month?: string }) =>
   api.get<AITrendsResponse>("/dashboard/ai-trends", { params }).then((r) => r.data);
 

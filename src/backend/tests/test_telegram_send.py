@@ -7,6 +7,8 @@ a Celery task would be dropped with only a warning in the log.
 """
 
 import os
+import subprocess
+import sys
 from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key-that-is-at-least-32-chars-long-for-testing")
@@ -29,6 +31,39 @@ def test_send_message_falls_back_to_the_bot_api(monkeypatch):
         assert send_message_to_chat("123456", "¡Novedades!") is True
 
     client.__enter__.return_value.post.assert_called_once()
+
+
+def test_bot_module_imports_lazily_for_direct_senders():
+    """The backend runs with TELEGRAM_BOT_ENABLED=false. A direct sender must
+    import app.telegram_bot lazily instead of raising KeyError."""
+    code = (
+        "import sys; "
+        "sys.modules.pop('app.telegram_bot', None); "
+        "from app.telegram.runtime import bot_module; "
+        "assert bot_module().__name__ == 'app.telegram_bot'"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        env=os.environ.copy(),
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_send_document_falls_back_to_the_bot_api(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
+    client = MagicMock()
+    client.__enter__.return_value.post.return_value = _response(200)
+
+    with patch("app.telegram_bot._bot_app", None), patch("httpx.Client", return_value=client):
+        from app.telegram_bot import send_document_to_chat
+
+        assert send_document_to_chat("123456", b"png", "caption") is True
+
+    args, kwargs = client.__enter__.return_value.post.call_args
+    assert args[0].endswith("/sendDocument")
+    assert kwargs["files"]["document"][0] == "analisis-asistente.png"
 
 
 def test_send_message_reports_an_api_error(monkeypatch):
