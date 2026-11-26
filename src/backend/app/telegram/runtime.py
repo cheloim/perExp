@@ -15,8 +15,12 @@ logger = logging.getLogger("app.telegram_bot")
 def bot_module() -> ModuleType:
     """Return the ``app.telegram_bot`` compatibility module.
 
-    It is imported before any handler runs, so looking it up in ``sys.modules``
-    avoids a circular import at module load time while keeping attribute access
-    (and monkeypatching in tests) live.
+    Looking it up in ``sys.modules`` avoids a circular import at module load
+    time. Some callers (the analysis export endpoint, for example) send a
+    message without ever starting the bot, so the module may not be imported
+    yet; import it lazily instead of raising ``KeyError`` in production.
     """
-    return sys.modules["app.telegram_bot"]
+    module = sys.modules.get("app.telegram_bot")
+    if module is None:
+        import app.telegram_bot as module
+    return module
