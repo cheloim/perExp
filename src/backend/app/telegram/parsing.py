@@ -236,6 +236,36 @@ def _banks_in(value: str | None) -> set[str]:
     return _KNOWN_BANKS & set(_normalize_payment_name(value).split())
 
 
+def _tag_context(tag) -> str:
+    """The tag name plus its linked card/account, for contradiction checks."""
+    parts = [str(getattr(tag, "name", "") or "")]
+    card = getattr(tag, "card_rel", None)
+    if card is not None:
+        parts.extend(
+            [str(getattr(card, "bank", "") or ""), str(getattr(card, "card_name", "") or "")]
+        )
+    account = getattr(tag, "account_rel", None)
+    if account is not None:
+        parts.append(str(getattr(account, "name", "") or ""))
+    return " ".join(part for part in parts if part)
+
+
+def _tag_conflicts(
+    context: str,
+    input_banks: set[str],
+    input_franchises: set[str],
+    normalized_type: str | None,
+) -> bool:
+    tag_banks = _banks_in(context)
+    if input_banks and tag_banks and input_banks.isdisjoint(tag_banks):
+        return True
+    tag_franchises = _CARD_FRANCHISES & set(_normalize_payment_name(context).split())
+    if input_franchises and tag_franchises and input_franchises.isdisjoint(tag_franchises):
+        return True
+    tag_type = _normalize_card_type(context)
+    return bool(normalized_type and tag_type and tag_type != normalized_type)
+
+
 def _has_account_hint(text: str | None) -> bool:
     tokens = set(_normalize_payment_name(text).split())
     return bool(tokens & _ACCOUNT_HINTS)
@@ -367,27 +397,6 @@ def _match_cuenta_tag_from_text(
     if not card_name and not bank and not text:
         return None
 
-    candidates = _tag_candidate_names(card_name, bank)
-    if candidates:
-        hmacs = [compute_hmac(candidate) for candidate in candidates]
-        tag = (
-            db.query(Tag)
-            .filter(
-                Tag.user_id == user_id,
-                Tag.group_name == "cuenta",
-                Tag.name_hmac.in_(hmacs),
-            )
-            .first()
-        )
-        if tag:
-            return tag
-
-    input_tokens = _payment_tokens(card_name) | _payment_tokens(bank)
-    if not input_tokens and text:
-        input_tokens = _payment_tokens(text)
-    if not input_tokens:
-        return None
-
     context = " ".join(part for part in (text, card_name, bank) if part)
     account_hint = _has_account_hint(text) or _has_account_hint(card_name)
     card_hint = _has_card_hint(text) or _has_card_hint(card_name)
@@ -396,23 +405,44 @@ def _match_cuenta_tag_from_text(
     input_banks = _banks_in(context)
     input_franchises = _CARD_FRANCHISES & set(input_norm.split())
 
+    input_tokens = _payment_tokens(card_name) | _payment_tokens(bank)
+    if text and (not card_name or not bank):
+        input_tokens |= _payment_tokens(text)
+    if not input_tokens:
+        return None
+
+    candidates = _tag_candidate_names(card_name, bank)
+    if candidates:
+        hmacs = [compute_hmac(candidate) for candidate in candidates]
+        hmac_tags = (
+            db.query(Tag)
+            .filter(
+                Tag.user_id == user_id,
+                Tag.group_name == "cuenta",
+                Tag.name_hmac.in_(hmacs),
+            )
+            .all()
+        )
+        hmac_tags = [
+            tag
+            for tag in hmac_tags
+            if not _tag_conflicts(_tag_context(tag), input_banks, input_franchises, normalized_type)
+        ]
+        if len(hmac_tags) == 1:
+            return hmac_tags[0]
+
     tags = db.query(Tag).filter(Tag.user_id == user_id, Tag.group_name == "cuenta").all()
     scored: list[tuple[int, Tag]] = []
     for tag in tags:
         tag_name = str(tag.name or "")
+        tag_context = _tag_context(tag)
         tag_norm = _normalize_payment_name(tag_name)
         tag_tokens = _payment_tokens(tag_name)
-        tag_type = _normalize_card_type(tag_name)
-        tag_banks = _banks_in(tag_name)
-        tag_franchises = _CARD_FRANCHISES & set(tag_norm.split())
+        tag_type = _normalize_card_type(tag_context)
 
         # Contradictions are exclusions, not penalties: assigning a Galicia
         # card to a Santander message is worse than leaving it unassigned.
-        if input_banks and tag_banks and input_banks.isdisjoint(tag_banks):
-            continue
-        if input_franchises and tag_franchises and input_franchises.isdisjoint(tag_franchises):
-            continue
-        if normalized_type and tag_type and tag_type != normalized_type:
+        if _tag_conflicts(tag_context, input_banks, input_franchises, normalized_type):
             continue
         if input_tokens and tag_tokens and not (input_tokens & tag_tokens):
             continue
@@ -481,14 +511,14 @@ def _match_account_from_text(text: str, user_id: int, db) -> "Account | None":
                 return by_bank[0]
         return None
 
-    # 1. Full name. A single-token name ("USD", "Dólares") only counts when
-    # the text actually names an account; otherwise "5 usd" would match it.
+    # 1. Full name. Single-token names ("USD", "Galicia") are resolved by the
+    # token/bank step below: a bare "5 usd" must never select the USD account.
     name_matches = [
         account
         for account in accounts
         if (name := _normalize_payment_name(account.name))
         and name in normalized
-        and (len(name.split()) > 1 or account_hint)
+        and len(name.split()) > 1
     ]
     exact = unique_account(name_matches)
     if exact:

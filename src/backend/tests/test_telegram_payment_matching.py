@@ -106,6 +106,15 @@ def test_account_does_not_match_only_because_the_amount_is_in_usd(db, test_user)
     assert result is None
 
 
+def test_account_bank_wins_over_a_usd_account_in_the_same_message(db, test_user):
+    _account(db, test_user, "USD")
+    galicia = _account(db, test_user, "Caja de Ahorro Galicia")
+
+    result = _match_account_from_text("pagué con la cuenta de galicia 5 usd", test_user.id, db)
+
+    assert result is galicia
+
+
 def test_two_cards_with_the_same_name_and_no_bank_are_not_assigned(db, test_user):
     _card(db, test_user, name="Visa", bank="Galicia")
     _card(db, test_user, name="Visa", bank="Santander")
@@ -154,6 +163,39 @@ def test_tag_with_the_opposite_card_type_is_rejected(db, test_user):
     result = _match_cuenta_tag_from_text("Visa", "Santander", test_user.id, db, card_type="debito")
 
     assert result is None
+
+
+def test_ambiguous_hmac_tags_are_disambiguated_by_franchise(db, test_user):
+    card = _card(db, test_user)
+    _tag(db, test_user, "Santander")
+    visa = _tag(db, test_user, "Santander Visa", card=card)
+
+    result = _match_cuenta_tag_from_text("Visa", "Santander", test_user.id, db)
+
+    assert result is visa
+
+
+def test_hmac_tag_linked_to_another_bank_is_rejected(db, test_user):
+    galicia_card = _card(db, test_user, name="Visa", bank="Galicia")
+    _tag(db, test_user, "Visa", card=galicia_card)
+
+    result = _match_cuenta_tag_from_text("Visa", "Santander", test_user.id, db)
+
+    assert result is None
+
+
+def test_text_tokens_complete_a_partial_card_extraction(db, test_user):
+    tag = _tag(db, test_user, "Galicia Visa")
+
+    result = _match_cuenta_tag_from_text(
+        "Visa",
+        None,
+        test_user.id,
+        db,
+        text="pagué con visa galicia 5000",
+    )
+
+    assert result is tag
 
 
 def test_two_tags_with_the_same_bank_and_type_are_not_assigned(db, test_user):
