@@ -296,6 +296,49 @@ describe("AssistantShell", () => {
     expect(screen.queryByRole("dialog", { name: "Enviar a Telegram" })).not.toBeInTheDocument();
   });
 
+  it("disables the dialog while the Telegram send is in flight", async () => {
+    seed([
+      { role: "user", text: "¿cuánto gasté?" },
+      { role: "assistant", text: "Informe del asistente" },
+    ]);
+    let resolveSend: (value: { sent: boolean }) => void = () => {};
+    vi.mocked(sendAnalysisToTelegram).mockReturnValue(
+      new Promise<{ sent: boolean }>((resolve) => {
+        resolveSend = resolve;
+      }),
+    );
+
+    render(
+      <AssistantShell
+        configs={ASSISTANT_CONFIGS}
+        initialDomain="spending"
+        open
+        onToggle={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /enviar a telegram/i }));
+    const dialog = screen.getByRole("dialog", { name: "Enviar a Telegram" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Enviar" }));
+
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Procesando…" })).toBeDisabled(),
+    );
+    expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+
+    await act(async () => {
+      resolveSend({ sent: true });
+    });
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith(
+        "Informe enviado a Telegram",
+        "success",
+        4000,
+        "bottom-center",
+      ),
+    );
+  });
+
   it("asks before sending the report to Telegram", async () => {
     seed([
       { role: "user", text: "¿cuánto gasté?" },

@@ -148,10 +148,14 @@ endpoints:
     errors:
       - status: 401
         description: "Unauthorized"
+      - status: 413
+        description: "The rendered image exceeds the size limit"
       - status: 422
         description: "Empty/oversized text or title"
       - status: 429
         description: "Export rate limit reached"
+      - status: 502
+        description: "The image renderer failed"
 
   - method: "POST"
     path: "/analysis/export/telegram"
@@ -172,10 +176,12 @@ endpoints:
         description: "The account has no linked Telegram chat"
       - status: 401
         description: "Unauthorized"
+      - status: 413
+        description: "The rendered image exceeds the size limit"
       - status: 429
         description: "Export rate limit reached"
       - status: 502
-        description: "Telegram rejected the message"
+        description: "The image renderer or Telegram failed"
 
   - method: "GET"
     path: "/analysis/history"

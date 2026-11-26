@@ -34,5 +34,5 @@
  */
 
 export type ExportAnalysisToTelegram200 = {
-  sent?: boolean;
+  sent: boolean;
 };

@@ -39,9 +39,11 @@ export function ConfirmDialog({
   // Telegram BackButton
   useEffect(() => {
     if (!isOpen) return;
-    showBackButton(onCancel);
+    // While the action is in flight the native BackButton must not close the
+    // dialog: the request cannot be cancelled from here.
+    showBackButton(pending ? () => {} : onCancel);
     return () => hideBackButton();
-  }, [isOpen, onCancel]);
+  }, [isOpen, onCancel, pending]);
 
   const handleConfirm = () => {
     if (pending) return;

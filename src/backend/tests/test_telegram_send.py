@@ -31,6 +31,21 @@ def test_send_message_falls_back_to_the_bot_api(monkeypatch):
     client.__enter__.return_value.post.assert_called_once()
 
 
+def test_send_document_falls_back_to_the_bot_api(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
+    client = MagicMock()
+    client.__enter__.return_value.post.return_value = _response(200)
+
+    with patch("app.telegram_bot._bot_app", None), patch("httpx.Client", return_value=client):
+        from app.telegram_bot import send_document_to_chat
+
+        assert send_document_to_chat("123456", b"png", "caption") is True
+
+    args, kwargs = client.__enter__.return_value.post.call_args
+    assert args[0].endswith("/sendDocument")
+    assert kwargs["files"]["document"][0] == "analisis-asistente.png"
+
+
 def test_send_message_reports_an_api_error(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
     client = MagicMock()

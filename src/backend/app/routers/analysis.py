@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import struct
 import unicodedata
 from calendar import monthrange
 from datetime import date, datetime
@@ -41,6 +42,24 @@ logger = logging.getLogger(__name__)
 # Telegram sendPhoto accepts up to 10 MB. Leave headroom for the multipart
 # envelope instead of discovering the limit at the Telegram API.
 ANALYSIS_IMAGE_MAX_BYTES = 9_500_000
+
+
+def _png_dimensions(png: bytes) -> tuple[int, int] | None:
+    """Read the IHDR dimensions without decoding the image."""
+    if len(png) < 24 or png[:8] != b"\x89PNG\r\n\x1a\n" or png[12:16] != b"IHDR":
+        return None
+    return struct.unpack(">II", png[16:24])
+
+
+def _telegram_photo_fits(png: bytes) -> bool:
+    """Telegram sendPhoto limits: width + height <= 10.000 and ratio <= 20."""
+    size = _png_dimensions(png)
+    if size is None:
+        return False
+    width, height = size
+    if width <= 0 or height <= 0:
+        return False
+    return width + height <= 10_000 and max(width, height) / min(width, height) <= 20
 
 
 def _render_export_image(body: AnalysisExportRequest) -> bytes:
@@ -610,9 +629,18 @@ def export_analysis_to_telegram(
         )
 
     png = _render_export_image(body)
-    from app.telegram.sending import send_photo_to_chat
+    from app.telegram.sending import send_document_to_chat, send_photo_to_chat
 
-    if not send_photo_to_chat(chat_id, png, caption="📊 Análisis del asistente"):
+    caption = "📊 Análisis del asistente"
+    if _telegram_photo_fits(png):
+        sent = send_photo_to_chat(chat_id, png, caption=caption)
+    else:
+        # sendPhoto rejects width + height > 10.000. The same PNG is still
+        # useful as a document, without resizing or splitting the report.
+        sent = send_document_to_chat(
+            chat_id, png, caption=caption, filename="analisis-asistente.png"
+        )
+    if not sent:
         raise HTTPException(502, "No se pudo enviar el informe a Telegram. Intentá de nuevo.")
     return {"sent": True}
 

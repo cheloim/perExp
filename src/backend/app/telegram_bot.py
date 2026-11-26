@@ -162,6 +162,7 @@ from app.telegram.sending import (
     _send_message_via_api,
     _send_photo_via_api,
     send_disconnect_notification,
+    send_document_to_chat,
     send_message_to_chat,
     send_photo_to_chat,
 )
@@ -307,6 +308,7 @@ __all__ = [
     "handle_voice_message",
     "logger",
     "send_disconnect_notification",
+    "send_document_to_chat",
     "send_message_to_chat",
     "send_photo_to_chat",
     "start",

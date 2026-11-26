@@ -1,5 +1,6 @@
 """Downloadable image of an assistant reply and its explicit Telegram send."""
 
+import struct
 from datetime import datetime
 
 import pytest
@@ -11,6 +12,14 @@ from app.routers import analysis
 from app.services import analysis_export
 from app.services.auth import get_current_user, get_password_hash
 from main import app
+
+
+def _png_header(width: int = 100, height: int = 100) -> bytes:
+    """A minimal PNG header: enough for the dimension guard, not a decode."""
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        b"\x00\x00\x00\rIHDR" + struct.pack(">II", width, height) + b"\x08\x02\x00\x00\x00"
+    )
 
 
 def _user(db, email: str, *, telegram_chat_id: str | None = None) -> User:
@@ -130,7 +139,7 @@ def test_image_render_blocks_external_requests(monkeypatch):
 
 def test_telegram_export_sends_the_image_to_the_linked_chat(db, export_user, monkeypatch):
     sent = {}
-    monkeypatch.setattr(analysis, "render_analysis_image", lambda *a, **k: b"png-bytes")
+    monkeypatch.setattr(analysis, "render_analysis_image", lambda *a, **k: _png_header())
 
     def fake_send(chat_id, image_bytes, caption=None):
         sent.update(chat_id=chat_id, image_bytes=image_bytes, caption=caption)
@@ -149,12 +158,12 @@ def test_telegram_export_sends_the_image_to_the_linked_chat(db, export_user, mon
     assert response.status_code == 200
     assert response.json() == {"sent": True}
     assert sent["chat_id"] == "123456"
-    assert sent["image_bytes"] == b"png-bytes"
+    assert sent["image_bytes"] == _png_header()
 
 
 def test_telegram_export_ignores_a_client_supplied_chat_id(db, export_user, monkeypatch):
     sent = {}
-    monkeypatch.setattr(analysis, "render_analysis_image", lambda *a, **k: b"png")
+    monkeypatch.setattr(analysis, "render_analysis_image", lambda *a, **k: _png_header())
     monkeypatch.setattr(
         "app.telegram.sending.send_photo_to_chat",
         lambda chat_id, image_bytes, caption=None: sent.update(chat_id=chat_id) or True,
@@ -201,8 +210,35 @@ def test_telegram_export_rejects_an_encrypted_placeholder(db):
     assert response.status_code == 400
 
 
+def test_telegram_export_uses_a_document_when_the_photo_is_too_tall(db, export_user, monkeypatch):
+    sent = {}
+    monkeypatch.setattr(analysis, "render_analysis_image", lambda *a, **k: _png_header(1800, 13060))
+    monkeypatch.setattr(
+        "app.telegram.sending.send_photo_to_chat",
+        lambda *a, **k: pytest.fail("sendPhoto should not be used for a tall PNG"),
+    )
+    monkeypatch.setattr(
+        "app.telegram.sending.send_document_to_chat",
+        lambda chat_id, image_bytes, caption=None, filename=None: (
+            sent.update(chat_id=chat_id, filename=filename) or True
+        ),
+    )
+    client = _client(db, export_user)
+    try:
+        response = client.post(
+            "/analysis/export/telegram",
+            json={"text": "Informe del asistente"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert sent["chat_id"] == "123456"
+    assert sent["filename"] == "analisis-asistente.png"
+
+
 def test_telegram_export_reports_a_transport_failure(db, export_user, monkeypatch):
-    monkeypatch.setattr(analysis, "render_analysis_image", lambda *a, **k: b"png-bytes")
+    monkeypatch.setattr(analysis, "render_analysis_image", lambda *a, **k: _png_header())
     monkeypatch.setattr("app.telegram.sending.send_photo_to_chat", lambda *a, **k: False)
     client = _client(db, export_user)
     try:

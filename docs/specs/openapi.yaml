@@ -1625,6 +1625,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [sent]
                 properties:
                   sent:
                     type: boolean
