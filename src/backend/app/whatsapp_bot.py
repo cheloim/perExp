@@ -175,6 +175,7 @@ def _clear_session(phone_hash: str) -> None:
 
 from app.services.bot_reports import _cat_emoji
 from app.services.bot_reports import build_cat_levels as _build_cat_levels
+from app.telegram.parsing import _normalize_card_type
 from app.telegram_bot import (
     _extract_card_from_text,
     _format_amount,
@@ -535,8 +536,8 @@ async def _handle_bank_notification(
 
         if not card:
             # For debit, try account matching
-            if parsed.get("card_type") == "debito" and parsed.get("bank"):
-                account = _match_account_from_text(parsed["bank"], user_id, db)
+            if _normalize_card_type(parsed.get("card_type")) == "debito" and parsed.get("bank"):
+                account = _match_account_from_text(text, user_id, db, bank=parsed.get("bank"))
                 if account:
                     await _confirm_with_account(
                         phone, phone_hash, account, parsed, session, user_id

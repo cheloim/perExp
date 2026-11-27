@@ -112,28 +112,209 @@ def _strip_accents(s: str) -> str:
     return "".join(c for c in nfkd if not unicodedata.combining(c))
 
 
+_PAYMENT_STOPWORDS = {
+    "abone",
+    "ahorro",
+    "banco",
+    "caja",
+    "compre",
+    "compra",
+    "con",
+    "consumo",
+    "corriente",
+    "credito",
+    "cuenta",
+    "de",
+    "debito",
+    "del",
+    "el",
+    "en",
+    "gaste",
+    "la",
+    "mi",
+    "mis",
+    "pague",
+    "pago",
+    "tarjeta",
+    "transferi",
+}
+
+_KNOWN_BANKS = {
+    "bbva",
+    "bind",
+    "brubank",
+    "ciudad",
+    "comafi",
+    "galicia",
+    "hipotecario",
+    "hsbc",
+    "macro",
+    "nacion",
+    "patagonia",
+    "provincia",
+    "santander",
+    "superville",
+    "ualabu",
+}
+
+_PAYMENT_ALIASES = (
+    ("american express", "amex"),
+    ("mercadopago", "mercado pago"),
+    ("merpago", "mercado pago"),
+)
+
+_CARD_FRANCHISES = {
+    "amex",
+    "cabal",
+    "cmr",
+    "cordobesa",
+    "diners",
+    "maestro",
+    "mastercard",
+    "naranja",
+    "visa",
+}
+
+_ACCOUNT_HINTS = {
+    "ahorro",
+    "billetera",
+    "caja",
+    "cash",
+    "corriente",
+    "cuenta",
+    "efectivo",
+    "mercado",
+    "mercadopago",
+    "sueldo",
+}
+
+
+def _normalize_payment_name(value: str | None) -> str:
+    """Case, accent and punctuation-insensitive form used to match names."""
+    if not value:
+        return ""
+    text = _strip_accents(str(value))
+    for alias, canonical in _PAYMENT_ALIASES:
+        text = text.replace(alias, canonical)
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _normalize_card_type(value: str | None) -> str | None:
+    """Return the canonical card type (``credito``/``debito``) or ``None``."""
+    text = _normalize_payment_name(value)
+    if not text:
+        return None
+    if "debit" in text:
+        return "debito"
+    if "credit" in text:
+        return "credito"
+    return None
+
+
+def _payment_tokens(value: str | None) -> set[str]:
+    """Meaningful name tokens, dropping the words every payment method shares."""
+    return {
+        token
+        for token in _normalize_payment_name(value).split()
+        if token and token not in _PAYMENT_STOPWORDS
+    }
+
+
+def _bank_matches(stored: str | None, mentioned: str | None) -> bool:
+    """Compare bank names with or without the ``Banco`` prefix and accents."""
+    if not mentioned:
+        return True
+    left = re.sub(r"^banco ", "", _normalize_payment_name(stored))
+    right = re.sub(r"^banco ", "", _normalize_payment_name(mentioned))
+    if not left or not right:
+        return False
+    return left == right or left in right or right in left
+
+
+def _banks_in(value: str | None) -> set[str]:
+    return _KNOWN_BANKS & set(_normalize_payment_name(value).split())
+
+
+def _tag_context(tag) -> str:
+    """The tag name plus its linked card/account, for contradiction checks."""
+    parts = [str(getattr(tag, "name", "") or "")]
+    card = getattr(tag, "card_rel", None)
+    if card is not None:
+        parts.extend(
+            [str(getattr(card, "bank", "") or ""), str(getattr(card, "card_name", "") or "")]
+        )
+    account = getattr(tag, "account_rel", None)
+    if account is not None:
+        parts.append(str(getattr(account, "name", "") or ""))
+    return " ".join(part for part in parts if part)
+
+
+def _tag_conflicts(
+    context: str,
+    input_banks: set[str],
+    input_franchises: set[str],
+    normalized_type: str | None,
+) -> bool:
+    tag_banks = _banks_in(context)
+    if input_banks and tag_banks and input_banks.isdisjoint(tag_banks):
+        return True
+    tag_franchises = _CARD_FRANCHISES & set(_normalize_payment_name(context).split())
+    if input_franchises and tag_franchises and input_franchises.isdisjoint(tag_franchises):
+        return True
+    tag_type = _normalize_card_type(context)
+    return bool(normalized_type and tag_type and tag_type != normalized_type)
+
+
+def _has_account_hint(text: str | None) -> bool:
+    tokens = set(_normalize_payment_name(text).split())
+    return bool(tokens & _ACCOUNT_HINTS)
+
+
+def _has_card_hint(text: str | None) -> bool:
+    tokens = set(_normalize_payment_name(text).split())
+    return bool(tokens & _CARD_FRANCHISES)
+
+
 def _match_card_from_text(
     cards: list,
     text_card_name: str | None,
     text_bank: str | None,
     text_card_type: str | None,
 ) -> "Card | None":
-    """Match a card from user's cards using accent-insensitive substring matching."""
+    """Match a card by normalized franchise, bank and type.
+
+    Exact names win over substrings so "Visa" does not resolve to
+    "Visa Débito" when both cards exist. The stored bank may carry the
+    ``Banco`` prefix and accents; the message usually does not.
+    """
     if not text_card_name:
         return None
-    text_lower = _strip_accents(text_card_name)
-    for card in cards:
-        card_lower = _strip_accents(card.card_name)
-        name_match = (
-            card_lower == text_lower or text_lower in card_lower or card_lower in text_lower
+
+    name = _normalize_payment_name(text_card_name)
+    card_type = _normalize_card_type(text_card_type)
+    if not name:
+        return None
+
+    def matches(card) -> bool:
+        card_name = _normalize_payment_name(card.card_name)
+        return (
+            (card_name == name or name in card_name or card_name in name)
+            and (card_type is None or _normalize_card_type(card.card_type) == card_type)
+            and _bank_matches(card.bank, text_bank)
         )
-        type_match = not text_card_type or card.card_type == text_card_type
-        if (
-            name_match
-            and type_match
-            and (not text_bank or (card.bank and card.bank.lower() == text_bank.lower()))
-        ):
-            return card
+
+    exact = [
+        card for card in cards if _normalize_payment_name(card.card_name) == name and matches(card)
+    ]
+    if len(exact) == 1:
+        return exact[0]
+    if len(exact) > 1:
+        return None
+
+    partial = [card for card in cards if matches(card)]
+    if len(partial) == 1:
+        return partial[0]
     return None
 
 
@@ -169,82 +350,229 @@ ACCOUNT_TYPE_KEYWORDS = {
 }
 
 
+def _tag_candidate_names(card_name: str | None, bank: str | None) -> set[str]:
+    """Raw and normalized spellings a payment tag may have been stored under."""
+    card = (card_name or "").strip()
+    bank_name = (bank or "").strip()
+    card_base = re.sub(r"\s*(?:cr[eé]dito|d[eé]bito)\s*", " ", card, flags=re.IGNORECASE).strip()
+    bank_base = re.sub(r"^banco\s+", "", bank_name, flags=re.IGNORECASE).strip()
+
+    candidates = {
+        card,
+        bank_name,
+        bank_base,
+        card_base,
+        f"{bank_name} {card}".strip(),
+        f"{card} {bank_name}".strip(),
+        f"{bank_base} {card_base}".strip(),
+        f"{card_base} {bank_base}".strip(),
+    }
+    variants: set[str] = set()
+    for candidate in candidates:
+        if not candidate:
+            continue
+        variants.add(candidate.strip().lower())
+        variants.add(_normalize_payment_name(candidate))
+    return {variant for variant in variants if variant}
+
+
 def _match_cuenta_tag_from_text(
     card_name: str | None,
     bank: str | None,
     user_id: int,
     db,
+    *,
+    text: str | None = None,
+    card_type: str | None = None,
 ) -> "Tag | None":
-    """Match a 'cuenta' tag by computing HMAC candidates from extracted card_name/bank.
+    """Match a ``cuenta`` tag by exact HMAC first, then by normalized tokens.
 
-    The platform stores payment methods as tags with group_name='cuenta' and
-    encrypted names. Matching uses name_hmac (same as get_or_create_payment_tag).
+    HMAC is an exact blind index: it cannot see the ``Banco`` prefix, accents,
+    card-type words or the order the platform used when it named the tag. The
+    user-scoped tag list is small, so a normalized comparison on the decrypted
+    names is both cheap and what actually resolves the message.
     """
     from app.services.encryption import compute_hmac
 
-    if not card_name and not bank:
+    if not card_name and not bank and not text:
         return None
 
-    # Strip card type words — platform tags are stored as "Bank CardName"
-    # without "Crédito"/"Débito" (e.g., "Santander Visa" not "Santander Visa Crédito")
-    card_base = card_name
-    if card_base:
-        card_base = re.sub(
-            r"\s*(?:cr[eé]dito|d[eé]bito)\s*", " ", card_base, flags=re.IGNORECASE
-        ).strip()
+    context = " ".join(part for part in (text, card_name, bank) if part)
+    account_hint = _has_account_hint(text) or _has_account_hint(card_name)
+    card_hint = _has_card_hint(text) or _has_card_hint(card_name)
+    normalized_type = _normalize_card_type(card_type or text)
+    input_norm = _normalize_payment_name(context)
+    input_banks = _banks_in(context)
+    input_franchises = _CARD_FRANCHISES & set(input_norm.split())
 
-    candidates = set()
-    if card_name and bank:
-        candidates.add(f"{bank} {card_name}".strip().lower())
-        candidates.add(f"{card_name} {bank}".strip().lower())
-    if card_base and bank and card_base != card_name:
-        candidates.add(f"{bank} {card_base}".strip().lower())
-        candidates.add(f"{card_base} {bank}".strip().lower())
-    if card_name:
-        candidates.add(card_name.strip().lower())
-    if card_base and card_base != card_name:
-        candidates.add(card_base.strip().lower())
-    if bank:
-        candidates.add(bank.strip().lower())
+    input_tokens = _payment_tokens(card_name) | _payment_tokens(bank)
+    if text and (not card_name or not bank):
+        input_tokens |= _payment_tokens(text)
+    if not input_tokens:
+        return None
 
-    hmacs = [compute_hmac(c) for c in candidates]
-    tag = (
-        db.query(Tag)
-        .filter(
-            Tag.user_id == user_id,
-            Tag.group_name == "cuenta",
-            Tag.name_hmac.in_(hmacs),
+    candidates = _tag_candidate_names(card_name, bank)
+    if candidates:
+        hmacs = [compute_hmac(candidate) for candidate in candidates]
+        hmac_tags = (
+            db.query(Tag)
+            .filter(
+                Tag.user_id == user_id,
+                Tag.group_name == "cuenta",
+                Tag.name_hmac.in_(hmacs),
+            )
+            .all()
         )
-        .first()
-    )
-    return tag
+        hmac_tags = [
+            tag
+            for tag in hmac_tags
+            if not _tag_conflicts(_tag_context(tag), input_banks, input_franchises, normalized_type)
+        ]
+        if len(hmac_tags) == 1:
+            return hmac_tags[0]
+
+    tags = db.query(Tag).filter(Tag.user_id == user_id, Tag.group_name == "cuenta").all()
+    scored: list[tuple[int, Tag]] = []
+    for tag in tags:
+        tag_name = str(tag.name or "")
+        tag_context = _tag_context(tag)
+        tag_norm = _normalize_payment_name(tag_name)
+        tag_tokens = _payment_tokens(tag_name)
+        tag_type = _normalize_card_type(tag_context)
+
+        # Contradictions are exclusions, not penalties: assigning a Galicia
+        # card to a Santander message is worse than leaving it unassigned.
+        if _tag_conflicts(tag_context, input_banks, input_franchises, normalized_type):
+            continue
+        if input_tokens and tag_tokens and not (input_tokens & tag_tokens):
+            continue
+
+        score = 0
+        if input_tokens <= tag_tokens:
+            score += 10 + len(input_tokens)
+        elif tag_tokens and tag_tokens <= input_tokens:
+            score += 8 + len(tag_tokens)
+        if tag_norm and input_norm and (tag_norm in input_norm or input_norm in tag_norm):
+            score += 6
+        if bank and _bank_matches(tag_name, bank):
+            score += 3
+        if account_hint and _has_account_hint(tag_name):
+            score += 5
+        if card_hint and _has_card_hint(tag_name):
+            score += 5
+        if normalized_type and tag_type == normalized_type:
+            score += 3
+        if tag.card_id or tag.account_id:
+            score += 1
+        if score > 0:
+            scored.append((score, tag))
+
+    if not scored:
+        return None
+    scored.sort(key=lambda row: (-row[0], -len(_payment_tokens(row[1].name)), row[1].id))
+    best_score, best = scored[0]
+    if len(scored) > 1 and scored[0][0] == scored[1][0]:
+        return None
+    if best_score < 8:
+        return None
+    return best
 
 
-def _match_account_from_text(text: str, user_id: int, db) -> "Account | None":
-    """Try to match an account from natural language text."""
-    lower = text.lower()
+def _match_account_from_text(
+    text: str,
+    user_id: int,
+    db,
+    *,
+    bank: str | None = None,
+) -> "Account | None":
+    """Match an account by normalized name, bank and account-type words."""
+    normalized = _normalize_payment_name(text)
+    if not normalized:
+        return None
+    text_tokens = set(normalized.split())
 
-    # Try to match by account type keywords
-    for acct_type, keywords in ACCOUNT_TYPE_KEYWORDS.items():
-        for kw in keywords:
-            if kw in lower:
-                account = (
-                    db.query(Account)
-                    .filter(
-                        Account.user_id == user_id,
-                        Account.type == acct_type,
-                    )
-                    .first()
-                )
-                if account:
-                    return account
+    def keyword_in_text(keyword: str) -> bool:
+        value = _normalize_payment_name(keyword)
+        if not value:
+            return False
+        # "mp" must be a word on its own; substring matching would make
+        # "compra" look like MercadoPago. Aliases with separators ("c/c",
+        # "c/a") normalize to two tokens and are matched against the text.
+        if " " in value:
+            return value in normalized
+        if len(value) <= 3:
+            return value in text_tokens
+        return value in normalized
 
-    # Try to match by account name (exact substring match)
     accounts = db.query(Account).filter(Account.user_id == user_id).all()
-    for account in accounts:
-        if account.name and account.name.lower() in lower:
-            return account
+    account_hint = _has_account_hint(text)
+    input_banks = _banks_in(text) | _banks_in(bank)
 
+    def unique_account(matches: list) -> "Account | None":
+        # A single account of the type is not enough if its name says another
+        # bank: "débito Santander" must not resolve to "Caja de Ahorro Galicia".
+        compatible = [
+            account
+            for account in matches
+            if not (
+                input_banks
+                and (account_banks := _banks_in(account.name))
+                and input_banks.isdisjoint(account_banks)
+            )
+        ]
+        if len(compatible) == 1:
+            return compatible[0]
+        if len(compatible) > 1 and input_banks:
+            by_bank = [account for account in compatible if _banks_in(account.name) & input_banks]
+            if len(by_bank) == 1:
+                return by_bank[0]
+        return None
+
+    # 1. Full name. Single-token names ("USD", "Galicia") are resolved by the
+    # token/bank step below: a bare "5 usd" must never select the USD account.
+    name_matches = [
+        account
+        for account in accounts
+        if (name := _normalize_payment_name(account.name))
+        and name in normalized
+        and len(name.split()) > 1
+    ]
+    exact = unique_account(name_matches)
+    if exact:
+        return exact
+    if len(name_matches) > 1:
+        return None
+
+    # 2. "cuenta de Galicia" against "Caja de Ahorro Galicia": the account's
+    # meaningful token (Galicia) is in the text, and the text says "cuenta".
+    if account_hint:
+        token_matches = [
+            account
+            for account in accounts
+            if (tokens := _payment_tokens(account.name)) and tokens <= text_tokens
+        ]
+        by_tokens = unique_account(token_matches)
+        if by_tokens:
+            return by_tokens
+        if len(token_matches) > 1:
+            return None
+
+    # 3. Account type is the weakest signal: use it only when the text names
+    # one account of that type, or when the bank/tokens disambiguate it.
+    for account_type, keywords in ACCOUNT_TYPE_KEYWORDS.items():
+        if not any(keyword_in_text(keyword) for keyword in keywords):
+            continue
+        of_type = [account for account in accounts if account.type == account_type]
+        only = unique_account(of_type)
+        if only:
+            return only
+        if len(of_type) > 1:
+            token_filtered = [
+                account
+                for account in of_type
+                if (tokens := _payment_tokens(account.name)) and tokens <= text_tokens
+            ]
+            return token_filtered[0] if len(token_filtered) == 1 else None
     return None
 
 
@@ -309,18 +637,18 @@ def _match_card_from_notification(
     if not cards:
         return None
 
-    target_type = card_type or "credito"
+    target_type = _normalize_card_type(card_type) or "credito"
 
     # Pass 1: match by card_name + bank (ignore card_type)
     # card_name is the most reliable identifier — the LLM often gets card_type wrong
     if card_name:
+        name_lower = _normalize_payment_name(card_name)
         matches = []
         for card in cards:
-            if bank and card.bank and card.bank.lower() != bank.lower():
+            if not _bank_matches(card.bank, bank):
                 continue
-            card_lower = _strip_accents(card.card_name)
-            name_lower = _strip_accents(card_name)
-            if name_lower in card_lower or card_lower in name_lower:
+            card_lower = _normalize_payment_name(card.card_name)
+            if name_lower and (name_lower in card_lower or card_lower in name_lower):
                 matches.append(card)
 
         if len(matches) == 1:
@@ -332,32 +660,45 @@ def _match_card_from_notification(
             return matches[0]
         elif len(matches) > 1:
             # Disambiguate by card_type when multiple cards match
-            for card in matches:
-                if card.card_type == target_type:
-                    if log_content:
-                        logger.debug(
-                            "[CARD_MATCH] Pass 1 (card_name+bank+type): matched %s",
-                            card.card_name,
-                        )
-                    return card
+            typed = [
+                card for card in matches if _normalize_card_type(card.card_type) == target_type
+            ]
+            if len(typed) == 1:
+                if log_content:
+                    logger.debug(
+                        "[CARD_MATCH] Pass 1 (card_name+bank+type): matched %s",
+                        typed[0].card_name,
+                    )
+                return typed[0]
             if log_content:
                 logger.debug(
-                    "[CARD_MATCH] Pass 1 (card_name+bank): multiple matches, returning first: %s",
-                    matches[0].card_name,
+                    "[CARD_MATCH] Pass 1 (card_name+bank): ambiguous, leaving it unassigned"
                 )
-            return matches[0]
+            return None
 
-    # Pass 2: match by bank + card_type (ignore card_name)
-    for card in cards:
-        if card.card_type != target_type:
-            continue
-        if bank and card.bank and card.bank.lower() == bank.lower():
+    # Pass 2: match by bank + card_type (ignore card_name). The bank must be
+    # explicit: with bank=None every card would satisfy _bank_matches and we
+    # would assign the first one arbitrarily.
+    if bank:
+        bank_matches = [
+            card
+            for card in cards
+            if _normalize_card_type(card.card_type) == target_type
+            and _bank_matches(card.bank, bank)
+        ]
+        if len(bank_matches) == 1:
             if log_content:
-                logger.debug("[CARD_MATCH] Pass 2 (bank+type): matched %s", card.card_name)
-            return card
+                logger.debug(
+                    "[CARD_MATCH] Pass 2 (bank+type): matched %s", bank_matches[0].card_name
+                )
+            return bank_matches[0]
+        if len(bank_matches) > 1:
+            if log_content:
+                logger.debug("[CARD_MATCH] Pass 2 (bank+type): ambiguous, leaving it unassigned")
+            return None
 
     # Pass 3: match by card_type only — if only one card of that type, auto-select
-    type_cards = [c for c in cards if c.card_type == target_type]
+    type_cards = [c for c in cards if _normalize_card_type(c.card_type) == target_type]
     if len(type_cards) == 1:
         if log_content:
             logger.debug("[CARD_MATCH] Pass 3 (type only): matched %s", type_cards[0].card_name)

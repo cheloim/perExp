@@ -11,15 +11,18 @@ from telegram.ext import ContextTypes, ConversationHandler
 from app.models import Card, Category, Tag
 from app.telegram.auth import _HELP_TEXT
 from app.telegram.edit_handlers import cmd_deshacer, cmd_editar
-from app.telegram.formatting import _format_amount
+from app.telegram.formatting import _cat_levels_from_categories, _saved_batch_text
 from app.telegram.parsing import (
+    _bank_matches,
     _extract_card_from_text,
     _is_bank_notification,
     _match_account_from_text,
     _match_card_from_text,
     _match_cuenta_tag_from_text,
+    _normalize_card_type,
 )
 from app.telegram.persistence import _installment_args
+from app.telegram.report_handlers import _chunk_message
 from app.telegram.runtime import bot_module, logger
 
 _UNRECOGNIZED_MESSAGES = [
@@ -123,16 +126,25 @@ async def _process_text_expense(
         account_id = None
         matched_tag_ids = []
         payment_tag_name = None
+        payment_label = ""
 
         matched_card = _match_card_from_text(cards, text_card_name, text_bank, text_card_type)
         if not matched_card and text_bank and not text_card_name:
-            for card in cards:
-                if card.bank and card.bank.lower() == text_bank.lower():
-                    matched_card = card
-                    break
+            target_type = _normalize_card_type(text_card_type)
+            bank_cards = [
+                card
+                for card in cards
+                if _bank_matches(card.bank, text_bank)
+                and (target_type is None or _normalize_card_type(card.card_type) == target_type)
+            ]
+            if len(bank_cards) == 1:
+                matched_card = bank_cards[0]
 
         if matched_card:
             card_id = matched_card.id
+            payment_label = " ".join(
+                str(part) for part in (matched_card.bank, matched_card.card_name) if part
+            ).strip()
             if source == "text":
                 logger.info(
                     "[CARD_DETECT] matched card: id=%d name=%r", card_id, matched_card.card_name
@@ -140,11 +152,19 @@ async def _process_text_expense(
         else:
             # Fallback: match against 'cuenta' tags via HMAC (platform stores
             # payment methods as tags, not in the cards/accounts tables)
-            matched_tag = _match_cuenta_tag_from_text(text_card_name, text_bank, user_id, db)
+            matched_tag = _match_cuenta_tag_from_text(
+                text_card_name,
+                text_bank,
+                user_id,
+                db,
+                text=text,
+                card_type=text_card_type,
+            )
             if matched_tag:
                 card_id = matched_tag.card_id
                 account_id = matched_tag.account_id
                 matched_tag_ids = [matched_tag.id]
+                payment_label = str(matched_tag.name or "")
                 if source == "text":
                     logger.info(
                         "[CARD_DETECT] matched cuenta tag: id=%d card_id=%s account_id=%s",
@@ -156,6 +176,7 @@ async def _process_text_expense(
                 matched_account = _match_account_from_text(text, user_id, db)
                 if matched_account:
                     account_id = matched_account.id
+                    payment_label = str(matched_account.name or "")
                     if source == "text":
                         logger.info(
                             "[CARD_DETECT] matched account: id=%d name=%r",
@@ -166,6 +187,7 @@ async def _process_text_expense(
                     # Last fallback: create tag from extracted text
                     if text_card_name or text_bank:
                         payment_tag_name = f"{text_bank or ''} {text_card_name or ''}".strip()
+                        payment_label = payment_tag_name
                     if source == "text":
                         logger.info(
                             "[CARD_DETECT] no card/account matched, payment_tag_name=%r",
@@ -173,8 +195,10 @@ async def _process_text_expense(
                         )
 
         saved_expenses = []
+        saved_items = []
         for parsed_item in parsed_list:
             predicted_category_id, cats = bot_module()._instant_categorize(parsed_item, user_id, db)
+            cat_levels = _cat_levels_from_categories(predicted_category_id, cats)
 
             expense = bot_module()._save_expense(
                 parsed_item,
@@ -190,6 +214,7 @@ async def _process_text_expense(
                 **_installment_args(parsed_item),
             )
             saved_expenses.append(expense)
+            saved_items.append((expense, cat_levels))
 
         if not saved_expenses:
             await update.message.reply_text(
@@ -236,14 +261,9 @@ async def _process_text_expense(
                 reply_markup=keyboard,
             )
         else:
-            lines = [f"✅ {len(saved_expenses)} gastos guardados:"]
-            expense_ids = []
-            for i, exp in enumerate(saved_expenses, 1):
-                amount_str = _format_amount(exp.amount, exp.currency)
-                lines.append(f"  {i}. {amount_str} — {exp.description}")
-                expense_ids.append(str(exp.id))
-            context.user_data["last_batch_ids"] = ",".join(expense_ids)
-
+            context.user_data["last_batch_ids"] = ",".join(
+                str(expense.id) for expense in saved_expenses
+            )
             keyboard = InlineKeyboardMarkup(
                 [
                     [
@@ -254,7 +274,13 @@ async def _process_text_expense(
                     ]
                 ]
             )
-            await update.message.reply_text("\n".join(lines), reply_markup=keyboard)
+            text = _saved_batch_text(saved_items, payment_label=payment_label)
+            for index, chunk in enumerate(_chunk_message(text)):
+                await update.message.reply_text(
+                    chunk,
+                    parse_mode="HTML",
+                    reply_markup=keyboard if index == 0 else None,
+                )
 
         return ConversationHandler.END
     except Exception as e:

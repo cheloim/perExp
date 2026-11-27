@@ -11,13 +11,19 @@ from app.models import Category, Tag
 from app.services.capture import MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS, sanitize_card_hint
 from app.telegram.auth import _validate_session
 from app.telegram.constants import BUE
-from app.telegram.formatting import _format_amount
+from app.telegram.formatting import (
+    _cat_levels_from_categories,
+    _format_amount,
+    _saved_batch_text,
+)
 from app.telegram.parsing import (
     _match_account_from_text,
     _match_card_from_notification,
     _match_cuenta_tag_from_text,
+    _normalize_card_type,
 )
 from app.telegram.persistence import _installment_args
+from app.telegram.report_handlers import _chunk_message
 from app.telegram.runtime import bot_module, logger
 
 
@@ -138,12 +144,14 @@ async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYP
 
     db = bot_module().SessionLocal()
     saved = []
+    saved_items = []
     failed = 0
     try:
         for draft in drafts:
             parsed = _parsed_from_draft(draft)
             try:
-                predicted_category_id, _ = bot_module()._instant_categorize(parsed, user_id, db)
+                predicted_category_id, cats = bot_module()._instant_categorize(parsed, user_id, db)
+                cat_levels = _cat_levels_from_categories(predicted_category_id, cats)
                 expense = bot_module()._save_expense(
                     parsed,
                     payment="",
@@ -158,6 +166,7 @@ async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYP
                     log_content=False,
                 )
                 saved.append(expense)
+                saved_items.append((expense, cat_levels))
             except Exception as exc:
                 failed += 1
                 logger.error(
@@ -190,19 +199,7 @@ async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYP
         await msg.reply_text(bot_module()._quick_saved_text(expense), reply_markup=keyboard)
         return ConversationHandler.END
 
-    header = f"✅ {len(saved)} gastos guardados:"
-    if failed:
-        header = f"✅ {len(saved)} gastos guardados ({failed} no se pudieron guardar):"
-    lines = [header]
-    expense_ids = []
-    for i, expense in enumerate(saved, 1):
-        amount_str = _format_amount(expense.amount, expense.currency)
-        detail = ""
-        if expense.installment_total and expense.installment_number:
-            detail = f" (cuota {expense.installment_number}/{expense.installment_total})"
-        lines.append(f"  {i}. {amount_str} — {expense.description}{detail}")
-        expense_ids.append(str(expense.id))
-    context.user_data["last_batch_ids"] = ",".join(expense_ids)
+    context.user_data["last_batch_ids"] = ",".join(str(expense.id) for expense in saved)
     keyboard = InlineKeyboardMarkup(
         [
             [
@@ -213,7 +210,13 @@ async def handle_expense_image(update: Update, context: ContextTypes.DEFAULT_TYP
             ]
         ]
     )
-    await msg.reply_text("\n".join(lines), reply_markup=keyboard)
+    text = _saved_batch_text(saved_items, failed=failed)
+    for index, chunk in enumerate(_chunk_message(text)):
+        await msg.reply_text(
+            chunk,
+            parse_mode="HTML",
+            reply_markup=keyboard if index == 0 else None,
+        )
     return ConversationHandler.END
 
 
@@ -357,15 +360,20 @@ async def _handle_bank_notification(
 
         if card:
             card_id = card.id
-        elif parsed.get("card_type") == "debito" and parsed.get("bank"):
-            account = _match_account_from_text(parsed["bank"], user_id, db)
+        elif _normalize_card_type(parsed.get("card_type")) == "debito" and parsed.get("bank"):
+            account = _match_account_from_text(text, user_id, db, bank=parsed.get("bank"))
             if account:
                 account_id = account.id
 
         # Fallback: match against 'cuenta' tags via HMAC
         if not card_id and not account_id:
             matched_tag = _match_cuenta_tag_from_text(
-                parsed.get("card_name"), parsed.get("bank"), user_id, db
+                parsed.get("card_name"),
+                parsed.get("bank"),
+                user_id,
+                db,
+                text=text,
+                card_type=parsed.get("card_type"),
             )
             if matched_tag:
                 card_id = matched_tag.card_id
