@@ -216,6 +216,31 @@ def test_two_accounts_of_the_same_type_without_a_bank_are_not_assigned(db, test_
     assert result is None
 
 
+def test_account_of_another_bank_is_not_assigned(db, test_user):
+    _account(db, test_user, "Caja de Ahorro Galicia")
+
+    result = _match_account_from_text(
+        "Compraste $5000 con débito Santander. Caja de ahorro terminada en 1234.",
+        test_user.id,
+        db,
+    )
+
+    assert result is None
+
+
+def test_parsed_bank_rejects_an_account_of_another_bank(db, test_user):
+    _account(db, test_user, "Caja de Ahorro Galicia")
+
+    result = _match_account_from_text(
+        "Caja de ahorro terminada en 1234",
+        test_user.id,
+        db,
+        bank="Santander",
+    )
+
+    assert result is None
+
+
 def test_account_type_keyword_c_c_matches_a_cuenta_corriente(db, test_user):
     account = _account(db, test_user, "Cuenta Corriente", account_type="cuenta_corriente")
 

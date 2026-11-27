@@ -478,7 +478,13 @@ def _match_cuenta_tag_from_text(
     return best
 
 
-def _match_account_from_text(text: str, user_id: int, db) -> "Account | None":
+def _match_account_from_text(
+    text: str,
+    user_id: int,
+    db,
+    *,
+    bank: str | None = None,
+) -> "Account | None":
     """Match an account by normalized name, bank and account-type words."""
     normalized = _normalize_payment_name(text)
     if not normalized:
@@ -500,13 +506,24 @@ def _match_account_from_text(text: str, user_id: int, db) -> "Account | None":
 
     accounts = db.query(Account).filter(Account.user_id == user_id).all()
     account_hint = _has_account_hint(text)
-    input_banks = _banks_in(text)
+    input_banks = _banks_in(text) | _banks_in(bank)
 
     def unique_account(matches: list) -> "Account | None":
-        if len(matches) == 1:
-            return matches[0]
-        if len(matches) > 1 and input_banks:
-            by_bank = [account for account in matches if _banks_in(account.name) & input_banks]
+        # A single account of the type is not enough if its name says another
+        # bank: "débito Santander" must not resolve to "Caja de Ahorro Galicia".
+        compatible = [
+            account
+            for account in matches
+            if not (
+                input_banks
+                and (account_banks := _banks_in(account.name))
+                and input_banks.isdisjoint(account_banks)
+            )
+        ]
+        if len(compatible) == 1:
+            return compatible[0]
+        if len(compatible) > 1 and input_banks:
+            by_bank = [account for account in compatible if _banks_in(account.name) & input_banks]
             if len(by_bank) == 1:
                 return by_bank[0]
         return None

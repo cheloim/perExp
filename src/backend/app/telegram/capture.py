@@ -361,7 +361,7 @@ async def _handle_bank_notification(
         if card:
             card_id = card.id
         elif _normalize_card_type(parsed.get("card_type")) == "debito" and parsed.get("bank"):
-            account = _match_account_from_text(text, user_id, db)
+            account = _match_account_from_text(text, user_id, db, bank=parsed.get("bank"))
             if account:
                 account_id = account.id
 

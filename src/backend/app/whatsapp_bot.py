@@ -537,7 +537,7 @@ async def _handle_bank_notification(
         if not card:
             # For debit, try account matching
             if _normalize_card_type(parsed.get("card_type")) == "debito" and parsed.get("bank"):
-                account = _match_account_from_text(text, user_id, db)
+                account = _match_account_from_text(text, user_id, db, bank=parsed.get("bank"))
                 if account:
                     await _confirm_with_account(
                         phone, phone_hash, account, parsed, session, user_id
